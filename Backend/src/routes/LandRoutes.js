@@ -12,14 +12,27 @@ import {
     verifyToken,
     isAdmin,
 } from "../middlewares/authMiddleware.js";
+import upload from "../middlewares/cloudinaryUpload.js";
+
 
 const router = express.Router();
 
 // Create Land
+// router.post(
+//     "/",
+//     verifyToken,
+//     isAdmin,
+//     createLand
+// );
+
 router.post(
     "/",
     verifyToken,
     isAdmin,
+    upload.fields([
+        { name: "image", maxCount: 10 },
+        { name: "video", maxCount: 5 },
+    ]),
     createLand
 );
 
