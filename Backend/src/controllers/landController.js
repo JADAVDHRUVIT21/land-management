@@ -1,137 +1,84 @@
-// import Land from "../models/LandModel.js";
-
-
-// // Create Land
-// export const createLand = async (req, res) => {
-//     try {
-//         const {
-//             surveyNumber,
-//             owner,
-//             area,
-//             village,
-//             district,
-//             state,
-//             landType,
-//             location,
-//             price,
-//             description,
-//             image,
-//             video
-//         } = req.body;
-
-
-//         const existingLand = await Land.findOne({ surveyNumber });
-
-//         if (existingLand) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "Survey Number already exists.",
-//             });
-//         }
-
-//         const land = await Land.create({
-//             surveyNumber,
-//             owner,
-//             area,
-//             village,
-//             district,
-//             state,
-//             landType,
-//             location,
-//             price,
-//             description,
-//             image,
-//             video
-//         });
-
-//         return res.status(201).json({
-//             success: true,
-//             message: "Land added successfully.",
-//             land,
-//         });
-//     } catch (error) {
-//         return res.status(500).json({
-//             success: false,
-//             message: error.message,
-//         });
-//     }
-// };
-
 import Land from "../models/LandModel.js";
-// Create Land
-// export const createLand = async (req, res) => {
-//     try {
-//         const {
-//             surveyNumber,
-//             owner,
-//             area,
-//             village,
-//             district,
-//             state,
-//             landType,
-//             location,
-//             price,
-//             description,
-//         } = req.body;
+import cloudinary from "../config/cloudinary.js";
 
-//         // Check if survey number already exists
-//         const existingLand = await Land.findOne({ surveyNumber });
+// Upload File to Cloudinary
+const uploadToCloudinary = (
+    fileBuffer,
+    folder = "uploads"
+) => {
+    return new Promise((resolve, reject) => {
+        const uploadStream =
+            cloudinary.uploader.upload_stream(
+                {
+                    folder,
+                    resource_type: "auto",
+                },
+                (error, result) => {
+                    if (error) {
+                        console.error(
+                            "CLOUDINARY ERROR:",
+                            error
+                        );
+                        return reject(error);
+                    }
 
-//         if (existingLand) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "Survey Number already exists.",
-//             });
-//         }
+                    console.log(
+                        "CLOUDINARY SUCCESS:",
+                        result.secure_url
+                    );
 
-//         // Images
-//         const images = req.files?.image
-//             ? req.files.image.map(file => ({
-//                 url: file.path,
-//                 public_id: file.filename,
-//             }))
-//             : [];
+                    resolve(result);
+                }
+            );
 
-//         // Videos
-//         const videos = req.files?.video
-//             ? req.files.video.map(file => ({
-//                 url: file.path,
-//                 public_id: file.filename,
-//             }))
-//             : [];
+        uploadStream.end(fileBuffer);
+    });
+};
 
-//         const land = await Land.create({
-//             surveyNumber,
-//             owner,
-//             area,
-//             village,
-//             district,
-//             state,
-//             landType,
-//             location,
-//             price,
-//             description,
-//             image: images,
-//             video: videos,
-//         });
+// Upload Video to Cloudinary
+const uploadVideoToCloudinary = (
+    fileBuffer,
+    folder = "videos"
+) => {
+    return new Promise((resolve, reject) => {
+        const uploadStream =
+            cloudinary.uploader.upload_stream(
+                {
+                    folder,
+                    resource_type: "video",
+                    chunk_size: 6000000,
+                },
+                (error, result) => {
+                    if (error) {
+                        console.error(
+                            "CLOUDINARY VIDEO ERROR:",
+                            error
+                        );
+                        return reject(error);
+                    }
 
-//         return res.status(201).json({
-//             success: true,
-//             message: "Land added successfully.",
-//             land,
-//         });
+                    console.log(
+                        "VIDEO UPLOAD SUCCESS:",
+                        result.secure_url
+                    );
 
-//     } catch (error) {
-//         return res.status(500).json({
-//             success: false,
-//             message: error.message,
-//         });
-//     }
-// };
+                    resolve(result);
+                }
+            );
+
+        uploadStream.end(fileBuffer);
+    });
+};
+
+// CREATE LAND
 export const createLand = async (req, res) => {
-    console.log("create land start ", req.body)
+    console.log("=================================");
+    console.log("CREATE LAND START");
+    console.log("Request Body:", req.body);
+    console.log("Files:", req.files);
+    console.log("=================================");
+
     try {
-        console.log("create land ")
         const {
             surveyNumber,
             owner,
@@ -145,7 +92,7 @@ export const createLand = async (req, res) => {
             description,
         } = req.body;
 
-        // Required fields check
+        // Required fields
         if (
             !surveyNumber ||
             !owner ||
@@ -155,26 +102,39 @@ export const createLand = async (req, res) => {
             !state ||
             !landType ||
             !location ||
-            !price
+            price === undefined ||
+            price === null ||
+            price === ""
         ) {
             return res.status(400).json({
                 success: false,
-                message: "Please fill all required fields.",
+                message:
+                    "Please fill all required fields.",
             });
         }
 
-        // Check survey number
-        const existingLand = await Land.findOne({ surveyNumber });
+        // Check duplicate survey number
+        const existingLand = await Land.findOne({
+            surveyNumber,
+        });
 
         if (existingLand) {
             return res.status(400).json({
                 success: false,
-                message: "Survey Number already exists.",
+                message:
+                    "Survey Number already exists.",
             });
         }
 
         // Parse location
         let myLocation;
+
+        console.log(
+            "Location:",
+            location,
+            "Type:",
+            typeof location
+        );
 
         try {
             myLocation =
@@ -189,9 +149,26 @@ export const createLand = async (req, res) => {
             });
         }
 
-        // Convert latitude & longitude to Number
-        myLocation.latitude = Number(myLocation.latitude);
-        myLocation.longitude = Number(myLocation.longitude);
+        if (
+            !myLocation ||
+            myLocation.latitude === undefined ||
+            myLocation.longitude === undefined
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Latitude and longitude are required.",
+            });
+        }
+
+        // Convert coordinates to numbers
+        myLocation.latitude = Number(
+            myLocation.latitude
+        );
+
+        myLocation.longitude = Number(
+            myLocation.longitude
+        );
 
         // Validate coordinates
         if (
@@ -200,30 +177,73 @@ export const createLand = async (req, res) => {
         ) {
             return res.status(400).json({
                 success: false,
-                message: "Latitude and longitude must be valid numbers.",
+                message:
+                    "Latitude and longitude must be valid numbers.",
             });
         }
-        console.log("1. uploading image ")
-        // Images
-        const images = req.files?.image
-            ? req.files.image.map((file) => ({
-                url: file.path,
-                public_id: file.filename,
-            }))
-            : [];
 
-        // Videos
-        console.log("2. uploading videos ")
-        const videos = req.files?.video
-            ? req.files.video.map((file) => ({
-                url: file.path,
-                public_id: file.filename,
-            }))
-            : [];
+        // Upload Images
+        console.log("1. Uploading images...");
 
-        // Create land
-        console.log("3. creating land  ")
-        const land = await Land.create({
+        let images = [];
+
+        if (
+            req.files &&
+            req.files.image &&
+            req.files.image.length > 0
+        ) {
+            images = await Promise.all(
+                req.files.image.map(async (file) => {
+                    console.log(
+                        "Uploading image:",
+                        file.originalname
+                    );
+
+                    const result =
+                        await uploadToCloudinary(
+                            file.buffer,
+                            "lands/images"
+                        );
+
+                    return {
+                        url: result.secure_url,
+                    };
+                })
+            );
+        }
+
+        // Upload Videos
+        console.log("2. Uploading videos...");
+
+        let videos = [];
+
+        if (
+            req.files &&
+            req.files.video &&
+            req.files.video.length > 0
+        ) {
+            videos = await Promise.all(
+                req.files.video.map(async (file) => {
+                    console.log(
+                        "Uploading video:",
+                        file.originalname
+                    );
+
+                    const result =
+                        await uploadVideoToCloudinary(
+                            file.buffer,
+                            "lands/videos"
+                        );
+
+                    return {
+                        url: result.secure_url,
+                    };
+                })
+            );
+        }
+
+        // Create Land Object
+        const landData = {
             surveyNumber,
             owner,
             area,
@@ -236,17 +256,35 @@ export const createLand = async (req, res) => {
             description,
             image: images,
             video: videos,
-        });
+        };
 
-        console.log("4. land saved  ")
+        console.log(
+            "3. Creating land:",
+            landData
+        );
 
+        // Save Land
+        const land = await Land.create(
+            landData
+        );
+
+        console.log(
+            "4. Land saved successfully"
+        );
+
+        // Response
         return res.status(201).json({
             success: true,
-            message: "Land added successfully.",
+            message:
+                "Land added successfully.",
             land,
         });
+
     } catch (error) {
-        console.error("Create Land Error:", error.message);
+        console.error(
+            "Create Land Error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
@@ -254,19 +292,123 @@ export const createLand = async (req, res) => {
         });
     }
 };
-// Get All Lands
+
+// GET ALL LANDS
+// Search + Filters
 export const getAllLands = async (req, res) => {
     try {
-        const lands = await Land.find()
-            .populate("owner", "fullName email phone role")
-            .sort({ createdAt: -1 });
+        const {
+            search,
+            village,
+            district,
+            state,
+            landType,
+            status,
+            minPrice,
+            maxPrice,
+        } = req.query;
+
+        const filter = {};
+
+        // Search by Survey Number
+        if (search) {
+            filter.surveyNumber = {
+                $regex: search,
+                $options: "i",
+            };
+        }
+
+        // Village Filter
+        if (village) {
+            filter.village = {
+                $regex: village,
+                $options: "i",
+            };
+        }
+
+        // District Filter
+        if (district) {
+            filter.district = {
+                $regex: district,
+                $options: "i",
+            };
+        }
+
+        // State Filter
+        if (state) {
+            filter.state = {
+                $regex: state,
+                $options: "i",
+            };
+        }
+
+        // Land Type Filter
+        if (landType) {
+            filter.landType = landType;
+        }
+
+        // Status Filter
+        if (status) {
+            filter.status = status;
+        }
+
+        // Price Filter
+    
+        if (minPrice || maxPrice) {
+            filter.price = {};
+
+            if (minPrice) {
+                const minimum = Number(minPrice);
+
+                if (Number.isNaN(minimum)) {
+                    return res.status(400).json({
+                        success: false,
+                        message:
+                            "minPrice must be a valid number.",
+                    });
+                }
+
+                filter.price.$gte = minimum;
+            }
+
+            if (maxPrice) {
+                const maximum = Number(maxPrice);
+
+                if (Number.isNaN(maximum)) {
+                    return res.status(400).json({
+                        success: false,
+                        message:
+                            "maxPrice must be a valid number.",
+                    });
+                }
+
+                filter.price.$lte = maximum;
+            }
+        }
+
+        // Get Lands
+
+        const lands = await Land.find(filter)
+            .populate(
+                "owner",
+                "fullName email phone role"
+            )
+            .sort({
+                createdAt: -1,
+            });
 
         return res.status(200).json({
             success: true,
             count: lands.length,
             lands,
         });
+
     } catch (error) {
+        console.error(
+            "Get All Lands Error:",
+            error
+        );
+
         return res.status(500).json({
             success: false,
             message: error.message,
@@ -274,12 +416,15 @@ export const getAllLands = async (req, res) => {
     }
 };
 
-
-// Get Land By ID
+// GET LAND BY ID
 export const getLandById = async (req, res) => {
     try {
-        const land = await Land.findById(req.params.id)
-            .populate("owner", "fullName email phone role");
+        const land = await Land.findById(
+            req.params.id
+        ).populate(
+            "owner",
+            "fullName email phone role"
+        );
 
         if (!land) {
             return res.status(404).json({
@@ -292,7 +437,13 @@ export const getLandById = async (req, res) => {
             success: true,
             land,
         });
+
     } catch (error) {
+        console.error(
+            "Get Land By ID Error:",
+            error
+        );
+
         return res.status(500).json({
             success: false,
             message: error.message,
@@ -300,11 +451,12 @@ export const getLandById = async (req, res) => {
     }
 };
 
-
-// Update Land
+// UPDATE LAND
 export const updateLand = async (req, res) => {
     try {
-        const land = await Land.findById(req.params.id);
+        const land = await Land.findById(
+            req.params.id
+        );
 
         if (!land) {
             return res.status(404).json({
@@ -313,48 +465,117 @@ export const updateLand = async (req, res) => {
             });
         }
 
-        const updatedLand = await Land.findByIdAndUpdate(
-            req.params.id,
-            req.body,
-            {
-                new: true,
-                runValidators: true,
+
+        // If location is sent as JSON string
+        const updateData = {
+            ...req.body,
+        };
+
+        if (updateData.location) {
+            try {
+                if (
+                    typeof updateData.location ===
+                    "string"
+                ) {
+                    updateData.location =
+                        JSON.parse(
+                            updateData.location
+                        );
+                }
+
+                if (
+                    updateData.location.latitude !==
+                    undefined
+                ) {
+                    updateData.location.latitude =
+                        Number(
+                            updateData.location
+                                .latitude
+                        );
+                }
+
+                if (
+                    updateData.location.longitude !==
+                    undefined
+                ) {
+                    updateData.location.longitude =
+                        Number(
+                            updateData.location
+                                .longitude
+                        );
+                }
+            } catch (error) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Invalid location format.",
+                });
             }
+        }
+
+        const updatedLand =
+            await Land.findByIdAndUpdate(
+                req.params.id,
+                updateData,
+                {
+                    new: true,
+                    runValidators: true,
+                }
+            ).populate(
+                "owner",
+                "fullName email phone role"
+            );
+
+        return res.status(200).json({
+            success: true,
+            message:
+                "Land updated successfully.",
+            land: updatedLand,
+        });
+
+    } catch (error) {
+        console.error(
+            "Update Land Error:",
+            error
+        );
+
+        return res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+// DELETE LAND
+export const deleteLand = async (req, res) => {
+    try {
+        const land = await Land.findById(
+            req.params.id
+        );
+
+        if (!land) {
+            return res.status(404).json({
+                success: false,
+                message: "Land not found.",
+            });
+        }
+
+        await Land.findByIdAndDelete(
+            req.params.id
         );
 
         return res.status(200).json({
             success: true,
-            message: "Land updated successfully.",
-            land: updatedLand,
+            message:
+                "Land deleted successfully.",
         });
+
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        console.error(
+            "Delete Land Error:",
+            error
+        );
 
-
-// Delete Land
-export const deleteLand = async (req, res) => {
-    try {
-        const land = await Land.findById(req.params.id);
-
-        if (!land) {
-            return res.status(404).json({
-                success: false,
-                message: "Land not found.",
-            });
-        }
-
-        await Land.findByIdAndDelete(req.params.id);
-
-        return res.status(200).json({
-            success: true,
-            message: "Land deleted successfully.",
-        });
-    } catch (error) {
         return res.status(500).json({
             success: false,
             message: error.message,

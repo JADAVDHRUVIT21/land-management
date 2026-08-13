@@ -36,6 +36,33 @@ router.post(
     createLand
 );
 
+router.post(
+    "/upload",
+    verifyToken,
+    isAdmin,
+    upload.fields([
+        { name: "image", maxCount: 10 },
+        { name: "video", maxCount: 5 }
+    ]),
+    (req, res) => {
+
+        console.log("========== START ==========");
+
+        console.log("req.files:");
+        console.dir(req.files, { depth: null });
+
+        console.log("req.body:");
+        console.dir(req.body, { depth: null });
+
+        console.log("========== END ==========");
+
+        res.status(200).json({
+            success: true,
+            files: req.files
+        });
+    }
+);
+
 // Get All Lands
 router.get(
     "/",
