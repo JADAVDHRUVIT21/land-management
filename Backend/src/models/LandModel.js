@@ -117,6 +117,12 @@ const LandSchema = new mongoose.Schema(
                 public_id: {
                     type: String,
                 },
+                fileName: {
+                    type: String,
+                },
+                documentType: {
+                    type: String,
+                },
             },
         ],
     },

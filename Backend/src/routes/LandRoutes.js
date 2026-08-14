@@ -6,8 +6,8 @@ import {
     getLandById,
     updateLand,
     deleteLand,
+    updateLandStatus,
 } from "../controllers/landController.js";
-
 import {
     verifyToken,
     isAdmin,
@@ -92,6 +92,12 @@ router.delete(
     verifyToken,
     isAdmin,
     deleteLand
+);
+router.patch(
+    "/:id/status",
+    verifyToken,
+    isAdmin,
+    updateLandStatus
 );
 
 export default router;
