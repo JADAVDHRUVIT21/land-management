@@ -10,18 +10,23 @@ import {
 
 import {
     verifyToken,
-    isAdmin,
-} from "../middlewares/AuthMiddleware.js";
+    isAdminOrOfficer,
+} from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
+
+// CREATE OWNERSHIP TRANSFER REQUEST
 
 
 // CREATE TRANSFER REQUEST
 router.post(
     "/",
     verifyToken,
+    isUser,
     createTransferRequest
 );
+
+// GET ALL OWNERSHIP TRANSFER REQUESTS
 
 
 // GET ALL TRANSFER REQUESTS - ADMIN ONLY
@@ -32,6 +37,8 @@ router.get(
     getAllTransferRequests
 );
 
+// GET OWNERSHIP TRANSFER BY ID
+
 
 // GET SINGLE TRANSFER REQUEST
 router.get(
@@ -40,14 +47,14 @@ router.get(
     getTransferById
 );
 
-
-// APPROVE TRANSFER - ADMIN ONLY
 router.put(
     "/:id/approve",
     verifyToken,
     isAdmin,
     approveTransfer
 );
+
+// REJECT OWNERSHIP TRANSFER
 
 
 // REJECT TRANSFER - ADMIN ONLY

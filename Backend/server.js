@@ -22,19 +22,17 @@ const app = express();
 app.use(cors());
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 
 // Routes
 
 app.use("/api/users", userRoutes);
-
 app.use("/api/lands", landRoutes);
-
 app.use(
     "/api/ownership-transfers",
     ownershipRoutes
 );
-
 app.use(
     "/api/documents",
     documentRoutes
@@ -43,10 +41,21 @@ app.use(
 
 // Home Route
 
+// HOME ROUTE
 app.get("/", (req, res) => {
-    res.send("Land Management API Running...");
+    res.json({
+        success: true,
+        message: "Land Management API Running...",
+    });
 });
 
+// 404 ROUTE
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        message: `Route not found: ${req.method} ${req.originalUrl}`,
+    });
+});
 
 // Error Handler
 // This should be AFTER all routes

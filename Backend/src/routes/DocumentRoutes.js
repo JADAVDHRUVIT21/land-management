@@ -14,12 +14,13 @@ import {
 import {
     verifyToken,
     isAdmin,
-    isAdminOrOfficer,
-} from "../middlewares/AuthMiddleware.js";
+    isAdminOrUser,
+} from "../middlewares/authMiddleware.js";
 
 import upload from "../middlewares/CloudinaryUpload.js";
 
 const router = express.Router();
+
 
 // CREATE DOCUMENT
 router.post(
@@ -29,13 +30,15 @@ router.post(
     createDocument
 );
 
+
 // GET ALL DOCUMENTS
 router.get(
     "/",
     verifyToken,
-    isAdminOrOfficer,
+    isAdmin,
     getAllDocuments
 );
+
 
 // GET DOCUMENTS BY LAND
 router.get(
@@ -44,6 +47,7 @@ router.get(
     getDocumentsByLand
 );
 
+
 // GET SINGLE DOCUMENT
 router.get(
     "/:id",
@@ -51,13 +55,15 @@ router.get(
     getDocumentById
 );
 
+
 // UPDATE DOCUMENT
 router.put(
     "/:id",
     verifyToken,
-    isAdminOrOfficer,
+    isAdmin,
     updateDocument
 );
+
 
 // DELETE DOCUMENT
 router.delete(
@@ -67,21 +73,22 @@ router.delete(
     deleteDocument
 );
 
+
 // APPROVE DOCUMENT
 router.put(
     "/:id/approve",
     verifyToken,
-    isAdminOrOfficer,
+    isAdmin,
     approveDocument
 );
+
 
 // REJECT DOCUMENT
 router.put(
     "/:id/reject",
     verifyToken,
-    isAdminOrOfficer,
+    isAdmin,
     rejectDocument
 );
-
 
 export default router;

@@ -1,10 +1,14 @@
-import jwt, { decode } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 
-// Verify JWT Token
+// VERIFY JWT TOKEN
 export const verifyToken = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+
+        if (
+            !authHeader ||
+            !authHeader.startsWith("Bearer ")
+        ) {
             return res.status(401).json({
                 success: false,
                 message: "Access Denied. No Token Provided.",
@@ -13,12 +17,27 @@ export const verifyToken = async (req, res, next) => {
 
         const token = authHeader.split(" ")[1];
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: "Access Denied. No Token Provided.",
+            });
+        }
+        const decoded = jwt.verify(
+            token,
+            process.env.JWT_SECRET
+        );
 
         req.user = decoded;
 
         next();
+
     } catch (error) {
+        console.error(
+            "JWT Verification Error:",
+            error.message
+        );
+
         return res.status(401).json({
             success: false,
             message: "Invalid or Expired Token.",
@@ -26,9 +45,13 @@ export const verifyToken = async (req, res, next) => {
     }
 };
 
-// Admin Only
+// ADMIN ONLY
 export const isAdmin = (req, res, next) => {
-    if (req.user.role !== "admin") {
+
+    if (
+        !req.user ||
+        req.user.role !== "admin"
+    ) {
         return res.status(403).json({
             success: false,
             message: "Access Denied. Admin Only.",
@@ -38,35 +61,31 @@ export const isAdmin = (req, res, next) => {
     next();
 };
 
-// Officer Only
-export const isOfficer = (req, res, next) => {
-    if (req.user.role !== "officer") {
-        return res.status(403).json({
-            success: false,
-            message: "Access Denied. Officer Only.",
-        });
-    }
+// USER ONLY
+export const isUser = (req, res, next) => {
 
-    next();
-};
-
-// Citizen Only
-export const isCitizen = (req, res, next) => {
-    if (req.user.role !== "citizen") {
-        return res.status(403).json({
-            success: false,
-            message: "Access Denied. Citizen Only.",
-        });
-    }
-
-    next();
-};
-
-// Admin OR Officer
-export const isAdminOrOfficer = (req, res, next) => {
     if (
-        req.user.role !== "admin" &&
-        req.user.role !== "officer"
+        !req.user ||
+        req.user.role !== "user"
+    ) {
+        return res.status(403).json({
+            success: false,
+            message: "Access Denied. User Only.",
+        });
+    }
+
+    next();
+};
+
+// ADMIN OR USER
+export const isAdminOrUser = (req, res, next) => {
+
+    if (
+        !req.user ||
+        (
+            req.user.role !== "admin" &&
+            req.user.role !== "user"
+        )
     ) {
         return res.status(403).json({
             success: false,

@@ -85,5 +85,11 @@ router.delete(
     isAdmin,
     deleteLand
 );
+router.patch(
+    "/:id/status",
+    verifyToken,
+    isAdmin,
+    updateLandStatus
+);
 
 export default router;
