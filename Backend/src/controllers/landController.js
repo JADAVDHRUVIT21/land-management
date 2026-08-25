@@ -71,7 +71,7 @@ const uploadVideoToCloudinary = (
 };
 
 // CREATE LAND
-export const createLand = async (req, res) => {
+const createLand = async (req, res) => {
     console.log("=================================");
     console.log("CREATE LAND START");
     console.log("Request Body:", req.body);
@@ -295,7 +295,7 @@ export const createLand = async (req, res) => {
 
 // GET ALL LANDS
 // Search + Filters
-export const getAllLands = async (req, res) => {
+const getAllLands = async (req, res) => {
     try {
         const {
             search,
@@ -353,7 +353,7 @@ export const getAllLands = async (req, res) => {
         }
 
         // Price Filter
-    
+
         if (minPrice || maxPrice) {
             filter.price = {};
 
@@ -417,7 +417,7 @@ export const getAllLands = async (req, res) => {
 };
 
 // GET LAND BY ID
-export const getLandById = async (req, res) => {
+const getLandById = async (req, res) => {
     try {
         const land = await Land.findById(
             req.params.id
@@ -452,7 +452,7 @@ export const getLandById = async (req, res) => {
 };
 
 // UPDATE LAND
-export const updateLand = async (req, res) => {
+const updateLand = async (req, res) => {
     try {
         const land = await Land.findById(
             req.params.id
@@ -547,7 +547,7 @@ export const updateLand = async (req, res) => {
 };
 
 // DELETE LAND
-export const deleteLand = async (req, res) => {
+const deleteLand = async (req, res) => {
     try {
         const land = await Land.findById(
             req.params.id
@@ -582,3 +582,5 @@ export const deleteLand = async (req, res) => {
         });
     }
 };
+
+export {createLand, getAllLands, getLandById, updateLand, deleteLand };

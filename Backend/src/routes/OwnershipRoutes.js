@@ -6,46 +6,57 @@ import {
     getTransferById,
     approveTransfer,
     rejectTransfer,
-} from "../controllers/ownershipController.js";
+} from "../controllers/OwnershipController.js";
 
 import {
     verifyToken,
-    isAdminOrOfficer,
-} from "../middlewares/authMiddleware.js";
+    isAdmin,
+} from "../middlewares/AuthMiddleware.js";
 
 const router = express.Router();
 
+
+// CREATE TRANSFER REQUEST
 router.post(
     "/",
     verifyToken,
     createTransferRequest
 );
 
+
+// GET ALL TRANSFER REQUESTS - ADMIN ONLY
 router.get(
     "/",
     verifyToken,
-    isAdminOrOfficer,
+    isAdmin,
     getAllTransferRequests
 );
 
+
+// GET SINGLE TRANSFER REQUEST
 router.get(
     "/:id",
     verifyToken,
     getTransferById
 );
 
+
+// APPROVE TRANSFER - ADMIN ONLY
 router.put(
     "/:id/approve",
     verifyToken,
-    isAdminOrOfficer,
+    isAdmin,
     approveTransfer
 );
 
+
+// REJECT TRANSFER - ADMIN ONLY
 router.put(
     "/:id/reject",
     verifyToken,
-    isAdminOrOfficer,
+    isAdmin,
     rejectTransfer
 );
+
 
 export default router;

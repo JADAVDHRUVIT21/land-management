@@ -2,22 +2,33 @@ import User from "../models/UserModels.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-
-// Register User
-export const register = async (req, res) => {
+// REGISTER USER
+const register = async (req, res) => {
     try {
-        const { fullName, email, password, phone, role } = req.body;
+        const {
+            fullName,
+            email,
+            password,
+            phone,
+        } = req.body;
 
-
-        if (!fullName || !email || !password || !phone) {
+        // Validate required fields
+        if (
+            !fullName ||
+            !email ||
+            !password ||
+            !phone
+        ) {
             return res.status(400).json({
                 success: false,
                 message: "Please fill all required fields.",
             });
         }
 
-
-        const existingUser = await User.findOne({ email });
+        // Check existing user
+        const existingUser = await User.findOne({
+            email,
+        });
 
         if (existingUser) {
             return res.status(400).json({
@@ -26,53 +37,66 @@ export const register = async (req, res) => {
             });
         }
 
+        // Hash password
+        const hashedPassword = await bcrypt.hash(
+            password,
+            10
+        );
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-
+        // Create user
+        // Public registration always creates a normal user
         const user = await User.create({
             fullName,
             email,
             password: hashedPassword,
             phone,
-            role: role || "user",
+            role: "user",
         });
 
-
+        // Remove password from response
         const userData = user.toObject();
         delete userData.password;
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             message: "User registered successfully.",
             user: userData,
         });
 
     } catch (error) {
-        console.error(error);
+        console.error(
+            "Register Error:",
+            error
+        );
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Server Error",
         });
     }
 };
 
-
-// Login User
-export const login = async (req, res) => {
+// LOGIN USER
+const login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const {
+            email,
+            password,
+        } = req.body;
 
+        // Validate fields
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
-                message: "Email and Password are required.",
+                message:
+                    "Email and Password are required.",
             });
         }
 
-
-        const user = await User.findOne({ email });
+        // Find user
+        const user = await User.findOne({
+            email,
+        });
 
         if (!user) {
             return res.status(404).json({
@@ -80,16 +104,22 @@ export const login = async (req, res) => {
                 message: "User not found.",
             });
         }
-        const isMatch = await bcrypt.compare(password, user.password);
+
+        // Compare password
+        const isMatch = await bcrypt.compare(
+            password,
+            user.password
+        );
 
         if (!isMatch) {
             return res.status(401).json({
                 success: false,
-                message: "Invalid Email or Password.",
+                message:
+                    "Invalid Email or Password.",
             });
         }
 
-
+        // Generate JWT token
         const token = jwt.sign(
             {
                 id: user._id,
@@ -101,7 +131,7 @@ export const login = async (req, res) => {
             }
         );
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: "Login successful.",
             token,
@@ -115,20 +145,24 @@ export const login = async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
+        console.error(
+            "Login Error:",
+            error
+        );
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Server Error",
         });
     }
 };
 
-
-// Get Logged In User Profile
-export const getProfile = async (req, res) => {
+// GET LOGGED-IN USER PROFILE
+const getProfile = async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).select("password");
+        const user = await User.findById(
+            req.user.id
+        ).select("-password");
 
         if (!user) {
             return res.status(404).json({
@@ -137,46 +171,58 @@ export const getProfile = async (req, res) => {
             });
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             user,
         });
 
     } catch (error) {
-        console.error(error);
+        console.error(
+            "Get Profile Error:",
+            error
+        );
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Server Error",
         });
     }
 };
-// Get All Users
-export const getAllUsers = async (req, res) => {
-    try {
-        const users = await User.find().select("password");
 
-        res.status(200).json({
+// GET ALL USERS
+const getAllUsers = async (req, res) => {
+    try {
+        const users = await User.find()
+            .select("-password")
+            .sort({
+                createdAt: -1,
+            });
+
+        return res.status(200).json({
             success: true,
             count: users.length,
             users,
         });
 
     } catch (error) {
-        console.error(error);
+        console.error(
+            "Get All Users Error:",
+            error
+        );
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Server Error",
         });
     }
 };
 
-
-// Delete User
-export const deleteUser = async (req, res) => {
+// DELETE USER
+const deleteUser = async (req, res) => {
     try {
-        const user = await User.findById(req.params.id);
+        const user = await User.findById(
+            req.params.id
+        );
 
         if (!user) {
             return res.status(404).json({
@@ -185,19 +231,27 @@ export const deleteUser = async (req, res) => {
             });
         }
 
-        await User.findByIdAndDelete(req.params.id);
+        await User.findByIdAndDelete(
+            req.params.id
+        );
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
-            message: "User deleted successfully.",
+            message:
+                "User deleted successfully.",
         });
 
     } catch (error) {
-        console.error(error);
+        console.error(
+            "Delete User Error:",
+            error
+        );
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Server Error",
         });
     }
 };
+
+export { register, login, getProfile, getAllUsers, deleteUser };

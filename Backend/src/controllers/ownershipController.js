@@ -1,12 +1,10 @@
 import mongoose from "mongoose";
-
 import OwnershipTransfer from "../models/OwnershipTransfer.js";
 import Land from "../models/LandModel.js";
 import User from "../models/UserModels.js";
 
-
 // CREATE OWNERSHIP TRANSFER REQUEST
-export const createTransferRequest = async (req, res) => {
+const createTransferRequest = async (req, res) => {
     try {
         const {
             land,
@@ -130,10 +128,8 @@ export const createTransferRequest = async (req, res) => {
     }
 };
 
-
-
 // GET ALL TRANSFER REQUESTS
-export const getAllTransferRequests = async (req, res) => {
+const getAllTransferRequests = async (req, res) => {
     try {
         const transfers =
             await OwnershipTransfer.find()
@@ -175,9 +171,8 @@ export const getAllTransferRequests = async (req, res) => {
     }
 };
 
-
 // GET SINGLE TRANSFER REQUEST
-export const getTransferById = async (req, res) => {
+const getTransferById = async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -233,9 +228,8 @@ export const getTransferById = async (req, res) => {
     }
 };
 
-
 // APPROVE OWNERSHIP TRANSFER
-export const approveTransfer = async (req, res) => {
+const approveTransfer = async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -347,10 +341,8 @@ export const approveTransfer = async (req, res) => {
     }
 };
 
-
-
 // REJECT OWNERSHIP TRANSFER
-export const rejectTransfer = async (req, res) => {
+const rejectTransfer = async (req, res) => {
     try {
         const { id } = req.params;
         const { rejectionReason } = req.body;
@@ -439,3 +431,5 @@ export const rejectTransfer = async (req, res) => {
         });
     }
 };
+
+export { createTransferRequest, getAllTransferRequests, getTransferById, approveTransfer, rejectTransfer };

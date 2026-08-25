@@ -6,24 +6,16 @@ import {
     getLandById,
     updateLand,
     deleteLand,
-} from "../controllers/landController.js";
+} from "../controllers/LandController.js";
 
 import {
     verifyToken,
     isAdmin,
-} from "../middlewares/authMiddleware.js";
-import upload from "../middlewares/cloudinaryUpload.js";
+} from "../middlewares/AuthMiddleware.js";
+import upload from "../middlewares/CloudinaryUpload.js";
 
 
 const router = express.Router();
-
-// Create Land
-// router.post(
-//     "/",
-//     verifyToken,
-//     isAdmin,
-//     createLand
-// );
 
 router.post(
     "/",

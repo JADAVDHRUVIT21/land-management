@@ -9,15 +9,15 @@ import {
     deleteDocument,
     approveDocument,
     rejectDocument,
-} from "../controllers/documentController.js";
+} from "../controllers/DocumentController.js";
 
 import {
     verifyToken,
     isAdmin,
     isAdminOrOfficer,
-} from "../middlewares/authMiddleware.js";
+} from "../middlewares/AuthMiddleware.js";
 
-import upload from "../middlewares/cloudinaryUpload.js";
+import upload from "../middlewares/CloudinaryUpload.js";
 
 const router = express.Router();
 
