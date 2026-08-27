@@ -1,11 +1,14 @@
 import Land from "../models/LandModel.js";
 import cloudinary from "../config/cloudinary.js";
 
-// Upload File to Cloudinary
+
+// UPLOAD FILE TO CLOUDINARY
+
 const uploadToCloudinary = (
     fileBuffer,
     folder = "uploads"
 ) => {
+
     return new Promise((resolve, reject) => {
 
         const uploadStream =
@@ -18,6 +21,7 @@ const uploadToCloudinary = (
                 (error, result) => {
 
                     if (error) {
+
                         console.error(
                             "CLOUDINARY ERROR:",
                             error
@@ -40,7 +44,8 @@ const uploadToCloudinary = (
 };
 
 
-// Upload Video to Cloudinary
+// UPLOAD VIDEO TO CLOUDINARY
+
 const uploadVideoToCloudinary = (
     fileBuffer,
     folder = "videos"
@@ -59,6 +64,7 @@ const uploadVideoToCloudinary = (
                 (error, result) => {
 
                     if (error) {
+
                         console.error(
                             "CLOUDINARY VIDEO ERROR:",
                             error
@@ -83,17 +89,18 @@ const uploadVideoToCloudinary = (
 
 // CREATE LAND
 const createLand = async (req, res) => {
+
     console.log("=================================");
     console.log("CREATE LAND START");
     console.log("Request Body:", req.body);
     console.log("Files:", req.files);
+    console.log("Logged-in User:", req.user);
     console.log("=================================");
 
     try {
 
         const {
             surveyNumber,
-            owner,
             area,
             village,
             district,
@@ -104,11 +111,31 @@ const createLand = async (req, res) => {
             description,
         } = req.body;
 
-        // Required Fields
+
+        // CHECK LOGIN
+
+        if (
+            !req.user ||
+            !req.user.id
+        ) {
+
+            return res.status(401).json({
+                success: false,
+                message:
+                    "Authentication required.",
+            });
+        }
+
+
+        // OWNER = LOGGED-IN USER
+
+        const owner = req.user.id;
+
+
+        // VALIDATE REQUIRED FIELDS
 
         if (
             !surveyNumber ||
-            !owner ||
             !area ||
             !village ||
             !district ||
@@ -127,12 +154,14 @@ const createLand = async (req, res) => {
             });
         }
 
-        // Check Duplicate Survey Number
+
+        // CHECK DUPLICATE SURVEY NUMBER
 
         const existingLand =
             await Land.findOne({
                 surveyNumber,
             });
+
 
         if (existingLand) {
 
@@ -143,16 +172,10 @@ const createLand = async (req, res) => {
             });
         }
 
-        // Parse Location
+
+        // PARSE LOCATION
 
         let myLocation;
-
-        console.log(
-            "Location:",
-            location,
-            "Type:",
-            typeof location
-        );
 
         try {
 
@@ -170,7 +193,8 @@ const createLand = async (req, res) => {
             });
         }
 
-        // Validate Location
+
+        // VALIDATE LOCATION
 
         if (
             !myLocation ||
@@ -185,7 +209,8 @@ const createLand = async (req, res) => {
             });
         }
 
-        // Convert Coordinates to Number
+
+        // CONVERT COORDINATES TO NUMBER
 
         myLocation.latitude =
             Number(myLocation.latitude);
@@ -193,11 +218,16 @@ const createLand = async (req, res) => {
         myLocation.longitude =
             Number(myLocation.longitude);
 
-        // Validate Coordinates
+
+        // VALIDATE COORDINATES
 
         if (
-            Number.isNaN(myLocation.latitude) ||
-            Number.isNaN(myLocation.longitude)
+            Number.isNaN(
+                myLocation.latitude
+            ) ||
+            Number.isNaN(
+                myLocation.longitude
+            )
         ) {
 
             return res.status(400).json({
@@ -207,11 +237,15 @@ const createLand = async (req, res) => {
             });
         }
 
-        // Upload Images        
 
-        console.log("1. Uploading images...");
+        // UPLOAD IMAGES
+
+        console.log(
+            "1. Uploading images..."
+        );
 
         let images = [];
+
 
         if (
             req.files &&
@@ -224,35 +258,30 @@ const createLand = async (req, res) => {
                 req.files.image.map(
                     async (file) => {
 
-                        console.log(
-                            "Uploading image:",
-                            file.originalname
-                        );
-
                         const result =
                             await uploadToCloudinary(
                                 file.buffer,
                                 "lands/images"
                             );
 
-                        console.log(
-                            "Image uploaded:",
-                            result.secure_url
-                        );
-
                         return {
-                            url: result.secure_url,
+                            url:
+                                result.secure_url,
                         };
                     }
                 )
             );
         }
 
-        // Upload Videos
 
-        console.log("2. Uploading videos...");
+        // UPLOAD VIDEOS
+
+        console.log(
+            "2. Uploading videos..."
+        );
 
         let videos = [];
+
 
         if (
             req.files &&
@@ -261,12 +290,9 @@ const createLand = async (req, res) => {
         ) {
 
             videos = await Promise.all(
+
                 req.files.video.map(
                     async (file) => {
-                        console.log(
-                            "Uploading video:",
-                            file.originalname
-                        );
 
                         const result =
                             await uploadVideoToCloudinary(
@@ -274,75 +300,101 @@ const createLand = async (req, res) => {
                                 "lands/videos"
                             );
 
-                        console.log(
-                            "Video uploaded:",
-                            result.secure_url
-                        );
-
                         return {
-                            url: result.secure_url,
+                            url:
+                                result.secure_url,
                         };
                     }
                 )
             );
         }
 
-        // Create Land Object
+
+        // CREATE LAND DATA
 
         const landData = {
+
             surveyNumber,
+
             owner,
+
             area,
+
             village,
+
             district,
+
             state,
+
             landType,
-            location: myLocation,
+
+            location:
+                myLocation,
+
             price,
+
             description,
-            image: images,
-            video: videos,
+
+            image:
+                images,
+
+            video:
+                videos,
+
+            // New land is always a draft.
+
+            isForSale: false,
         };
 
-        console.log(
-            "3. Creating land:",
-            landData
-        );
 
-        // Save Land
+        // SAVE LAND
 
         const land =
-            await Land.create(landData);
+            await Land.create(
+                landData
+            );
+
 
         console.log(
-            "4. Land saved successfully"
+            "Land saved successfully."
         );
 
-        // Response
+
+        // RESPONSE
 
         return res.status(201).json({
+
             success: true,
+
             message:
-                "Land added successfully.",
+                "Land saved as draft successfully.",
+
             land,
         });
 
     } catch (error) {
+
         console.error(
             "Create Land Error:",
             error
         );
 
         return res.status(500).json({
-            success: false,
-            message: error.message,
 
+            success: false,
+
+            message:
+                error.message,
         });
     }
 };
 
-// GET ALL LANDS
+
+// GET ALL LANDS FOR BUYING
+
+
 const getAllLands = async (req, res) => {
+
     try {
 
         const {
@@ -351,149 +403,256 @@ const getAllLands = async (req, res) => {
             district,
             state,
             landType,
-            status,
             minPrice,
             maxPrice,
             page = 1,
             limit = 10,
         } = req.query;
 
-        // Build Filter
 
-        const filter = {};
+        // ONLY LANDS AVAILABLE FOR SALE
 
-        // Search by Survey Number
+        const filter = {
+
+            isForSale: true,
+        };
+
+
+        // EXCLUDE CURRENT USER'S OWN LAND
+
+        if (
+            req.user &&
+            req.user.id
+        ) {
+
+            filter.owner = {
+                $ne:
+                    req.user.id,
+            };
+        }
+
+
+        // SEARCH
 
         if (search) {
 
             filter.surveyNumber = {
-                $regex: search,
-                $options: "i",
+
+                $regex:
+                    search,
+
+                $options:
+                    "i",
             };
         }
 
-        // Village
+
+        // VILLAGE
 
         if (village) {
+
             filter.village = {
-                $regex: village,
-                $options: "i",
+
+                $regex:
+                    village,
+
+                $options:
+                    "i",
             };
         }
 
-        // District
+
+        // DISTRICT
 
         if (district) {
+
             filter.district = {
-                $regex: district,
-                $options: "i",
+
+                $regex:
+                    district,
+
+                $options:
+                    "i",
             };
         }
 
-        // State
+
+        // STATE
 
         if (state) {
+
             filter.state = {
-                $regex: state,
-                $options: "i",
+
+                $regex:
+                    state,
+
+                $options:
+                    "i",
             };
         }
 
-        // Land Type
+
+        // LAND TYPE
 
         if (landType) {
-            filter.landType = landType;
+
+            filter.landType =
+                landType;
         }
 
-        // Status
-        if (status) {
-            filter.status = status;
-        }
 
-        // Price Filter
+        // PRICE FILTER
 
-        if (minPrice || maxPrice) {
+        if (
+            minPrice !== undefined ||
+            maxPrice !== undefined
+        ) {
+
             filter.price = {};
-            if (minPrice) {
+
+
+            if (
+                minPrice !== undefined &&
+                minPrice !== ""
+            ) {
+
                 const minimum =
                     Number(minPrice);
 
-                if (Number.isNaN(minimum)) {
+
+                if (
+                    Number.isNaN(
+                        minimum
+                    )
+                ) {
 
                     return res.status(400).json({
+
                         success: false,
+
                         message:
                             "minPrice must be a valid number.",
                     });
                 }
+
+
                 filter.price.$gte =
                     minimum;
             }
 
-            if (maxPrice) {
+
+            if (
+                maxPrice !== undefined &&
+                maxPrice !== ""
+            ) {
+
                 const maximum =
                     Number(maxPrice);
 
-                if (Number.isNaN(maximum)) {
+
+                if (
+                    Number.isNaN(
+                        maximum
+                    )
+                ) {
+
                     return res.status(400).json({
+
                         success: false,
+
                         message:
                             "maxPrice must be a valid number.",
                     });
                 }
+
 
                 filter.price.$lte =
                     maximum;
             }
         }
 
-        // Pagination
+
+        // PAGINATION
 
         const pageNumber =
-            Math.max(Number(page) || 1, 1);
+            Math.max(
+                Number(page) || 1,
+                1
+            );
+
 
         const limitNumber =
             Math.min(
-                Math.max(Number(limit) || 10, 1),
+                Math.max(
+                    Number(limit) || 10,
+                    1
+                ),
                 100
             );
+
 
         const skip =
             (pageNumber - 1) *
             limitNumber;
 
-        // Get Total Count
+
+        // TOTAL
 
         const total =
-            await Land.countDocuments(filter);
+            await Land.countDocuments(
+                filter
+            );
 
-        // Get Lands
+
+        // GET LANDS
 
         const lands =
-            await Land.find(filter)
+            await Land.find(
+                filter
+            )
 
                 .populate(
                     "owner",
                     "fullName email phone role"
                 )
-                .sort({
-                    createdAt: -1,
-                })
-                .skip(skip)
-                .limit(limitNumber);
 
-        // Response
+                .sort({
+                    createdAt:
+                        -1,
+                })
+
+                .skip(
+                    skip
+                )
+
+                .limit(
+                    limitNumber
+                );
+
+
+        // RESPONSE
 
         return res.status(200).json({
+
             success: true,
-            count: lands.length,
+
+            count:
+                lands.length,
+
             total,
-            page: pageNumber,
-            limit: limitNumber,
+
+            page:
+                pageNumber,
+
+            limit:
+                limitNumber,
+
             totalPages:
                 Math.ceil(
-                    total / limitNumber
+                    total /
+                    limitNumber
                 ),
+
             lands,
         });
 
@@ -505,35 +664,151 @@ const getAllLands = async (req, res) => {
         );
 
         return res.status(500).json({
+
             success: false,
-            message: error.message,
+
+            message:
+                error.message,
         });
     }
 };
 
+
+// GET MY LANDS
+const getMyLands = async (req, res) => {
+
+    try {
+
+        if (
+            !req.user ||
+            !req.user.id
+        ) {
+
+            return res.status(401).json({
+
+                success: false,
+
+                message:
+                    "Authentication required.",
+            });
+        }
+
+
+        const lands =
+            await Land.find({
+
+                owner:
+                    req.user.id,
+
+            })
+
+                .populate(
+                    "owner",
+                    "fullName email phone role"
+                )
+
+                .sort({
+
+                    createdAt:
+                        -1,
+                });
+
+
+        return res.status(200).json({
+
+            success: true,
+
+            count:
+                lands.length,
+
+            lands,
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Get My Lands Error:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message,
+        });
+    }
+};
+
+
 // GET LAND BY ID
 const getLandById = async (req, res) => {
+
     try {
+
         const land =
             await Land.findById(
                 req.params.id
             )
+
                 .populate(
                     "owner",
                     "fullName email phone role"
                 );
 
+
         if (!land) {
 
             return res.status(404).json({
+
                 success: false,
+
                 message:
                     "Land not found.",
             });
         }
 
+
+        // CHECK OWNER
+
+        const isOwner =
+            req.user &&
+            req.user.id &&
+            land.owner &&
+            land.owner._id
+                .toString() ===
+            req.user.id
+                .toString();
+
+
+        // CHECK SALE STATUS
+
+        const isAvailableForBuying =
+            land.isForSale === true;
+
+
+        // SECURITY
+
+        if (
+            !isOwner &&
+            !isAvailableForBuying
+        ) {
+
+            return res.status(403).json({
+
+                success: false,
+
+                message:
+                    "This land is not available for viewing.",
+            });
+        }
+
+
         return res.status(200).json({
+
             success: true,
+
             land,
         });
 
@@ -545,15 +820,20 @@ const getLandById = async (req, res) => {
         );
 
         return res.status(500).json({
+
             success: false,
-            message: error.message,
+
+            message:
+                error.message,
         });
     }
 };
 
 
 // UPDATE LAND
+
 const updateLand = async (req, res) => {
+
     try {
 
         const land =
@@ -561,24 +841,77 @@ const updateLand = async (req, res) => {
                 req.params.id
             );
 
+
         if (!land) {
 
             return res.status(404).json({
+
                 success: false,
+
                 message:
                     "Land not found.",
             });
         }
 
-        // Prepare Update Data
+
+        // CHECK LOGIN
+
+        if (
+            !req.user ||
+            !req.user.id
+        ) {
+
+            return res.status(401).json({
+
+                success: false,
+
+                message:
+                    "Authentication required.",
+            });
+        }
+
+
+        // ONLY OWNER CAN UPDATE
+
+        if (
+            land.owner
+                .toString() !==
+            req.user.id
+                .toString()
+        ) {
+
+            return res.status(403).json({
+
+                success: false,
+
+                message:
+                    "You are not allowed to update this land.",
+            });
+        }
+
+
+        // PREPARE UPDATE
 
         const updateData = {
             ...req.body,
         };
 
-        // Parse Location
 
-        if (updateData.location) {
+        // NEVER ALLOW OWNER CHANGE
+
+        delete updateData.owner;
+
+
+        // isForSale HAS ITS OWN ENDPOINT
+
+        delete updateData.isForSale;
+
+
+        // PARSE LOCATION
+
+        if (
+            updateData.location
+        ) {
 
             try {
 
@@ -593,6 +926,7 @@ const updateLand = async (req, res) => {
                         );
                 }
 
+
                 if (
                     updateData.location.latitude !==
                     undefined
@@ -600,10 +934,12 @@ const updateLand = async (req, res) => {
 
                     updateData.location.latitude =
                         Number(
-                            updateData.location
+                            updateData
+                                .location
                                 .latitude
                         );
                 }
+
 
                 if (
                     updateData.location.longitude !==
@@ -612,9 +948,33 @@ const updateLand = async (req, res) => {
 
                     updateData.location.longitude =
                         Number(
-                            updateData.location
+                            updateData
+                                .location
                                 .longitude
                         );
+                }
+
+
+                if (
+                    Number.isNaN(
+                        updateData
+                            .location
+                            .latitude
+                    ) ||
+                    Number.isNaN(
+                        updateData
+                            .location
+                            .longitude
+                    )
+                ) {
+
+                    return res.status(400).json({
+
+                        success: false,
+
+                        message:
+                            "Latitude and longitude must be valid numbers.",
+                    });
                 }
 
             } catch (error) {
@@ -629,27 +989,40 @@ const updateLand = async (req, res) => {
             }
         }
 
-        // Update
+
+        // UPDATE
 
         const updatedLand =
             await Land.findByIdAndUpdate(
+
                 req.params.id,
+
                 updateData,
+
                 {
-                    new: true,
-                    runValidators: true,
+                    new:
+                        true,
+
+                    runValidators:
+                        true,
                 }
             )
+
                 .populate(
                     "owner",
                     "fullName email phone role"
                 );
 
+
         return res.status(200).json({
+
             success: true,
+
             message:
                 "Land updated successfully.",
-            land: updatedLand,
+
+            land:
+                updatedLand,
         });
 
     } catch (error) {
@@ -660,8 +1033,11 @@ const updateLand = async (req, res) => {
         );
 
         return res.status(500).json({
+
             success: false,
-            message: error.message,
+
+            message:
+                error.message,
         });
     }
 };
@@ -669,6 +1045,7 @@ const updateLand = async (req, res) => {
 
 // DELETE LAND
 const deleteLand = async (req, res) => {
+
     try {
 
         const land =
@@ -676,20 +1053,66 @@ const deleteLand = async (req, res) => {
                 req.params.id
             );
 
+
         if (!land) {
+
             return res.status(404).json({
+
                 success: false,
+
                 message:
                     "Land not found.",
             });
         }
 
+
+        // CHECK LOGIN
+
+        if (
+            !req.user ||
+            !req.user.id
+        ) {
+
+            return res.status(401).json({
+
+                success: false,
+
+                message:
+                    "Authentication required.",
+            });
+        }
+
+
+        // ONLY OWNER CAN DELETE
+
+        if (
+            land.owner
+                .toString() !==
+            req.user.id
+                .toString()
+        ) {
+
+            return res.status(403).json({
+
+                success: false,
+
+                message:
+                    "You are not allowed to delete this land.",
+            });
+        }
+
+
+        // DELETE
+
         await Land.findByIdAndDelete(
             req.params.id
         );
 
+
         return res.status(200).json({
+
             success: true,
+
             message:
                 "Land deleted successfully.",
         });
@@ -702,10 +1125,194 @@ const deleteLand = async (req, res) => {
         );
 
         return res.status(500).json({
+
             success: false,
-            message: error.message,
+
+            message:
+                error.message,
         });
     }
 };
 
-export {createLand, getAllLands, getLandById, updateLand, deleteLand };
+
+// TOGGLE LAND FOR SALE
+const toggleLandForSale = async (req, res) => {
+
+    try {
+
+        const land =
+            await Land.findById(
+                req.params.id
+            );
+
+
+        if (!land) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "Land not found.",
+            });
+        }
+
+
+        // CHECK LOGIN
+
+        if (
+            !req.user ||
+            !req.user.id
+        ) {
+
+            return res.status(401).json({
+
+                success: false,
+
+                message:
+                    "Authentication required.",
+            });
+        }
+
+
+        // ONLY OWNER CAN CHANGE
+
+        if (
+            land.owner
+                .toString() !==
+            req.user.id
+                .toString()
+        ) {
+
+            return res.status(403).json({
+
+                success: false,
+
+                message:
+                    "You are not allowed to change this land.",
+            });
+        }
+
+
+        // GET isForSale
+
+        let isForSale =
+            req.body.isForSale;
+
+
+        // HANDLE FORMDATA STRING
+
+        if (
+            typeof isForSale ===
+            "string"
+        ) {
+
+            if (
+                isForSale ===
+                "true"
+            ) {
+
+                isForSale =
+                    true;
+
+            } else if (
+                isForSale ===
+                "false"
+            ) {
+
+                isForSale =
+                    false;
+
+            } else {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "isForSale must be true or false.",
+                });
+            }
+        }
+
+
+        // VALIDATE BOOLEAN
+
+        if (
+            typeof isForSale !==
+            "boolean"
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "isForSale must be true or false.",
+            });
+        }
+
+
+        // UPDATE
+
+        land.isForSale =
+            isForSale;
+
+
+        await land.save();
+
+
+        // POPULATE OWNER
+
+        await land.populate(
+            "owner",
+            "fullName email phone role"
+        );
+
+
+        // RESPONSE
+
+        return res.status(200).json({
+
+            success: true,
+
+            message:
+
+                isForSale
+
+                    ? "Land is now available for sale."
+
+                    : "Land removed from sale and saved as draft.",
+
+            land,
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Toggle Land For Sale Error:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message,
+        });
+    }
+};
+
+
+// EXPORT
+
+export {
+    createLand,
+    getAllLands,
+    getMyLands,
+    getLandById,
+    updateLand,
+    deleteLand,
+    toggleLandForSale,
+};

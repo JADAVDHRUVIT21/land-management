@@ -3,9 +3,7 @@ import Document from "../models/DocumentModel.js";
 import Land from "../models/LandModel.js";
 import cloudinary from "../config/cloudinary.js";
 
-
 // CLOUDINARY STREAM UPLOAD HELPER
-
 const uploadToCloudinary = (fileBuffer, resourceType) => {
     return new Promise((resolve, reject) => {
         if (!fileBuffer) {
@@ -30,14 +28,11 @@ const uploadToCloudinary = (fileBuffer, resourceType) => {
     });
 };
 
-
 // CREATE DOCUMENT
-
 export const createDocument = async (req, res) => {
     try {
         const { land, documentType, fileName } = req.body;
 
-        
         //Validate land ID
         
         if (!land) {
@@ -54,7 +49,6 @@ export const createDocument = async (req, res) => {
             });
         }
 
-        
         //Validate document type
         
         if (!documentType) {
@@ -74,7 +68,6 @@ export const createDocument = async (req, res) => {
                     "No document file detected. Please upload a PDF or Word document.",
             });
         }
-
         
         //Validate file type
         
@@ -91,7 +84,6 @@ export const createDocument = async (req, res) => {
             });
         }
 
-        
         //Check whether land exists
         
         const existingLand = await Land.findById(land);
@@ -102,7 +94,6 @@ export const createDocument = async (req, res) => {
                 message: "Target land asset record not found.",
             });
         }
-
         
         //Check authenticated user
         
@@ -122,13 +113,11 @@ export const createDocument = async (req, res) => {
             });
         }
 
-        
         //Determine Cloudinary resource type
         
         const isPdf = req.file.mimetype === "application/pdf";
 
         const resourceType = isPdf ? "image" : "raw";
-
         
         //Upload document to Cloudinary
         
@@ -143,7 +132,6 @@ export const createDocument = async (req, res) => {
                 message: "File upload to Cloudinary failed.",
             });
         }
-
         
         //Create document record
         
@@ -155,9 +143,7 @@ export const createDocument = async (req, res) => {
             fileUrl: cloudinaryResult.secure_url,
             publicId: cloudinaryResult.public_id,
         });
-
-        
-        // IMPORTANT:
+       
         // Add created document ID to Land.documents
         
         await Land.findByIdAndUpdate(
@@ -172,14 +158,12 @@ export const createDocument = async (req, res) => {
                 runValidators: true,
             }
         );
-
-        
+       
         //Get updated/populated document
         
         const populatedDocument = await Document.findById(document._id)
             .populate("land")
             .populate("uploadedBy", "fullName email phone role");
-
         
         //Return response
         
@@ -197,7 +181,6 @@ export const createDocument = async (req, res) => {
         });
     }
 };
-
 
 // GET ALL DOCUMENTS
 export const getAllDocuments = async (req, res) => {
@@ -221,7 +204,6 @@ export const getAllDocuments = async (req, res) => {
         });
     }
 };
-
 
 // GET DOCUMENT BY ID
 export const getDocumentById = async (req, res) => {
@@ -260,7 +242,6 @@ export const getDocumentById = async (req, res) => {
     }
 };
 
-
 // GET DOCUMENTS BY LAND
 export const getDocumentsByLand = async (req, res) => {
     try {
@@ -294,7 +275,6 @@ export const getDocumentsByLand = async (req, res) => {
         });
     }
 };
-
 
 // UPDATE DOCUMENT
 export const updateDocument = async (req, res) => {
@@ -356,13 +336,11 @@ export const updateDocument = async (req, res) => {
     }
 };
 
-
 // DELETE DOCUMENT
 export const deleteDocument = async (req, res) => {
     try {
         const { id } = req.params;
 
-        
         //Validate document ID
         
         if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -372,7 +350,6 @@ export const deleteDocument = async (req, res) => {
             });
         }
 
-        
         //Find document
         
         const document = await Document.findById(id);
@@ -384,7 +361,6 @@ export const deleteDocument = async (req, res) => {
             });
         }
 
-        
         //Delete file from Cloudinary
         
         if (document.publicId) {
@@ -408,8 +384,7 @@ export const deleteDocument = async (req, res) => {
                 // even if Cloudinary deletion fails.
             }
         }
-
-        
+  
         //Remove document ID from Land.documents
         
         if (document.land) {
@@ -425,7 +400,6 @@ export const deleteDocument = async (req, res) => {
                 }
             );
         }
-
         
         //Delete document from Document collection
         

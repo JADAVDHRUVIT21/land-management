@@ -1,14 +1,11 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-
 import connectDB from "./src/config/db.js";
-
 import userRoutes from "./src/routes/UserRoutes.js";
 import landRoutes from "./src/routes/LandRoutes.js";
 import ownershipRoutes from "./src/routes/OwnershipRoutes.js";
 import documentRoutes from "./src/routes/DocumentRoutes.js";
-
 
 dotenv.config();
 

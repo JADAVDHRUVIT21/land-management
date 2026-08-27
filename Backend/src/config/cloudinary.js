@@ -15,6 +15,5 @@ cloudinary.api.ping()
     .catch((error) => {
         console.error("Cloudinary connection error:", error);
     });
-    
 
 export default cloudinary;

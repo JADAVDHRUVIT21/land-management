@@ -9,8 +9,11 @@ import {
 } from "../controllers/OwnershipController.js";
 
 import {
+    isAdmin,
+    isUser,
     verifyToken,
-    isAdminOrOfficer,
+    // isAdminOrOfficer,
+    
 } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();

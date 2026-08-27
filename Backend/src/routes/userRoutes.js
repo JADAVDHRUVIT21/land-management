@@ -11,7 +11,7 @@ import {
 import {
     verifyToken,
     isAdmin,
-} from "../middlewares/AuthMiddleware.js";
+} from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 

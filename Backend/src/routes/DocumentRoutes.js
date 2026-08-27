@@ -1,15 +1,5 @@
 import express from "express";
-
-import {
-    createDocument,
-    getAllDocuments,
-    getDocumentById,
-    getDocumentsByLand,
-    updateDocument,
-    deleteDocument,
-    approveDocument,
-    rejectDocument,
-} from "../controllers/DocumentController.js";
+import { createDocument, getAllDocuments, getDocumentById, getDocumentsByLand, updateDocument, deleteDocument, approveDocument, rejectDocument } from "../controllers/DocumentController.js";
 
 import {
     verifyToken,
@@ -21,7 +11,6 @@ import upload from "../middlewares/CloudinaryUpload.js";
 
 const router = express.Router();
 
-
 // CREATE DOCUMENT
 router.post(
     "/",
@@ -29,7 +18,6 @@ router.post(
     upload.single("file"),
     createDocument
 );
-
 
 // GET ALL DOCUMENTS
 router.get(
@@ -39,7 +27,6 @@ router.get(
     getAllDocuments
 );
 
-
 // GET DOCUMENTS BY LAND
 router.get(
     "/land/:landId",
@@ -47,14 +34,12 @@ router.get(
     getDocumentsByLand
 );
 
-
 // GET SINGLE DOCUMENT
 router.get(
     "/:id",
     verifyToken,
     getDocumentById
 );
-
 
 // UPDATE DOCUMENT
 router.put(
@@ -64,7 +49,6 @@ router.put(
     updateDocument
 );
 
-
 // DELETE DOCUMENT
 router.delete(
     "/:id",
@@ -73,7 +57,6 @@ router.delete(
     deleteDocument
 );
 
-
 // APPROVE DOCUMENT
 router.put(
     "/:id/approve",
@@ -81,7 +64,6 @@ router.put(
     isAdmin,
     approveDocument
 );
-
 
 // REJECT DOCUMENT
 router.put(

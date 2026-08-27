@@ -8,8 +8,7 @@ export const getDashboardStats = async (req, res) => {
         const [
             totalUsers,
             totalLands,
-            pendingLands,
-            approvedLands,
+            landsForSale,
             totalDocuments,
             pendingDocuments,
             approvedDocuments,
@@ -24,11 +23,7 @@ export const getDashboardStats = async (req, res) => {
             Land.countDocuments(),
 
             Land.countDocuments({
-                status: "Pending",
-            }),
-
-            Land.countDocuments({
-                status: "Approved",
+                isForSale: true,
             }),
 
             Document.countDocuments(),
@@ -70,8 +65,7 @@ export const getDashboardStats = async (req, res) => {
 
                 lands: {
                     total: totalLands,
-                    pending: pendingLands,
-                    approved: approvedLands,
+                    forSale: landsForSale,
                 },
 
                 documents: {

@@ -50,14 +50,9 @@ const LandSchema = new mongoose.Schema(
             default: "Residential",
         },
 
-        status: {
-            type: String,
-            enum: [
-                "Pending",
-                "Approved",
-                "Rejected",
-            ],
-            default: "Pending",
+        isForSale: {
+            type: Boolean,
+            default: false,
         },
 
         price: {
