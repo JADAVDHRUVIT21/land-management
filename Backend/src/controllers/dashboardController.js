@@ -3,7 +3,7 @@ import Land from "../models/LandModel.js";
 import Document from "../models/DocumentModel.js";
 import OwnershipTransfer from "../models/OwnershipTransfer.js";
 
-export const getDashboardStats = async (req, res) => {
+const getDashboardStats = async (req, res) => {
     try {
         const [
             totalUsers,
@@ -57,24 +57,20 @@ export const getDashboardStats = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-
             statistics: {
                 users: {
                     total: totalUsers,
                 },
-
                 lands: {
                     total: totalLands,
                     forSale: landsForSale,
                 },
-
                 documents: {
                     total: totalDocuments,
                     pending: pendingDocuments,
                     approved: approvedDocuments,
                     rejected: rejectedDocuments,
                 },
-
                 ownershipTransfers: {
                     total: totalTransfers,
                     pending: pendingTransfers,
@@ -83,16 +79,14 @@ export const getDashboardStats = async (req, res) => {
                 },
             },
         });
-
     } catch (error) {
-        console.error(
-            "Dashboard Stats Error:",
-            error
-        );
+        console.error("Dashboard Stats Error:", error);
 
         return res.status(500).json({
             success: false,
-            message: error.message,
+            message: error.message || "Failed to fetch dashboard statistics.",
         });
     }
 };
+
+export { getDashboardStats };

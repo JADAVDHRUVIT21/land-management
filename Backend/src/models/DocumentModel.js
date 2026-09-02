@@ -33,6 +33,11 @@ const documentSchema = new mongoose.Schema(
             trim: true,
         },
 
+        fileUrl: {
+            type: String,
+            required: true,
+        },
+
         publicId: {
             type: String,
             default: "",
@@ -51,6 +56,7 @@ const documentSchema = new mongoose.Schema(
         rejectionReason: {
             type: String,
             default: "",
+            trim: true,
         },
     },
     {

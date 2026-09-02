@@ -1,75 +1,86 @@
 import express from "express";
-import { createDocument, getAllDocuments, getDocumentById, getDocumentsByLand, updateDocument, deleteDocument, approveDocument, rejectDocument } from "../controllers/DocumentController.js";
+
+import {
+    createDocument,
+    getAllDocuments,
+    getMyDocuments,
+    getDocumentById,
+    getDocumentsByLand,
+    updateDocument,
+    deleteDocument,
+    approveDocument,
+    rejectDocument,
+} from "../controllers/DocumentController.js";
 
 import {
     verifyToken,
-    isAdmin,
-    isAdminOrUser,
 } from "../middlewares/authMiddleware.js";
 
 import upload from "../middlewares/CloudinaryUpload.js";
 
 const router = express.Router();
 
-// CREATE DOCUMENT
+// Upload document
 router.post(
     "/",
     verifyToken,
-    upload.single("file"),
+    upload.single("document"),
     createDocument
 );
 
-// GET ALL DOCUMENTS
+// Get all documents
 router.get(
     "/",
     verifyToken,
-    isAdmin,
     getAllDocuments
 );
 
-// GET DOCUMENTS BY LAND
+// Get my documents
+router.get(
+    "/my",
+    verifyToken,
+    getMyDocuments
+);
+
+// Get documents by land
 router.get(
     "/land/:landId",
     verifyToken,
     getDocumentsByLand
 );
 
-// GET SINGLE DOCUMENT
+// Get document by ID
 router.get(
     "/:id",
     verifyToken,
     getDocumentById
 );
 
-// UPDATE DOCUMENT
+// Update document
 router.put(
     "/:id",
     verifyToken,
-    isAdmin,
     updateDocument
 );
 
-// DELETE DOCUMENT
+// Delete document
 router.delete(
     "/:id",
     verifyToken,
-    isAdmin,
     deleteDocument
 );
 
-// APPROVE DOCUMENT
+// Approve document
 router.put(
     "/:id/approve",
     verifyToken,
-    isAdmin,
     approveDocument
 );
 
-// REJECT DOCUMENT
+// Reject document
 router.put(
     "/:id/reject",
     verifyToken,
-    isAdmin,
     rejectDocument
 );
 

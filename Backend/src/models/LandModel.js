@@ -39,6 +39,21 @@ const LandSchema = new mongoose.Schema(
             trim: true,
         },
 
+        location: {
+            latitude: {
+                type: Number,
+                required: true,
+                min: -90,
+                max: 90,
+            },
+            longitude: {
+                type: Number,
+                required: true,
+                min: -180,
+                max: 180,
+            },
+        },
+
         landType: {
             type: String,
             enum: [
@@ -73,10 +88,6 @@ const LandSchema = new mongoose.Schema(
                     type: String,
                     required: true,
                 },
-                // public_id: {
-                //     type: String,
-                //     required: true,
-                // },
             },
         ],
 
@@ -86,38 +97,13 @@ const LandSchema = new mongoose.Schema(
                     type: String,
                     required: true,
                 },
-                // public_id: {
-                //     type: String,
-                //     required: true,
-                // },
             },
         ],
 
-        location: {
-            latitude: {
-                type: Number,
-                required: true,
-            },
-            longitude: {
-                type: Number,
-                required: true,
-            },
-        },
-
         documents: [
             {
-                url: {
-                    type: String,
-                },
-                public_id: {
-                    type: String,
-                },
-                fileName: {
-                    type: String,
-                },
-                documentType: {
-                    type: String,
-                },
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "Document",
             },
         ],
     },

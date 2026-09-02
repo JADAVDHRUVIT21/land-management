@@ -9,35 +9,35 @@ const ownershipTransferSchema = new mongoose.Schema(
             required: true,
         },
 
-        // Current owner before transfer
+        // User A - current owner before transfer
         currentOwner: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             required: true,
         },
 
-        // New owner after transfer
+        // User B - new owner after approval
         newOwner: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             required: true,
         },
 
-        // Person who requested the transfer
+        // User B - person who created the purchase request
         requestedBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             required: true,
         },
 
-        // Admin/Officer who approves or rejects
+        // User who approves/rejects the request
         approvedBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             default: null,
         },
 
-        // Reason for transfer
+        // Buy/transfer reason
         reason: {
             type: String,
             required: true,
@@ -55,7 +55,7 @@ const ownershipTransferSchema = new mongoose.Schema(
             default: "Pending",
         },
 
-        // Optional rejection reason
+        // Reason if the request is rejected
         rejectionReason: {
             type: String,
             default: "",

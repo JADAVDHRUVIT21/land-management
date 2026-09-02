@@ -1,40 +1,63 @@
 import mongoose from "mongoose";
 import Document from "../models/DocumentModel.js";
 import Land from "../models/LandModel.js";
+import User from "../models/UserModels.js";
 import cloudinary from "../config/cloudinary.js";
 
-// CLOUDINARY STREAM UPLOAD HELPER
+const populateDocument = (query) => {
+    return query
+        .populate("land")
+        .populate(
+            "uploadedBy",
+            "fullName email phone role"
+        );
+};
+
 const uploadToCloudinary = (fileBuffer, resourceType) => {
     return new Promise((resolve, reject) => {
         if (!fileBuffer) {
-            return reject(new Error("File buffer is empty."));
+            return reject(
+                new Error("File buffer is empty.")
+            );
         }
 
-        const uploadStream = cloudinary.uploader.upload_stream(
-            {
-                folder: "land_documents",
-                resource_type: resourceType,
-            },
-            (error, result) => {
-                if (error) {
-                    return reject(error);
-                }
+        const uploadStream =
+            cloudinary.uploader.upload_stream(
+                {
+                    folder: "land_documents",
+                    resource_type: resourceType,
+                },
+                (error, result) => {
+                    if (error) {
+                        return reject(error);
+                    }
 
-                resolve(result);
-            }
-        );
+                    resolve(result);
+                }
+            );
 
         uploadStream.end(fileBuffer);
     });
 };
 
-// CREATE DOCUMENT
-export const createDocument = async (req, res) => {
+const createDocument = async (req, res) => {
     try {
-        const { land, documentType, fileName } = req.body;
+        const {
+            land,
+            documentType,
+            fileName,
+        } = req.body;
 
-        //Validate land ID
-        
+        const userId =
+            req.user?.id || req.user?._id;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "Authentication required.",
+            });
+        }
+
         if (!land) {
             return res.status(400).json({
                 success: false,
@@ -42,153 +65,191 @@ export const createDocument = async (req, res) => {
             });
         }
 
-        if (!mongoose.Types.ObjectId.isValid(land)) {
+        if (
+            !mongoose.Types.ObjectId.isValid(land)
+        ) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid land ID structure.",
+                message: "Invalid land ID.",
             });
         }
 
-        //Validate document type
-        
         if (!documentType) {
             return res.status(400).json({
                 success: false,
-                message: "Document type is required.",
+                message:
+                    "Document type is required.",
             });
         }
 
-    
-        //Validate uploaded file
-        
+        const allowedDocumentTypes = [
+            "Ownership Proof",
+            "Sale Deed",
+            "Land Certificate",
+            "Identity Proof",
+            "Tax Receipt",
+            "Other",
+        ];
+
+        if (
+            !allowedDocumentTypes.includes(
+                documentType
+            )
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Invalid document type.",
+            });
+        }
+
         if (!req.file) {
             return res.status(400).json({
                 success: false,
                 message:
-                    "No document file detected. Please upload a PDF or Word document.",
+                    "Document file is required.",
             });
         }
-        
-        //Validate file type
-        
+
         const allowedMimeTypes = [
             "application/pdf",
             "application/msword",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         ];
 
-        if (!allowedMimeTypes.includes(req.file.mimetype)) {
+        if (
+            !allowedMimeTypes.includes(
+                req.file.mimetype
+            )
+        ) {
             return res.status(400).json({
                 success: false,
-                message: "Only PDF, DOC, and DOCX files are allowed.",
+                message:
+                    "Only PDF, DOC, and DOCX files are allowed.",
             });
         }
 
-        //Check whether land exists
-        
-        const existingLand = await Land.findById(land);
+        const existingLand =
+            await Land.findById(land);
 
         if (!existingLand) {
             return res.status(404).json({
                 success: false,
-                message: "Target land asset record not found.",
+                message: "Land not found.",
             });
         }
-        
-        //Check authenticated user
-        
-        if (!req.user) {
-            return res.status(401).json({
+
+        const user =
+            await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({
                 success: false,
-                message: "Authentication required.",
+                message: "User not found.",
             });
         }
 
-        const uploadedBy = req.user.id || req.user._id;
-
-        if (!uploadedBy) {
-            return res.status(401).json({
+        if (
+            user.role !== "admin" &&
+            (
+                !existingLand.owner ||
+                existingLand.owner.toString() !==
+                userId.toString()
+            )
+        ) {
+            return res.status(403).json({
                 success: false,
-                message: "Authenticated user ID not found.",
+                message:
+                    "You can upload documents only for your own land.",
             });
         }
 
-        //Determine Cloudinary resource type
-        
-        const isPdf = req.file.mimetype === "application/pdf";
+        const isPdf =
+            req.file.mimetype ===
+            "application/pdf";
 
-        const resourceType = isPdf ? "image" : "raw";
-        
-        //Upload document to Cloudinary
-        
-        const cloudinaryResult = await uploadToCloudinary(
-            req.file.buffer,
-            resourceType
-        );
+        const resourceType = isPdf
+            ? "image"
+            : "raw";
 
-        if (!cloudinaryResult || !cloudinaryResult.secure_url) {
+        const cloudinaryResult =
+            await uploadToCloudinary(
+                req.file.buffer,
+                resourceType
+            );
+
+        if (
+            !cloudinaryResult ||
+            !cloudinaryResult.secure_url
+        ) {
             return res.status(500).json({
                 success: false,
-                message: "File upload to Cloudinary failed.",
+                message:
+                    "File upload to Cloudinary failed.",
             });
         }
-        
-        //Create document record
-        
-        const document = await Document.create({
-            land: land,
-            uploadedBy: uploadedBy,
-            documentType: documentType,
-            fileName: fileName || req.file.originalname,
-            fileUrl: cloudinaryResult.secure_url,
-            publicId: cloudinaryResult.public_id,
-        });
-       
-        // Add created document ID to Land.documents
-        
+
+        const document =
+            await Document.create({
+                land: existingLand._id,
+                uploadedBy: userId,
+                documentType,
+                fileName:
+                    fileName?.trim() ||
+                    req.file.originalname,
+                fileUrl:
+                    cloudinaryResult.secure_url,
+                publicId:
+                    cloudinaryResult.public_id,
+                status: "Pending",
+                rejectionReason: "",
+            });
+
         await Land.findByIdAndUpdate(
-            land,
+            existingLand._id,
             {
                 $addToSet: {
                     documents: document._id,
                 },
-            },
-            {
-                new: true,
-                runValidators: true,
             }
         );
-       
-        //Get updated/populated document
-        
-        const populatedDocument = await Document.findById(document._id)
-            .populate("land")
-            .populate("uploadedBy", "fullName email phone role");
-        
-        //Return response
-        
+
+        const populatedDocument =
+            await populateDocument(
+                Document.findById(
+                    document._id
+                )
+            );
+
         return res.status(201).json({
             success: true,
-            message: "Document uploaded and registered successfully.",
+            message:
+                "Document uploaded successfully.",
             document: populatedDocument,
         });
     } catch (error) {
-        console.error("Create Document Error:", error);
+        console.error(
+            "Create Document Error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: error.message || "Failed to create document.",
+            message:
+                error.message ||
+                "Failed to upload document.",
         });
     }
 };
 
-// GET ALL DOCUMENTS
-export const getAllDocuments = async (req, res) => {
+const getAllDocuments = async (req, res) => {
     try {
-        const documents = await Document.find()
-            .populate("land")
-            .populate("uploadedBy", "fullName email phone role")
-            .sort({ createdAt: -1 });
+        const documents =
+            await populateDocument(
+                Document.find().sort({
+                    createdAt: -1,
+                })
+            );
 
         return res.status(200).json({
             success: true,
@@ -196,35 +257,44 @@ export const getAllDocuments = async (req, res) => {
             documents,
         });
     } catch (error) {
-        console.error("Get Documents Error:", error);
+        console.error(
+            "Get All Documents Error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: error.message || "Failed to fetch documents.",
+            message:
+                error.message ||
+                "Failed to fetch documents.",
         });
     }
 };
 
-// GET DOCUMENT BY ID
-export const getDocumentById = async (req, res) => {
+const getDocumentById = async (req, res) => {
     try {
         const { id } = req.params;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (
+            !mongoose.Types.ObjectId.isValid(id)
+        ) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid document ID.",
+                message:
+                    "Invalid document ID.",
             });
         }
 
-        const document = await Document.findById(id)
-            .populate("land")
-            .populate("uploadedBy", "fullName email phone role");
+        const document =
+            await populateDocument(
+                Document.findById(id)
+            );
 
         if (!document) {
             return res.status(404).json({
                 success: false,
-                message: "Document not found.",
+                message:
+                    "Document not found.",
             });
         }
 
@@ -233,33 +303,57 @@ export const getDocumentById = async (req, res) => {
             document,
         });
     } catch (error) {
-        console.error("Get Document Error:", error);
+        console.error(
+            "Get Document Error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: error.message || "Failed to fetch document.",
+            message:
+                error.message ||
+                "Failed to fetch document.",
         });
     }
 };
 
-// GET DOCUMENTS BY LAND
-export const getDocumentsByLand = async (req, res) => {
+const getDocumentsByLand = async (
+    req,
+    res
+) => {
     try {
         const { landId } = req.params;
 
-        if (!mongoose.Types.ObjectId.isValid(landId)) {
+        if (
+            !mongoose.Types.ObjectId.isValid(
+                landId
+            )
+        ) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid land ID.",
+                message:
+                    "Invalid land ID.",
             });
         }
 
-        const documents = await Document.find({
-            land: landId,
-        })
-            .populate("land")
-            .populate("uploadedBy", "fullName email phone role")
-            .sort({ createdAt: -1 });
+        const existingLand =
+            await Land.findById(landId);
+
+        if (!existingLand) {
+            return res.status(404).json({
+                success: false,
+                message: "Land not found.",
+            });
+        }
+
+        const documents =
+            await populateDocument(
+                Document.find({
+                    land: landId,
+                }).sort({
+                    createdAt: -1,
+                })
+            );
 
         return res.status(200).json({
             success: true,
@@ -267,179 +361,371 @@ export const getDocumentsByLand = async (req, res) => {
             documents,
         });
     } catch (error) {
-        console.error("Get Land Documents Error:", error);
+        console.error(
+            "Get Land Documents Error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: error.message || "Failed to fetch land documents.",
+            message:
+                error.message ||
+                "Failed to fetch land documents.",
         });
     }
 };
 
-// UPDATE DOCUMENT
-export const updateDocument = async (req, res) => {
+const getMyDocuments = async (
+    req,
+    res
+) => {
     try {
-        const { id } = req.params;
+        const userId =
+            req.user?.id || req.user?._id;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({
+        if (!userId) {
+            return res.status(401).json({
                 success: false,
-                message: "Invalid document ID.",
+                message:
+                    "Authentication required.",
             });
         }
 
-        const document = await Document.findById(id);
-
-        if (!document) {
-            return res.status(404).json({
-                success: false,
-                message: "Document not found.",
-            });
-        }
-
-        const allowedFields = [
-            "documentType",
-            "fileName",
-        ];
-
-        const updateData = {};
-
-        allowedFields.forEach((field) => {
-            if (req.body[field] !== undefined) {
-                updateData[field] = req.body[field];
-            }
-        });
-
-        const updatedDocument = await Document.findByIdAndUpdate(
-            id,
-            updateData,
-            {
-                new: true,
-                runValidators: true,
-            }
-        )
-            .populate("land")
-            .populate("uploadedBy", "fullName email phone role");
+        const documents =
+            await populateDocument(
+                Document.find({
+                    uploadedBy: userId,
+                }).sort({
+                    createdAt: -1,
+                })
+            );
 
         return res.status(200).json({
             success: true,
-            message: "Document updated successfully.",
-            document: updatedDocument,
+            count: documents.length,
+            documents,
         });
     } catch (error) {
-        console.error("Update Document Error:", error);
+        console.error(
+            "Get My Documents Error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: error.message || "Failed to update document.",
+            message:
+                error.message ||
+                "Failed to fetch your documents.",
         });
     }
 };
 
-// DELETE DOCUMENT
-export const deleteDocument = async (req, res) => {
+const updateDocument = async (
+    req,
+    res
+) => {
     try {
         const { id } = req.params;
 
-        //Validate document ID
-        
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({
+        const userId =
+            req.user?.id || req.user?._id;
+
+        if (!userId) {
+            return res.status(401).json({
                 success: false,
-                message: "Invalid document ID.",
+                message:
+                    "Authentication required.",
             });
         }
 
-        //Find document
-        
-        const document = await Document.findById(id);
+        if (
+            !mongoose.Types.ObjectId.isValid(id)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Invalid document ID.",
+            });
+        }
+
+        const document =
+            await Document.findById(id);
 
         if (!document) {
             return res.status(404).json({
                 success: false,
-                message: "Document not found.",
+                message:
+                    "Document not found.",
             });
         }
 
-        //Delete file from Cloudinary
-        
+        const isAdmin =
+            req.user.role === "admin";
+
+        const isOwner =
+            document.uploadedBy.toString() ===
+            userId.toString();
+
+        if (!isAdmin && !isOwner) {
+            return res.status(403).json({
+                success: false,
+                message:
+                    "You are not allowed to update this document.",
+            });
+        }
+
+        const {
+            documentType,
+            fileName,
+        } = req.body;
+
+        if (documentType !== undefined) {
+            const allowedDocumentTypes = [
+                "Ownership Proof",
+                "Sale Deed",
+                "Land Certificate",
+                "Identity Proof",
+                "Tax Receipt",
+                "Other",
+            ];
+
+            if (
+                !allowedDocumentTypes.includes(
+                    documentType
+                )
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Invalid document type.",
+                });
+            }
+
+            document.documentType =
+                documentType;
+        }
+
+        if (fileName !== undefined) {
+            if (!fileName.trim()) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "File name cannot be empty.",
+                });
+            }
+
+            document.fileName =
+                fileName.trim();
+        }
+
+        if (
+            !documentType &&
+            fileName === undefined
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "No valid fields provided for update.",
+            });
+        }
+
+        if (
+            !isAdmin &&
+            document.status !== "Pending"
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Only pending documents can be updated.",
+            });
+        }
+
+        await document.save();
+
+        const updatedDocument =
+            await populateDocument(
+                Document.findById(id)
+            );
+
+        return res.status(200).json({
+            success: true,
+            message:
+                "Document updated successfully.",
+            document: updatedDocument,
+        });
+    } catch (error) {
+        console.error(
+            "Update Document Error:",
+            error
+        );
+
+        return res.status(500).json({
+            success: false,
+            message:
+                error.message ||
+                "Failed to update document.",
+        });
+    }
+};
+
+const deleteDocument = async (
+    req,
+    res
+) => {
+    try {
+        const { id } = req.params;
+
+        const userId =
+            req.user?.id || req.user?._id;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message:
+                    "Authentication required.",
+            });
+        }
+
+        if (
+            !mongoose.Types.ObjectId.isValid(id)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Invalid document ID.",
+            });
+        }
+
+        const document =
+            await Document.findById(id);
+
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Document not found.",
+            });
+        }
+
+        const isAdmin =
+            req.user.role === "admin";
+
+        const isOwner =
+            document.uploadedBy.toString() ===
+            userId.toString();
+
+        if (!isAdmin && !isOwner) {
+            return res.status(403).json({
+                success: false,
+                message:
+                    "You are not allowed to delete this document.",
+            });
+        }
+
+        if (
+            !isAdmin &&
+            document.status === "Approved"
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Approved documents cannot be deleted by users.",
+            });
+        }
+
         if (document.publicId) {
             try {
                 const isPdf =
-                    document.fileName?.toLowerCase().endsWith(".pdf") ||
-                    document.fileUrl?.toLowerCase().includes(".pdf");
+                    document.fileName
+                        ?.toLowerCase()
+                        .endsWith(".pdf");
 
-                const resourceType = isPdf ? "image" : "raw";
-
-                await cloudinary.uploader.destroy(document.publicId, {
-                    resource_type: resourceType,
-                });
+                await cloudinary.uploader.destroy(
+                    document.publicId,
+                    {
+                        resource_type:
+                            isPdf
+                                ? "image"
+                                : "raw",
+                    }
+                );
             } catch (cloudinaryError) {
                 console.error(
                     "Cloudinary Delete Error:",
-                    cloudinaryError
+                    cloudinaryError.message
                 );
-
-                // Continue deleting MongoDB record
-                // even if Cloudinary deletion fails.
             }
         }
-  
-        //Remove document ID from Land.documents
-        
+
         if (document.land) {
             await Land.findByIdAndUpdate(
                 document.land,
                 {
                     $pull: {
-                        documents: document._id,
+                        documents:
+                            document._id,
                     },
-                },
-                {
-                    new: true,
                 }
             );
         }
-        
-        //Delete document from Document collection
-        
-        await Document.findByIdAndDelete(id);
 
-        //Return response
+        await Document.findByIdAndDelete(
+            id
+        );
 
         return res.status(200).json({
             success: true,
             message:
-                "Document and associated Cloudinary asset deleted successfully.",
+                "Document deleted successfully.",
         });
     } catch (error) {
-        console.error("Delete Document Error:", error);
+        console.error(
+            "Delete Document Error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: error.message || "Failed to delete document.",
+            message:
+                error.message ||
+                "Failed to delete document.",
         });
     }
 };
 
-// APPROVE DOCUMENT
-export const approveDocument = async (req, res) => {
+const approveDocument = async (
+    req,
+    res
+) => {
     try {
         const { id } = req.params;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (
+            !mongoose.Types.ObjectId.isValid(id)
+        ) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid document ID.",
+                message:
+                    "Invalid document ID.",
             });
         }
 
-        const document = await Document.findById(id);
+        const document =
+            await Document.findById(id);
 
         if (!document) {
             return res.status(404).json({
                 success: false,
-                message: "Document not found.",
+                message:
+                    "Document not found.",
+            });
+        }
+
+        if (document.status !== "Pending") {
+            return res.status(400).json({
+                success: false,
+                message:
+                    `Document is already ${document.status}.`,
             });
         }
 
@@ -448,74 +734,113 @@ export const approveDocument = async (req, res) => {
 
         await document.save();
 
-        const populatedDocument = await Document.findById(document._id)
-            .populate("land")
-            .populate("uploadedBy", "fullName email phone role");
+        const populatedDocument =
+            await populateDocument(
+                Document.findById(id)
+            );
 
         return res.status(200).json({
             success: true,
-            message: "Document approved successfully.",
-            document: populatedDocument,
+            message:
+                "Document approved successfully.",
+            document:
+                populatedDocument,
         });
     } catch (error) {
-        console.error("Approve Document Error:", error);
+        console.error(
+            "Approve Document Error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: error.message || "Failed to approve document.",
+            message:
+                error.message ||
+                "Failed to approve document.",
         });
     }
 };
 
-// REJECT DOCUMENT
-export const rejectDocument = async (req, res) => {
+const rejectDocument = async (
+    req,
+    res
+) => {
     try {
         const { id } = req.params;
-        const { rejectionReason } = req.body;
+        const { rejectionReason } =
+            req.body;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (
+            !mongoose.Types.ObjectId.isValid(id)
+        ) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid document ID.",
+                message:
+                    "Invalid document ID.",
             });
         }
 
-        if (!rejectionReason || !rejectionReason.trim()) {
+        if (
+            !rejectionReason ||
+            !rejectionReason.trim()
+        ) {
             return res.status(400).json({
                 success: false,
-                message: "Rejection reason is required.",
+                message:
+                    "Rejection reason is required.",
             });
         }
 
-        const document = await Document.findById(id);
+        const document =
+            await Document.findById(id);
 
         if (!document) {
             return res.status(404).json({
                 success: false,
-                message: "Document not found.",
+                message:
+                    "Document not found.",
+            });
+        }
+
+        if (document.status !== "Pending") {
+            return res.status(400).json({
+                success: false,
+                message:
+                    `Document is already ${document.status}.`,
             });
         }
 
         document.status = "Rejected";
-        document.rejectionReason = rejectionReason.trim();
+        document.rejectionReason =
+            rejectionReason.trim();
 
         await document.save();
 
-        const populatedDocument = await Document.findById(document._id)
-            .populate("land")
-            .populate("uploadedBy", "fullName email phone role");
+        const populatedDocument =
+            await populateDocument(
+                Document.findById(id)
+            );
 
         return res.status(200).json({
             success: true,
-            message: "Document rejected successfully.",
-            document: populatedDocument,
+            message:
+                "Document rejected successfully.",
+            document:
+                populatedDocument,
         });
     } catch (error) {
-        console.error("Reject Document Error:", error);
+        console.error(
+            "Reject Document Error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: error.message || "Failed to reject document.",
+            message:
+                error.message ||
+                "Failed to reject document.",
         });
     }
 };
+
+export { createDocument, getAllDocuments, getMyDocuments, getDocumentById, getDocumentsByLand, updateDocument, deleteDocument, approveDocument,rejectDocument, };

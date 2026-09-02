@@ -1,9 +1,5 @@
 import express from "express";
-
-import {
-    getDashboardStats,
-} from "../controllers/dashboardController.js";
-
+import { getDashboardStats } from "../controllers/dashboardController.js";
 import {
     verifyToken,
     isAdmin,
@@ -11,7 +7,6 @@ import {
 
 const router = express.Router();
 
-// Admin Dashboard Statistics
 router.get(
     "/stats",
     verifyToken,

@@ -2,9 +2,15 @@ import User from "../models/UserModels.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-// REGISTER USER
 const register = async (req, res) => {
     try {
+        if (!req.body) {
+            return res.status(400).json({
+                success: false,
+                message: "Request body is required.",
+            });
+        }
+
         const {
             fullName,
             email,
@@ -12,7 +18,6 @@ const register = async (req, res) => {
             phone,
         } = req.body;
 
-        // Validate required fields
         if (
             !fullName ||
             !email ||
@@ -25,10 +30,13 @@ const register = async (req, res) => {
             });
         }
 
-        // Check existing user
-        const existingUser = await User.findOne({
-            email,
-        });
+        const normalizedEmail =
+            email.trim().toLowerCase();
+
+        const existingUser =
+            await User.findOne({
+                email: normalizedEmail,
+            });
 
         if (existingUser) {
             return res.status(400).json({
@@ -37,24 +45,20 @@ const register = async (req, res) => {
             });
         }
 
-        // Hash password
-        const hashedPassword = await bcrypt.hash(
-            password,
-            10
-        );
+        const hashedPassword =
+            await bcrypt.hash(password, 10);
 
-        // Create user
-        // Public registration always creates a normal user
         const user = await User.create({
-            fullName,
-            email,
+            fullName: fullName.trim(),
+            email: normalizedEmail,
             password: hashedPassword,
-            phone,
+            phone: phone.trim(),
             role: "user",
         });
 
-        // Remove password from response
-        const userData = user.toObject();
+        const userData =
+            user.toObject();
+
         delete userData.password;
 
         return res.status(201).json({
@@ -62,7 +66,6 @@ const register = async (req, res) => {
             message: "User registered successfully.",
             user: userData,
         });
-
     } catch (error) {
         console.error(
             "Register Error:",
@@ -71,20 +74,25 @@ const register = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Server Error",
+            message: error.message,
         });
     }
 };
 
-// LOGIN USER
 const login = async (req, res) => {
     try {
+        if (!req.body) {
+            return res.status(400).json({
+                success: false,
+                message: "Request body is required.",
+            });
+        }
+
         const {
             email,
             password,
         } = req.body;
 
-        // Validate fields
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
@@ -93,10 +101,13 @@ const login = async (req, res) => {
             });
         }
 
-        // Find user
-        const user = await User.findOne({
-            email,
-        });
+        const normalizedEmail =
+            email.trim().toLowerCase();
+
+        const user =
+            await User.findOne({
+                email: normalizedEmail,
+            });
 
         if (!user) {
             return res.status(404).json({
@@ -105,11 +116,11 @@ const login = async (req, res) => {
             });
         }
 
-        // Compare password
-        const isMatch = await bcrypt.compare(
-            password,
-            user.password
-        );
+        const isMatch =
+            await bcrypt.compare(
+                password,
+                user.password
+            );
 
         if (!isMatch) {
             return res.status(401).json({
@@ -119,17 +130,29 @@ const login = async (req, res) => {
             });
         }
 
-        // Generate JWT token
-        const token = jwt.sign(
-            {
-                id: user._id,
-                role: user.role,
-            },
-            process.env.JWT_SECRET,
-            {
-                expiresIn: "7d",
-            }
-        );
+        if (!process.env.JWT_SECRET) {
+            console.error(
+                "JWT_SECRET is missing in .env"
+            );
+
+            return res.status(500).json({
+                success: false,
+                message:
+                    "JWT configuration is missing.",
+            });
+        }
+
+        const token =
+            jwt.sign(
+                {
+                    id: user._id.toString(),
+                    role: user.role,
+                },
+                process.env.JWT_SECRET,
+                {
+                    expiresIn: "7d",
+                }
+            );
 
         return res.status(200).json({
             success: true,
@@ -143,7 +166,6 @@ const login = async (req, res) => {
                 role: user.role,
             },
         });
-
     } catch (error) {
         console.error(
             "Login Error:",
@@ -152,17 +174,28 @@ const login = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Server Error",
+            message: error.message,
         });
     }
 };
 
-// GET LOGGED-IN USER PROFILE
 const getProfile = async (req, res) => {
     try {
-        const user = await User.findById(
-            req.user.id
-        ).select("-password");
+        const userId =
+            req.user?.id ||
+            req.user?._id;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "Authentication required.",
+            });
+        }
+
+        const user =
+            await User.findById(
+                userId
+            ).select("-password");
 
         if (!user) {
             return res.status(404).json({
@@ -175,7 +208,6 @@ const getProfile = async (req, res) => {
             success: true,
             user,
         });
-
     } catch (error) {
         console.error(
             "Get Profile Error:",
@@ -184,26 +216,25 @@ const getProfile = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Server Error",
+            message: error.message,
         });
     }
 };
 
-// GET ALL USERS
 const getAllUsers = async (req, res) => {
     try {
-        const users = await User.find()
-            .select("-password")
-            .sort({
-                createdAt: -1,
-            });
+        const users =
+            await User.find()
+                .select("-password")
+                .sort({
+                    createdAt: -1,
+                });
 
         return res.status(200).json({
             success: true,
             count: users.length,
             users,
         });
-
     } catch (error) {
         console.error(
             "Get All Users Error:",
@@ -212,17 +243,17 @@ const getAllUsers = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Server Error",
+            message: error.message,
         });
     }
 };
 
-// DELETE USER
 const deleteUser = async (req, res) => {
     try {
-        const user = await User.findById(
-            req.params.id
-        );
+        const { id } = req.params;
+
+        const user =
+            await User.findById(id);
 
         if (!user) {
             return res.status(404).json({
@@ -231,16 +262,13 @@ const deleteUser = async (req, res) => {
             });
         }
 
-        await User.findByIdAndDelete(
-            req.params.id
-        );
+        await User.findByIdAndDelete(id);
 
         return res.status(200).json({
             success: true,
             message:
                 "User deleted successfully.",
         });
-
     } catch (error) {
         console.error(
             "Delete User Error:",
@@ -249,9 +277,9 @@ const deleteUser = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Server Error",
+            message: error.message,
         });
     }
 };
 
-export { register, login, getProfile, getAllUsers, deleteUser };
+export { register, login, getProfile, getAllUsers, deleteUser, };
