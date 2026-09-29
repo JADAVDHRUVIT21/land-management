@@ -15,7 +15,6 @@ import {
 import {
     verifyToken,
 } from "../middlewares/authMiddleware.js";
-
 import upload from "../middlewares/CloudinaryUpload.js";
 
 const router = express.Router();

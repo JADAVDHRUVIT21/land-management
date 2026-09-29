@@ -19,19 +19,105 @@ const register = async (req, res) => {
         } = req.body;
 
         if (
-            !fullName ||
-            !email ||
-            !password ||
-            !phone
+            typeof fullName !== "string" ||
+            typeof email !== "string" ||
+            typeof password !== "string" ||
+            typeof phone !== "string"
         ) {
             return res.status(400).json({
                 success: false,
-                message: "Please fill all required fields.",
+                message: "Invalid input data.",
             });
         }
 
+        const trimmedFullName =
+            fullName.trim();
+
         const normalizedEmail =
             email.trim().toLowerCase();
+
+        const trimmedPhone =
+            phone.trim();
+
+        if (
+            !trimmedFullName ||
+            !normalizedEmail ||
+            !password ||
+            !trimmedPhone
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Please fill all required fields.",
+            });
+        }
+
+        if (
+            trimmedFullName.length < 3 ||
+            trimmedFullName.length > 50
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Full name must be between 3 and 50 characters.",
+            });
+        }
+
+        const emailRegex =
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (
+            !emailRegex.test(
+                normalizedEmail
+            )
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Please provide a valid email address.",
+            });
+        }
+
+        if (
+            normalizedEmail.length > 254
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Email address is too long.",
+            });
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Password must be at least 8 characters long.",
+            });
+        }
+
+        if (password.length > 128) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Password must not exceed 128 characters.",
+            });
+        }
+
+        const phoneRegex =
+            /^\+?[0-9]{10,15}$/;
+
+        if (
+            !phoneRegex.test(
+                trimmedPhone
+            )
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Please provide a valid phone number.",
+            });
+        }
 
         const existingUser =
             await User.findOne({
@@ -41,20 +127,29 @@ const register = async (req, res) => {
         if (existingUser) {
             return res.status(400).json({
                 success: false,
-                message: "Email already registered.",
+                message:
+                    "Email already registered.",
             });
         }
 
         const hashedPassword =
-            await bcrypt.hash(password, 10);
+            await bcrypt.hash(
+                password,
+                12
+            );
 
-        const user = await User.create({
-            fullName: fullName.trim(),
-            email: normalizedEmail,
-            password: hashedPassword,
-            phone: phone.trim(),
-            role: "user",
-        });
+        const user =
+            await User.create({
+                fullName:
+                    trimmedFullName,
+                email:
+                    normalizedEmail,
+                password:
+                    hashedPassword,
+                phone:
+                    trimmedPhone,
+                role: "user",
+            });
 
         const userData =
             user.toObject();
@@ -63,7 +158,8 @@ const register = async (req, res) => {
 
         return res.status(201).json({
             success: true,
-            message: "User registered successfully.",
+            message:
+                "User registered successfully.",
             user: userData,
         });
     } catch (error) {
@@ -72,9 +168,18 @@ const register = async (req, res) => {
             error
         );
 
+        if (error.code === 11000) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Email already registered.",
+            });
+        }
+
         return res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                "Internal server error.",
         });
     }
 };
@@ -84,7 +189,8 @@ const login = async (req, res) => {
         if (!req.body) {
             return res.status(400).json({
                 success: false,
-                message: "Request body is required.",
+                message:
+                    "Request body is required.",
             });
         }
 
@@ -93,7 +199,24 @@ const login = async (req, res) => {
             password,
         } = req.body;
 
-        if (!email || !password) {
+        if (
+            typeof email !== "string" ||
+            typeof password !== "string"
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Invalid email or password.",
+            });
+        }
+
+        const normalizedEmail =
+            email.trim().toLowerCase();
+
+        if (
+            !normalizedEmail ||
+            !password
+        ) {
             return res.status(400).json({
                 success: false,
                 message:
@@ -101,18 +224,16 @@ const login = async (req, res) => {
             });
         }
 
-        const normalizedEmail =
-            email.trim().toLowerCase();
-
         const user =
             await User.findOne({
                 email: normalizedEmail,
             });
 
         if (!user) {
-            return res.status(404).json({
+            return res.status(401).json({
                 success: false,
-                message: "User not found.",
+                message:
+                    "Invalid Email or Password.",
             });
         }
 
@@ -156,14 +277,19 @@ const login = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            message: "Login successful.",
+            message:
+                "Login successful.",
             token,
             user: {
                 id: user._id,
-                fullName: user.fullName,
-                email: user.email,
-                phone: user.phone,
-                role: user.role,
+                fullName:
+                    user.fullName,
+                email:
+                    user.email,
+                phone:
+                    user.phone,
+                role:
+                    user.role,
             },
         });
     } catch (error) {
@@ -174,12 +300,16 @@ const login = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                "Internal server error.",
         });
     }
 };
 
-const getProfile = async (req, res) => {
+const getProfile = async (
+    req,
+    res
+) => {
     try {
         const userId =
             req.user?.id ||
@@ -188,7 +318,8 @@ const getProfile = async (req, res) => {
         if (!userId) {
             return res.status(401).json({
                 success: false,
-                message: "Authentication required.",
+                message:
+                    "Authentication required.",
             });
         }
 
@@ -200,7 +331,8 @@ const getProfile = async (req, res) => {
         if (!user) {
             return res.status(404).json({
                 success: false,
-                message: "User not found.",
+                message:
+                    "User not found.",
             });
         }
 
@@ -216,12 +348,16 @@ const getProfile = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                "Internal server error.",
         });
     }
 };
 
-const getAllUsers = async (req, res) => {
+const getAllUsers = async (
+    req,
+    res
+) => {
     try {
         const users =
             await User.find()
@@ -243,14 +379,27 @@ const getAllUsers = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                "Internal server error.",
         });
     }
 };
 
-const deleteUser = async (req, res) => {
+const deleteUser = async (
+    req,
+    res
+) => {
     try {
-        const { id } = req.params;
+        const { id } =
+            req.params;
+
+        if (!id) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "User ID is required.",
+            });
+        }
 
         const user =
             await User.findById(id);
@@ -258,11 +407,14 @@ const deleteUser = async (req, res) => {
         if (!user) {
             return res.status(404).json({
                 success: false,
-                message: "User not found.",
+                message:
+                    "User not found.",
             });
         }
 
-        await User.findByIdAndDelete(id);
+        await User.findByIdAndDelete(
+            id
+        );
 
         return res.status(200).json({
             success: true,
@@ -277,7 +429,8 @@ const deleteUser = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                "Internal server error.",
         });
     }
 };

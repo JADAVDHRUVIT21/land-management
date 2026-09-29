@@ -24,6 +24,8 @@ const populateTransfer = (query) => {
         );
 };
 
+// CREATE PURCHASE / OWNERSHIP TRANSFER REQUEST
+
 const createTransferRequest = async (req, res) => {
     try {
         const { land, reason } = req.body;
@@ -42,12 +44,14 @@ const createTransferRequest = async (req, res) => {
             });
         }
 
-        const buyerId = req.user?.id || req.user?._id;
+        const buyerId =
+            req.user?.id || req.user?._id;
 
         if (!buyerId) {
             return res.status(401).json({
                 success: false,
-                message: "User information not found in token.",
+                message:
+                    "User information not found in token.",
             });
         }
 
@@ -70,11 +74,13 @@ const createTransferRequest = async (req, res) => {
         if (buyer.role !== "user") {
             return res.status(403).json({
                 success: false,
-                message: "Only users can purchase land.",
+                message:
+                    "Only users can purchase land.",
             });
         }
 
-        const existingLand = await Land.findById(land);
+        const existingLand =
+            await Land.findById(land);
 
         if (!existingLand) {
             return res.status(404).json({
@@ -86,14 +92,16 @@ const createTransferRequest = async (req, res) => {
         if (!existingLand.owner) {
             return res.status(400).json({
                 success: false,
-                message: "This land does not have a valid owner.",
+                message:
+                    "This land does not have a valid owner.",
             });
         }
 
         if (existingLand.isForSale !== true) {
             return res.status(400).json({
                 success: false,
-                message: "This land is not currently available for sale.",
+                message:
+                    "This land is not currently available for sale.",
             });
         }
 
@@ -103,7 +111,8 @@ const createTransferRequest = async (req, res) => {
         ) {
             return res.status(400).json({
                 success: false,
-                message: "You cannot buy your own land.",
+                message:
+                    "You cannot buy your own land.",
             });
         }
 
@@ -121,44 +130,57 @@ const createTransferRequest = async (req, res) => {
             });
         }
 
-        const transfer = await OwnershipTransfer.create({
-            land: existingLand._id,
-            currentOwner: existingLand.owner,
-            newOwner: buyerId,
-            requestedBy: buyerId,
-            reason: reason.trim(),
-            status: "Pending",
-            approvedBy: null,
-            rejectionReason: "",
-            transferDate: null,
-        });
+        const transfer =
+            await OwnershipTransfer.create({
+                land: existingLand._id,
+                currentOwner: existingLand.owner,
+                newOwner: buyerId,
+                requestedBy: buyerId,
+                reason: reason.trim(),
+                status: "Pending",
+                approvedBy: null,
+                rejectionReason: "",
+                transferDate: null,
+            });
 
-        const populatedTransfer = await populateTransfer(
-            OwnershipTransfer.findById(transfer._id)
-        );
+        const populatedTransfer =
+            await populateTransfer(
+                OwnershipTransfer.findById(
+                    transfer._id
+                )
+            );
 
         return res.status(201).json({
             success: true,
-            message: "Purchase request created successfully.",
+            message:
+                "Purchase request created successfully.",
             transfer: populatedTransfer,
         });
     } catch (error) {
-        console.error("Create Transfer Error:", error);
+        console.error(
+            "Create Transfer Error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                error.message ||
+                "Failed to create transfer request.",
         });
     }
 };
 
+// GET ALL TRANSFER REQUESTS
+
 const getAllTransferRequests = async (req, res) => {
     try {
-        const transfers = await populateTransfer(
-            OwnershipTransfer.find().sort({
-                createdAt: -1,
-            })
-        );
+        const transfers =
+            await populateTransfer(
+                OwnershipTransfer.find().sort({
+                    createdAt: -1,
+                })
+            );
 
         return res.status(200).json({
             success: true,
@@ -173,29 +195,36 @@ const getAllTransferRequests = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                error.message ||
+                "Failed to get transfer requests.",
         });
     }
 };
 
+// GET MY TRANSFER REQUESTS
+
 const getMyTransferRequests = async (req, res) => {
     try {
-        const userId = req.user?.id || req.user?._id;
+        const userId =
+            req.user?.id || req.user?._id;
 
         if (!userId) {
             return res.status(401).json({
                 success: false,
-                message: "Authentication required.",
+                message:
+                    "Authentication required.",
             });
         }
 
-        const transfers = await populateTransfer(
-            OwnershipTransfer.find({
-                requestedBy: userId,
-            }).sort({
-                createdAt: -1,
-            })
-        );
+        const transfers =
+            await populateTransfer(
+                OwnershipTransfer.find({
+                    requestedBy: userId,
+                }).sort({
+                    createdAt: -1,
+                })
+            );
 
         return res.status(200).json({
             success: true,
@@ -210,10 +239,14 @@ const getMyTransferRequests = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                error.message ||
+                "Failed to get your transfer requests.",
         });
     }
 };
+
+// GET TRANSFER BY ID
 
 const getTransferById = async (req, res) => {
     try {
@@ -222,18 +255,21 @@ const getTransferById = async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid transfer ID.",
+                message:
+                    "Invalid transfer ID.",
             });
         }
 
-        const transfer = await populateTransfer(
-            OwnershipTransfer.findById(id)
-        );
+        const transfer =
+            await populateTransfer(
+                OwnershipTransfer.findById(id)
+            );
 
         if (!transfer) {
             return res.status(404).json({
                 success: false,
-                message: "Transfer request not found.",
+                message:
+                    "Transfer request not found.",
             });
         }
 
@@ -242,14 +278,21 @@ const getTransferById = async (req, res) => {
             transfer,
         });
     } catch (error) {
-        console.error("Get Transfer Error:", error);
+        console.error(
+            "Get Transfer Error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                error.message ||
+                "Failed to get transfer request.",
         });
     }
 };
+
+// APPROVE TRANSFER
 
 const approveTransfer = async (req, res) => {
     try {
@@ -261,14 +304,16 @@ const approveTransfer = async (req, res) => {
         if (!approvedBy) {
             return res.status(401).json({
                 success: false,
-                message: "Authentication required.",
+                message:
+                    "Authentication required.",
             });
         }
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid transfer ID.",
+                message:
+                    "Invalid transfer ID.",
             });
         }
 
@@ -278,7 +323,8 @@ const approveTransfer = async (req, res) => {
         if (!transfer) {
             return res.status(404).json({
                 success: false,
-                message: "Transfer request not found.",
+                message:
+                    "Transfer request not found.",
             });
         }
 
@@ -303,7 +349,8 @@ const approveTransfer = async (req, res) => {
         if (!land.owner) {
             return res.status(400).json({
                 success: false,
-                message: "Land owner information is missing.",
+                message:
+                    "Land owner information is missing.",
             });
         }
 
@@ -326,6 +373,8 @@ const approveTransfer = async (req, res) => {
             });
         }
 
+        // Current system:
+        // The current land owner approves the purchase.
         if (
             approvedBy.toString() !==
             transfer.currentOwner.toString()
@@ -338,19 +387,23 @@ const approveTransfer = async (req, res) => {
         }
 
         const newOwner =
-            await User.findById(transfer.newOwner);
+            await User.findById(
+                transfer.newOwner
+            );
 
         if (!newOwner) {
             return res.status(404).json({
                 success: false,
-                message: "New owner not found.",
+                message:
+                    "New owner not found.",
             });
         }
 
         if (newOwner.role !== "user") {
             return res.status(400).json({
                 success: false,
-                message: "New owner must be a user.",
+                message:
+                    "New owner must be a user.",
             });
         }
 
@@ -365,11 +418,15 @@ const approveTransfer = async (req, res) => {
             });
         }
 
+        // Transfer ownership
         land.owner = transfer.newOwner;
+
+        // Remove from marketplace
         land.isForSale = false;
 
         await land.save();
 
+        // Update transfer record
         transfer.status = "Approved";
         transfer.approvedBy = approvedBy;
         transfer.transferDate = new Date();
@@ -398,10 +455,14 @@ const approveTransfer = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                error.message ||
+                "Failed to approve transfer.",
         });
     }
 };
+
+// REJECT TRANSFER
 
 const rejectTransfer = async (req, res) => {
     try {
@@ -414,14 +475,16 @@ const rejectTransfer = async (req, res) => {
         if (!approvedBy) {
             return res.status(401).json({
                 success: false,
-                message: "Authentication required.",
+                message:
+                    "Authentication required.",
             });
         }
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid transfer ID.",
+                message:
+                    "Invalid transfer ID.",
             });
         }
 
@@ -517,9 +580,13 @@ const rejectTransfer = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                error.message ||
+                "Failed to reject transfer.",
         });
     }
 };
+
+// EXPORTS
 
 export { createTransferRequest, getAllTransferRequests, getMyTransferRequests, getTransferById, approveTransfer, rejectTransfer, };

@@ -13,7 +13,8 @@
     "mongoose": "^9.8.1",
     "multer": "^2.2.0",
     "multer-storage-cloudinary": "^4.0.0",
-    "react-router-dom": "^7.18.2"
+    "react-router-dom": "^7.18.2",
+    "socket.io": "^4.8.3"
   },
   "name": "backend",
   "version": "1.0.0",

@@ -10,7 +10,9 @@ cloudinary.config({
 
 cloudinary.api.ping()
     .then((result) => {
-        console.log("Cloudinary connected:", result);
+        console.log("Cloudinary connected");
+        // console.log("Cloudinary connected:", result);
+
     })
     .catch((error) => {
         console.error("Cloudinary connection error:", error);

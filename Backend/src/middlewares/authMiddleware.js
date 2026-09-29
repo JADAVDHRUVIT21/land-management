@@ -1,9 +1,9 @@
 import jwt from "jsonwebtoken";
 
-// VERIFY JWT TOKEN
-export const verifyToken = async (req, res, next) => {
+export const verifyToken = async ( req, res, next) => {
     try {
-        const authHeader = req.headers.authorization;
+        const authHeader =
+            req.headers.authorization;
 
         if (
             !authHeader ||
@@ -11,18 +11,22 @@ export const verifyToken = async (req, res, next) => {
         ) {
             return res.status(401).json({
                 success: false,
-                message: "Access Denied. No Token Provided.",
+                message:
+                    "Access Denied. No Token Provided.",
             });
         }
 
-        const token = authHeader.split(" ")[1];
+        const token =
+            authHeader.split(" ")[1];
 
         if (!token) {
             return res.status(401).json({
                 success: false,
-                message: "Access Denied. No Token Provided.",
+                message:
+                    "Access Denied. No Token Provided.",
             });
         }
+
         const decoded = jwt.verify(
             token,
             process.env.JWT_SECRET
@@ -31,7 +35,6 @@ export const verifyToken = async (req, res, next) => {
         req.user = decoded;
 
         next();
-
     } catch (error) {
         console.error(
             "JWT Verification Error:",
@@ -40,46 +43,43 @@ export const verifyToken = async (req, res, next) => {
 
         return res.status(401).json({
             success: false,
-            message: "Invalid or Expired Token.",
+            message:
+                "Invalid or Expired Token.",
         });
     }
 };
 
-// ADMIN ONLY
-export const isAdmin = (req, res, next) => {
-
+export const isAdmin = ( req, res, next) => {
     if (
         !req.user ||
         req.user.role !== "admin"
     ) {
         return res.status(403).json({
             success: false,
-            message: "Access Denied. Admin Only.",
+            message:
+                "Access Denied. Admin Only.",
         });
     }
 
     next();
 };
 
-// USER ONLY
-export const isUser = (req, res, next) => {
-
+export const isUser = (req, res, next ) => {
     if (
         !req.user ||
         req.user.role !== "user"
     ) {
         return res.status(403).json({
             success: false,
-            message: "Access Denied. User Only.",
+            message:
+                "Access Denied. User Only.",
         });
     }
 
     next();
 };
 
-// ADMIN OR USER
 export const isAdminOrUser = (req, res, next) => {
-
     if (
         !req.user ||
         (
@@ -89,7 +89,8 @@ export const isAdminOrUser = (req, res, next) => {
     ) {
         return res.status(403).json({
             success: false,
-            message: "Access Denied.",
+            message:
+                "Access Denied.",
         });
     }
 

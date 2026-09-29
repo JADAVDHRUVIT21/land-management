@@ -19,6 +19,7 @@ const uploadToCloudinary = (
                             "Cloudinary Upload Error:",
                             error
                         );
+
                         return reject(error);
                     }
 
@@ -48,6 +49,7 @@ const uploadVideoToCloudinary = (
                             "Cloudinary Video Error:",
                             error
                         );
+
                         return reject(error);
                     }
 
@@ -75,6 +77,7 @@ const createLand = async (req, res) => {
             district,
             state,
             landType,
+            listingType,
             location,
             price,
             description,
@@ -88,6 +91,7 @@ const createLand = async (req, res) => {
             !district ||
             !state ||
             !landType ||
+            !listingType ||
             !location ||
             price === undefined ||
             price === ""
@@ -95,6 +99,18 @@ const createLand = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: "Please fill all required fields.",
+            });
+        }
+
+        if (
+            !["For Sale", "Wanted to Buy"].includes(
+                listingType
+            )
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "listingType must be For Sale or Wanted to Buy.",
             });
         }
 
@@ -107,7 +123,8 @@ const createLand = async (req, res) => {
         ) {
             return res.status(400).json({
                 success: false,
-                message: "Area must be a valid positive number.",
+                message:
+                    "Area must be a valid positive number.",
             });
         }
 
@@ -117,18 +134,22 @@ const createLand = async (req, res) => {
         ) {
             return res.status(400).json({
                 success: false,
-                message: "Price must be a valid number.",
+                message:
+                    "Price must be a valid number.",
             });
         }
 
-        const existingLand = await Land.findOne({
-            surveyNumber: surveyNumber.trim(),
-        });
+        const existingLand =
+            await Land.findOne({
+                surveyNumber:
+                    surveyNumber.trim(),
+            });
 
         if (existingLand) {
             return res.status(400).json({
                 success: false,
-                message: "Survey Number already exists.",
+                message:
+                    "Survey Number already exists.",
             });
         }
 
@@ -207,17 +228,19 @@ const createLand = async (req, res) => {
             req.files.image.length > 0
         ) {
             images = await Promise.all(
-                req.files.image.map(async (file) => {
-                    const result =
-                        await uploadToCloudinary(
-                            file.buffer,
-                            "lands/images"
-                        );
+                req.files.image.map(
+                    async (file) => {
+                        const result =
+                            await uploadToCloudinary(
+                                file.buffer,
+                                "lands/images"
+                            );
 
-                    return {
-                        url: result.secure_url,
-                    };
-                })
+                        return {
+                            url: result.secure_url,
+                        };
+                    }
+                )
             );
         }
 
@@ -228,43 +251,64 @@ const createLand = async (req, res) => {
             req.files.video.length > 0
         ) {
             videos = await Promise.all(
-                req.files.video.map(async (file) => {
-                    const result =
-                        await uploadVideoToCloudinary(
-                            file.buffer,
-                            "lands/videos"
-                        );
+                req.files.video.map(
+                    async (file) => {
+                        const result =
+                            await uploadVideoToCloudinary(
+                                file.buffer,
+                                "lands/videos"
+                            );
 
-                    return {
-                        url: result.secure_url,
-                    };
-                })
+                        return {
+                            url: result.secure_url,
+                        };
+                    }
+                )
             );
         }
 
-        const land = await Land.create({
-            surveyNumber: surveyNumber.trim(),
-            owner: req.user.id,
-            area: parsedArea,
-            village: village.trim(),
-            district: district.trim(),
-            state: state.trim(),
-            landType,
-            isForSale: false,
-            price: parsedPrice,
-            description: description
-                ? description.trim()
-                : "",
-            image: images,
-            video: videos,
-            location: {
-                latitude,
-                longitude,
-            },
-        });
+        const land =
+            await Land.create({
+                surveyNumber:
+                    surveyNumber.trim(),
+
+                owner: req.user.id,
+
+                area: parsedArea,
+
+                village: village.trim(),
+
+                district: district.trim(),
+
+                state: state.trim(),
+
+                landType,
+
+                listingType,
+
+                isForSale: false,
+
+                price: parsedPrice,
+
+                description:
+                    description
+                        ? description.trim()
+                        : "",
+
+                image: images,
+
+                video: videos,
+
+                location: {
+                    latitude,
+                    longitude,
+                },
+            });
 
         const populatedLand =
-            await Land.findById(land._id).populate(
+            await Land.findById(
+                land._id
+            ).populate(
                 "owner",
                 "fullName email phone role"
             );
@@ -296,6 +340,7 @@ const getAllLands = async (req, res) => {
             district,
             state,
             landType,
+            listingType,
             minPrice,
             maxPrice,
             page = 1,
@@ -310,6 +355,24 @@ const getAllLands = async (req, res) => {
             filter.owner = {
                 $ne: req.user.id,
             };
+        }
+
+        if (listingType) {
+            if (
+                ![
+                    "For Sale",
+                    "Wanted to Buy",
+                ].includes(listingType)
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Invalid listingType.",
+                });
+            }
+
+            filter.listingType =
+                listingType;
         }
 
         if (search?.trim()) {
@@ -354,7 +417,8 @@ const getAllLands = async (req, res) => {
                 minPrice !== undefined &&
                 minPrice !== ""
             ) {
-                const minimum = Number(minPrice);
+                const minimum =
+                    Number(minPrice);
 
                 if (
                     Number.isNaN(minimum) ||
@@ -367,14 +431,16 @@ const getAllLands = async (req, res) => {
                     });
                 }
 
-                filter.price.$gte = minimum;
+                filter.price.$gte =
+                    minimum;
             }
 
             if (
                 maxPrice !== undefined &&
                 maxPrice !== ""
             ) {
-                const maximum = Number(maxPrice);
+                const maximum =
+                    Number(maxPrice);
 
                 if (
                     Number.isNaN(maximum) ||
@@ -387,12 +453,15 @@ const getAllLands = async (req, res) => {
                     });
                 }
 
-                filter.price.$lte = maximum;
+                filter.price.$lte =
+                    maximum;
             }
 
             if (
-                filter.price.$gte !== undefined &&
-                filter.price.$lte !== undefined &&
+                filter.price.$gte !==
+                undefined &&
+                filter.price.$lte !==
+                undefined &&
                 filter.price.$gte >
                 filter.price.$lte
             ) {
@@ -404,25 +473,29 @@ const getAllLands = async (req, res) => {
             }
         }
 
-        const pageNumber = Math.max(
-            Number(page) || 1,
-            1
-        );
-
-        const limitNumber = Math.min(
+        const pageNumber =
             Math.max(
-                Number(limit) || 10,
+                Number(page) || 1,
                 1
-            ),
-            100
-        );
+            );
+
+        const limitNumber =
+            Math.min(
+                Math.max(
+                    Number(limit) || 10,
+                    1
+                ),
+                100
+            );
 
         const skip =
             (pageNumber - 1) *
             limitNumber;
 
         const total =
-            await Land.countDocuments(filter);
+            await Land.countDocuments(
+                filter
+            );
 
         const lands =
             await Land.find(filter)
@@ -465,7 +538,8 @@ const getMyLands = async (req, res) => {
         if (!req.user?.id) {
             return res.status(401).json({
                 success: false,
-                message: "Authentication required.",
+                message:
+                    "Authentication required.",
             });
         }
 
@@ -503,7 +577,11 @@ const getLandById = async (req, res) => {
     try {
         const { id } = req.params;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (
+            !mongoose.Types.ObjectId.isValid(
+                id
+            )
+        ) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid land ID.",
@@ -524,10 +602,12 @@ const getLandById = async (req, res) => {
         }
 
         const userId =
-            req.user?.id || req.user?._id;
+            req.user?.id ||
+            req.user?._id;
 
         const ownerId =
-            land.owner?._id || land.owner;
+            land.owner?._id ||
+            land.owner;
 
         const isOwner =
             userId &&
@@ -535,7 +615,10 @@ const getLandById = async (req, res) => {
             ownerId.toString() ===
             userId.toString();
 
-        if (!isOwner && !land.isForSale) {
+        if (
+            !isOwner &&
+            !land.isForSale
+        ) {
             return res.status(403).json({
                 success: false,
                 message:
@@ -565,13 +648,18 @@ const updateLand = async (req, res) => {
         if (!req.user?.id) {
             return res.status(401).json({
                 success: false,
-                message: "Authentication required.",
+                message:
+                    "Authentication required.",
             });
         }
 
         const { id } = req.params;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (
+            !mongoose.Types.ObjectId.isValid(
+                id
+            )
+        ) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid land ID.",
@@ -606,6 +694,26 @@ const updateLand = async (req, res) => {
         delete updateData.owner;
         delete updateData.isForSale;
 
+        if (
+            updateData.listingType !==
+            undefined
+        ) {
+            if (
+                ![
+                    "For Sale",
+                    "Wanted to Buy",
+                ].includes(
+                    updateData.listingType
+                )
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "listingType must be For Sale or Wanted to Buy.",
+                });
+            }
+        }
+
         if (updateData.surveyNumber) {
             const surveyNumber =
                 updateData.surveyNumber.trim();
@@ -630,12 +738,17 @@ const updateLand = async (req, res) => {
                 surveyNumber;
         }
 
-        if (updateData.area !== undefined) {
+        if (
+            updateData.area !==
+            undefined
+        ) {
             updateData.area =
                 Number(updateData.area);
 
             if (
-                Number.isNaN(updateData.area) ||
+                Number.isNaN(
+                    updateData.area
+                ) ||
                 updateData.area <= 0
             ) {
                 return res.status(400).json({
@@ -646,12 +759,17 @@ const updateLand = async (req, res) => {
             }
         }
 
-        if (updateData.price !== undefined) {
+        if (
+            updateData.price !==
+            undefined
+        ) {
             updateData.price =
                 Number(updateData.price);
 
             if (
-                Number.isNaN(updateData.price) ||
+                Number.isNaN(
+                    updateData.price
+                ) ||
                 updateData.price < 0
             ) {
                 return res.status(400).json({
@@ -668,7 +786,10 @@ const updateLand = async (req, res) => {
             "state",
             "description",
         ].forEach((field) => {
-            if (updateData[field] !== undefined) {
+            if (
+                updateData[field] !==
+                undefined
+            ) {
                 updateData[field] =
                     String(
                         updateData[field]
@@ -688,19 +809,25 @@ const updateLand = async (req, res) => {
                         );
                 }
 
-                const latitude = Number(
-                    updateData.location
-                        .latitude
-                );
+                const latitude =
+                    Number(
+                        updateData.location
+                            .latitude
+                    );
 
-                const longitude = Number(
-                    updateData.location
-                        .longitude
-                );
+                const longitude =
+                    Number(
+                        updateData.location
+                            .longitude
+                    );
 
                 if (
-                    Number.isNaN(latitude) ||
-                    Number.isNaN(longitude)
+                    Number.isNaN(
+                        latitude
+                    ) ||
+                    Number.isNaN(
+                        longitude
+                    )
                 ) {
                     return res.status(400).json({
                         success: false,
@@ -781,13 +908,18 @@ const deleteLand = async (req, res) => {
         if (!req.user?.id) {
             return res.status(401).json({
                 success: false,
-                message: "Authentication required.",
+                message:
+                    "Authentication required.",
             });
         }
 
         const { id } = req.params;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (
+            !mongoose.Types.ObjectId.isValid(
+                id
+            )
+        ) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid land ID.",
@@ -819,7 +951,7 @@ const deleteLand = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message:
-                    "Remove the land from sale before deleting it.",
+                    "Remove the land from active listing before deleting it.",
             });
         }
 
@@ -851,13 +983,18 @@ const toggleLandForSale = async (
         if (!req.user?.id) {
             return res.status(401).json({
                 success: false,
-                message: "Authentication required.",
+                message:
+                    "Authentication required.",
             });
         }
 
         const { id } = req.params;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (
+            !mongoose.Types.ObjectId.isValid(
+                id
+            )
+        ) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid land ID.",
@@ -885,60 +1022,65 @@ const toggleLandForSale = async (
             });
         }
 
+        let isForSale =
+            req.body.isForSale;
+
         if (
-            land.isForSale === true &&
-            req.body.isForSale === false
+            typeof isForSale ===
+            "string"
         ) {
-            land.isForSale = false;
-        } else {
-            let isForSale =
-                req.body.isForSale;
-
             if (
-                typeof isForSale ===
-                "string"
+                isForSale === "true"
             ) {
-                if (
-                    isForSale === "true"
-                ) {
-                    isForSale = true;
-                } else if (
-                    isForSale === "false"
-                ) {
-                    isForSale = false;
-                } else {
-                    return res.status(400).json({
-                        success: false,
-                        message:
-                            "isForSale must be true or false.",
-                    });
-                }
-            }
-
-            if (
-                typeof isForSale !==
-                "boolean"
+                isForSale = true;
+            } else if (
+                isForSale === "false"
             ) {
+                isForSale = false;
+            } else {
                 return res.status(400).json({
                     success: false,
                     message:
                         "isForSale must be true or false.",
                 });
             }
-
-            if (
-                isForSale &&
-                land.isForSale
-            ) {
-                return res.status(400).json({
-                    success: false,
-                    message:
-                        "Land is already available for sale.",
-                });
-            }
-
-            land.isForSale = isForSale;
         }
+
+        if (
+            typeof isForSale !==
+            "boolean"
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "isForSale must be true or false.",
+            });
+        }
+
+        if (
+            isForSale &&
+            land.isForSale
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Land is already available as an active listing.",
+            });
+        }
+
+        if (
+            !isForSale &&
+            !land.isForSale
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Land is already inactive.",
+            });
+        }
+
+        land.isForSale =
+            isForSale;
 
         await land.save();
 
@@ -947,16 +1089,25 @@ const toggleLandForSale = async (
             "fullName email phone role"
         );
 
+        const listingMessage =
+            land.listingType ===
+                "Wanted to Buy"
+                ? isForSale
+                    ? "Your wanted-to-buy listing is now active."
+                    : "Your wanted-to-buy listing is now inactive."
+                : isForSale
+                    ? "Land is now available for sale."
+                    : "Land removed from sale.";
+
         return res.status(200).json({
             success: true,
-            message: land.isForSale
-                ? "Land is now available for sale."
-                : "Land removed from sale.",
+            message:
+                listingMessage,
             land,
         });
     } catch (error) {
         console.error(
-            "Toggle Land For Sale Error:",
+            "Toggle Land Listing Error:",
             error
         );
 
@@ -967,4 +1118,4 @@ const toggleLandForSale = async (
     }
 };
 
-export { createLand, getAllLands, getMyLands, getLandById, updateLand, deleteLand, toggleLandForSale, };
+export {createLand, getAllLands, getMyLands, getLandById, updateLand, deleteLand, toggleLandForSale,};

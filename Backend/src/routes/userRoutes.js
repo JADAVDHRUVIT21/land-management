@@ -15,20 +15,22 @@ import {
 
 const router = express.Router();
 
-// Register User
-router.post("/register", register);
+router.post(
+    "/register",
+    register
+);
 
-// Login User
-router.post("/login", login);
+router.post(
+    "/login",
+    login
+);
 
-// Get Logged-in User Profile
 router.get(
     "/profile",
     verifyToken,
     getProfile
 );
 
-// Get All Users - Admin Only
 router.get(
     "/",
     verifyToken,
@@ -36,7 +38,6 @@ router.get(
     getAllUsers
 );
 
-// Delete User - Admin Only
 router.delete(
     "/:id",
     verifyToken,

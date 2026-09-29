@@ -26,7 +26,6 @@ const userSchema = new mongoose.Schema(
             type: String,
             required: [true, "Password is required"],
             minlength: 6,
-            // select: false, 
         },
 
         phone: {
@@ -46,6 +45,9 @@ const userSchema = new mongoose.Schema(
     }
 );
 
-const User = mongoose.model("User", userSchema);
+const User = mongoose.model(
+    "User",
+    userSchema
+);
 
 export default User;

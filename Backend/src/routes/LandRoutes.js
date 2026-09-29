@@ -8,7 +8,7 @@ import {
     updateLand,
     deleteLand,
     toggleLandForSale,
-} from "../controllers/landController.js";
+} from "../controllers/LandController.js";
 
 import {
     verifyToken,
@@ -17,12 +17,6 @@ import {
 import upload from "../middlewares/CloudinaryUpload.js";
 
 const router = express.Router();
-
-/*
-|--------------------------------------------------------------------------
-| CREATE LAND
-|--------------------------------------------------------------------------
-*/
 
 router.post(
     "/",
@@ -40,13 +34,6 @@ router.post(
     createLand
 );
 
-
-/*
-|--------------------------------------------------------------------------
-| UPLOAD FILES TEST
-|--------------------------------------------------------------------------
-*/
-
 router.post(
     "/upload",
     verifyToken,
@@ -61,7 +48,6 @@ router.post(
         },
     ]),
     (req, res) => {
-
         console.log("req.files:");
         console.dir(req.files, {
             depth: null,
@@ -74,19 +60,13 @@ router.post(
 
         return res.status(200).json({
             success: true,
-            message: "Files uploaded successfully.",
+            message:
+                "Files uploaded successfully.",
             files: req.files,
             body: req.body,
         });
     }
 );
-
-
-/*
-|--------------------------------------------------------------------------
-| GET MY LANDS
-|--------------------------------------------------------------------------
-*/
 
 router.get(
     "/my",
@@ -94,46 +74,36 @@ router.get(
     getMyLands
 );
 
-
-/*
-|--------------------------------------------------------------------------
-| GET LANDS FOR SALE
-|--------------------------------------------------------------------------
-| IMPORTANT:
-| This MUST be before /:id
-|--------------------------------------------------------------------------
-*/
-
 router.get(
     "/for-sale",
     verifyToken,
     async (req, res, next) => {
-
         try {
-
             const Land = (
-                await import("../models/LandModel.js")
+                await import(
+                    "../models/LandModel.js"
+                )
             ).default;
 
-            const lands = await Land.find({
-                isForSale: true,
-            })
-                .populate(
-                    "owner",
-                    "fullName email phone role"
-                )
-                .sort({
-                    createdAt: -1,
-                });
+            const lands =
+                await Land.find({
+                    isForSale: true,
+                    listingType: "For Sale",
+                })
+                    .populate(
+                        "owner",
+                        "fullName email phone role"
+                    )
+                    .sort({
+                        createdAt: -1,
+                    });
 
             return res.status(200).json({
                 success: true,
                 count: lands.length,
                 lands,
             });
-
         } catch (error) {
-
             console.error(
                 "Get Lands For Sale Error:",
                 error
@@ -144,12 +114,46 @@ router.get(
     }
 );
 
+router.get(
+    "/wanted-to-buy",
+    verifyToken,
+    async (req, res, next) => {
+        try {
+            const Land = (
+                await import(
+                    "../models/LandModel.js"
+                )
+            ).default;
 
-/*
-|--------------------------------------------------------------------------
-| GET ALL LANDS
-|--------------------------------------------------------------------------
-*/
+            const lands =
+                await Land.find({
+                    isForSale: true,
+                    listingType:
+                        "Wanted to Buy",
+                })
+                    .populate(
+                        "owner",
+                        "fullName email phone role"
+                    )
+                    .sort({
+                        createdAt: -1,
+                    });
+
+            return res.status(200).json({
+                success: true,
+                count: lands.length,
+                lands,
+            });
+        } catch (error) {
+            console.error(
+                "Get Wanted To Buy Error:",
+                error
+            );
+
+            next(error);
+        }
+    }
+);
 
 router.get(
     "/",
@@ -157,25 +161,11 @@ router.get(
     getAllLands
 );
 
-
-/*
-|--------------------------------------------------------------------------
-| GET SINGLE LAND
-|--------------------------------------------------------------------------
-*/
-
 router.get(
     "/:id",
     verifyToken,
     getLandById
 );
-
-
-/*
-|--------------------------------------------------------------------------
-| UPDATE LAND
-|--------------------------------------------------------------------------
-*/
 
 router.put(
     "/:id",
@@ -183,31 +173,16 @@ router.put(
     updateLand
 );
 
-
-/*
-|--------------------------------------------------------------------------
-| DELETE LAND
-|--------------------------------------------------------------------------
-*/
-
 router.delete(
     "/:id",
     verifyToken,
     deleteLand
 );
 
-
-/*
-|--------------------------------------------------------------------------
-| TOGGLE LAND FOR SALE
-|--------------------------------------------------------------------------
-*/
-
 router.patch(
     "/:id/for-sale",
     verifyToken,
     toggleLandForSale
 );
-
 
 export default router;

@@ -46,6 +46,7 @@ const LandSchema = new mongoose.Schema(
                 min: -90,
                 max: 90,
             },
+
             longitude: {
                 type: Number,
                 required: true,
@@ -63,6 +64,15 @@ const LandSchema = new mongoose.Schema(
                 "Industrial",
             ],
             default: "Residential",
+        },
+
+        listingType: {
+            type: String,
+            enum: [
+                "For Sale",
+                "Wanted to Buy",
+            ],
+            default: "For Sale",
         },
 
         isForSale: {
