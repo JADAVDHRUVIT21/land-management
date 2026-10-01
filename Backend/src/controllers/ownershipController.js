@@ -587,6 +587,4 @@ const rejectTransfer = async (req, res) => {
     }
 };
 
-// EXPORTS
-
 export { createTransferRequest, getAllTransferRequests, getMyTransferRequests, getTransferById, approveTransfer, rejectTransfer, };

@@ -2,10 +2,7 @@ import mongoose from "mongoose";
 import Land from "../models/LandModel.js";
 import cloudinary from "../config/cloudinary.js";
 
-const uploadToCloudinary = (
-    fileBuffer,
-    folder = "uploads"
-) => {
+const uploadToCloudinary = (fileBuffer, folder = "uploads") => {
     return new Promise((resolve, reject) => {
         const uploadStream =
             cloudinary.uploader.upload_stream(
@@ -31,10 +28,7 @@ const uploadToCloudinary = (
     });
 };
 
-const uploadVideoToCloudinary = (
-    fileBuffer,
-    folder = "videos"
-) => {
+const uploadVideoToCloudinary = (fileBuffer, folder = "videos") => {
     return new Promise((resolve, reject) => {
         const uploadStream =
             cloudinary.uploader.upload_stream(
@@ -975,10 +969,7 @@ const deleteLand = async (req, res) => {
     }
 };
 
-const toggleLandForSale = async (
-    req,
-    res
-) => {
+const toggleLandForSale = async (req, res) => {
     try {
         if (!req.user?.id) {
             return res.status(401).json({
@@ -1118,4 +1109,4 @@ const toggleLandForSale = async (
     }
 };
 
-export {createLand, getAllLands, getMyLands, getLandById, updateLand, deleteLand, toggleLandForSale,};
+export { createLand, getAllLands, getMyLands, getLandById, updateLand, deleteLand, toggleLandForSale, };

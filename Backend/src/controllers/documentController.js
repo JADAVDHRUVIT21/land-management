@@ -317,10 +317,7 @@ const getDocumentById = async (req, res) => {
     }
 };
 
-const getDocumentsByLand = async (
-    req,
-    res
-) => {
+const getDocumentsByLand = async (req, res) => {
     try {
         const { landId } = req.params;
 
@@ -375,10 +372,7 @@ const getDocumentsByLand = async (
     }
 };
 
-const getMyDocuments = async (
-    req,
-    res
-) => {
+const getMyDocuments = async (req, res) => {
     try {
         const userId =
             req.user?.id || req.user?._id;
@@ -420,10 +414,7 @@ const getMyDocuments = async (
     }
 };
 
-const updateDocument = async (
-    req,
-    res
-) => {
+const updateDocument = async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -568,10 +559,7 @@ const updateDocument = async (
     }
 };
 
-const deleteDocument = async (
-    req,
-    res
-) => {
+const deleteDocument = async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -693,10 +681,7 @@ const deleteDocument = async (
     }
 };
 
-const approveDocument = async (
-    req,
-    res
-) => {
+const approveDocument = async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -761,10 +746,7 @@ const approveDocument = async (
     }
 };
 
-const rejectDocument = async (
-    req,
-    res
-) => {
+const rejectDocument = async (req, res) => {
     try {
         const { id } = req.params;
         const { rejectionReason } =

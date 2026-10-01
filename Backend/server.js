@@ -4,9 +4,7 @@ import cors from "cors";
 import jwt from "jsonwebtoken";
 import { createServer } from "http";
 import { Server } from "socket.io";
-
 import connectDB from "./src/config/db.js";
-
 import userRoutes from "./src/routes/UserRoutes.js";
 import landRoutes from "./src/routes/LandRoutes.js";
 import ownershipRoutes from "./src/routes/OwnershipRoutes.js";
@@ -14,7 +12,6 @@ import documentRoutes from "./src/routes/DocumentRoutes.js";
 import dashboardRoutes from "./src/routes/DashboardRoutes.js";
 import chatRoutes from "./src/routes/ChatRoutes.js";
 import brokerRoutes from "./src/routes/BrokerRoutes.js";
-
 import ChatMessage from "./src/models/ChatMessageModel.js";
 import Land from "./src/models/LandModel.js";
 import User from "./src/models/UserModels.js";
@@ -544,8 +541,7 @@ app.use(
     }
 );
 
-const PORT =
-    process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;
 
 httpServer.listen(
     PORT,

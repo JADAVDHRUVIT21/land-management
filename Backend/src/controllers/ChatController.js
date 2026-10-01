@@ -4,7 +4,6 @@ import ChatMessage from "../models/ChatMessageModel.js";
 import Land from "../models/LandModel.js";
 import User from "../models/UserModels.js";
 import OwnershipTransfer from "../models/OwnershipTransfer.js";
-
 import { redactMessage } from "../utils/chatRedaction.js";
 import { checkProfanity } from "../utils/profanityService.js";
 
@@ -319,10 +318,7 @@ const sendMessage = async (req, res) => {
 
 // GET CHAT HISTORY
 
-const getChatHistory = async (
-    req,
-    res
-) => {
+const getChatHistory = async (req, res) => {
     try {
 
         // Get logged-in user

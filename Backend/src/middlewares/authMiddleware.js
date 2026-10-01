@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-export const verifyToken = async ( req, res, next) => {
+export const verifyToken = async (req, res, next) => {
     try {
         const authHeader =
             req.headers.authorization;
@@ -49,7 +49,7 @@ export const verifyToken = async ( req, res, next) => {
     }
 };
 
-export const isAdmin = ( req, res, next) => {
+export const isAdmin = (req, res, next) => {
     if (
         !req.user ||
         req.user.role !== "admin"
@@ -64,7 +64,7 @@ export const isAdmin = ( req, res, next) => {
     next();
 };
 
-export const isUser = (req, res, next ) => {
+export const isUser = (req, res, next) => {
     if (
         !req.user ||
         req.user.role !== "user"

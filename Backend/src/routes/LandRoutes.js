@@ -1,19 +1,7 @@
 import express from "express";
 
-import {
-    createLand,
-    getAllLands,
-    getMyLands,
-    getLandById,
-    updateLand,
-    deleteLand,
-    toggleLandForSale,
-} from "../controllers/LandController.js";
-
-import {
-    verifyToken,
-} from "../middlewares/authMiddleware.js";
-
+import { createLand, getAllLands, getMyLands, getLandById, updateLand, deleteLand, toggleLandForSale } from "../controllers/LandController.js";
+import {verifyToken,} from "../middlewares/authMiddleware.js";
 import upload from "../middlewares/CloudinaryUpload.js";
 
 const router = express.Router();

@@ -2,9 +2,7 @@ import express from "express";
 
 import { getBrokerLands, getBrokerContacts, saveBrokerContact, deleteBrokerContact,} from "../controllers/BrokerController.js";
 
-import {
-    verifyToken,
-} from "../middlewares/authMiddleware.js";
+import {verifyToken} from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 

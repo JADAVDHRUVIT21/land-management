@@ -1,8 +1,4 @@
-// utils/profanityService.js
-
-const PROFANITY_API_URL =
-    process.env.PROFANITY_API_URL;
-
+const PROFANITY_API_URL = process.env.PROFANITY_API_URL;
 
 // Check message for abusive/profane content
 export const checkProfanity = async (message) => {

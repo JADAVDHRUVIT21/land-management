@@ -1,13 +1,8 @@
 import express from "express";
 
-import {
-    sendMessage,
-    getChatHistory,
-} from "../controllers/ChatController.js";
+import {sendMessage, getChatHistory,} from "../controllers/ChatController.js";
 
-import {
-    verifyToken,
-} from "../middlewares/authMiddleware.js";
+import {verifyToken,} from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 

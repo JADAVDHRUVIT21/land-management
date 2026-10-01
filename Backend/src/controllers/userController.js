@@ -306,10 +306,7 @@ const login = async (req, res) => {
     }
 };
 
-const getProfile = async (
-    req,
-    res
-) => {
+const getProfile = async (req, res) => {
     try {
         const userId =
             req.user?.id ||
@@ -354,10 +351,7 @@ const getProfile = async (
     }
 };
 
-const getAllUsers = async (
-    req,
-    res
-) => {
+const getAllUsers = async (req, res) => {
     try {
         const users =
             await User.find()
@@ -385,10 +379,7 @@ const getAllUsers = async (
     }
 };
 
-const deleteUser = async (
-    req,
-    res
-) => {
+const deleteUser = async (req, res) => {
     try {
         const { id } =
             req.params;

@@ -1,17 +1,7 @@
 import express from "express";
 
-import {
-    createTransferRequest,
-    getAllTransferRequests,
-    getMyTransferRequests,
-    getTransferById,
-    approveTransfer,
-    rejectTransfer,
-} from "../controllers/OwnershipController.js";
-
-import {
-    verifyToken,
-} from "../middlewares/authMiddleware.js";
+import { createTransferRequest, getAllTransferRequests, getMyTransferRequests, getTransferById,approveTransfer, rejectTransfer} from "../controllers/OwnershipController.js";
+import {verifyToken,} from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 

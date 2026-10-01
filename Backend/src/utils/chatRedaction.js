@@ -10,33 +10,23 @@ const redactionPatterns = [
     /\+\d{1,3}[\s-]?\d{6,14}/g,
 ];
 
-
 export const redactMessage = (message) => {
-
     let redactedMessage = message;
-
     let isRedacted = false;
 
-
     for (const pattern of redactionPatterns) {
-
         pattern.lastIndex = 0;
-
         if (pattern.test(redactedMessage)) {
-
             redactedMessage =
                 redactedMessage.replace(
                     pattern,
                     "[REDACTED]"
                 );
-
             isRedacted = true;
         }
-
         pattern.lastIndex = 0;
     }
-
-
+    
     return {
         message: redactedMessage,
         isRedacted,

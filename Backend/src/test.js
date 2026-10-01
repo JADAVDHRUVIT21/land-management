@@ -16,7 +16,7 @@ const testUpload = async () => {
 
         console.log("UPLOAD FAILED");
         console.log(error);
-
+        
     }
 };
 testUpload();
