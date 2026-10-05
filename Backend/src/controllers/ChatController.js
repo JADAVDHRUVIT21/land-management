@@ -7,15 +7,9 @@ import OwnershipTransfer from "../models/OwnershipTransfer.js";
 import { redactMessage } from "../utils/chatRedaction.js";
 import { checkProfanity } from "../utils/profanityService.js";
 
-/* ------------------------------------------------------------------ */
-/*  Helper: is this user allowed to chat about this land?              */
-/* ------------------------------------------------------------------ */
-/*  Allowed if ANY of the following is true:                           */
-/*    1. User is an admin                                              */
-/*    2. User is the current owner of the land                         */
-/*    3. User is a participant in a Pending/Approved transfer          */
-/*    4. The land is publicly listed for sale (any logged-in user)     */
-/* ------------------------------------------------------------------ */
+/* NEW — for emitting real-time events after HTTP requests */
+import { io } from "../../server.js";
+
 
 const isUserAuthorizedForLandChat = async ({ userId, user, land }) => {
     // 1. Admin
@@ -154,19 +148,28 @@ const sendMessage = async (req, res) => {
         // Redact email / phone
         const filtered = redactMessage(cleanMessage);
 
-        // Create
+        // Create the message
         const chatMessage = await ChatMessage.create({
             land: landId,
             sender: userId,
             receiver: receiverId,
             message: filtered.message,
             isRedacted: filtered.isRedacted,
+            read: false,
         });
 
         const populatedMessage = await ChatMessage.findById(chatMessage._id)
-            .populate("sender", "fullName email role")
-            .populate("receiver", "fullName email role")
+            .populate("sender", "fullName email role phone")
+            .populate("receiver", "fullName email role phone")
             .populate("land", "surveyNumber village district state");
+
+        /*
+        |------------------------------------------------------------------
+        | Emit the new message over Socket.io so both users see it live.
+        |------------------------------------------------------------------
+        */
+        io.to(`user_${receiverId}`).emit("newMessage", populatedMessage);
+        io.to(`user_${userId}`).emit("newMessage", populatedMessage);
 
         return res.status(201).json({
             success: true,
@@ -185,6 +188,8 @@ const sendMessage = async (req, res) => {
 
 /* ------------------------------------------------------------------ */
 /*  GET CHAT HISTORY (per land)                                        */
+/* ------------------------------------------------------------------ */
+/*  Also marks all messages where current user is receiver as read.    */
 /* ------------------------------------------------------------------ */
 
 const getChatHistory = async (req, res) => {
@@ -237,14 +242,20 @@ const getChatHistory = async (req, res) => {
             });
         }
 
+        // Mark everything addressed to me in this land as read
+        await ChatMessage.updateMany(
+            { land: landId, receiver: userId, read: false },
+            { $set: { read: true } }
+        );
+
         // Return only messages where the current user is sender or receiver
         const messages = await ChatMessage.find({
             land: landId,
             $or: [{ sender: userId }, { receiver: userId }],
         })
             .sort({ createdAt: 1 })
-            .populate("sender", "fullName email role")
-            .populate("receiver", "fullName email role")
+            .populate("sender", "fullName email role phone")
+            .populate("receiver", "fullName email role phone")
             .populate("land", "surveyNumber village district state");
 
         return res.status(200).json({
@@ -266,7 +277,7 @@ const getChatHistory = async (req, res) => {
 /*  GET MY CONVERSATIONS (inbox for Messages page)                     */
 /* ------------------------------------------------------------------ */
 /*  Returns one entry per (land, other-user) pair the current user     */
-/*  has exchanged messages with.                                       */
+/*  has exchanged messages with. Includes unreadCount and phone.       */
 /* ------------------------------------------------------------------ */
 
 const getConversations = async (req, res) => {
@@ -309,6 +320,20 @@ const getConversations = async (req, res) => {
                     lastMessage: { $first: "$message" },
                     lastMessageAt: { $first: "$createdAt" },
                     lastMessageId: { $first: "$_id" },
+                    unreadCount: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $eq: ["$receiver", userObjectId] },
+                                        { $eq: ["$read", false] },
+                                    ],
+                                },
+                                1,
+                                0,
+                            ],
+                        },
+                    },
                 },
             },
             {
@@ -323,7 +348,7 @@ const getConversations = async (req, res) => {
                         .select("surveyNumber village district state")
                         .lean(),
                     User.findById(item._id.otherUser)
-                        .select("fullName email role")
+                        .select("fullName email role phone")
                         .lean(),
                 ]);
 
@@ -345,6 +370,7 @@ const getConversations = async (req, res) => {
                             fullName: otherUser.fullName,
                             email: otherUser.email,
                             role: otherUser.role,
+                            phone: otherUser.phone || null,
                         }
                         : null,
                     lastMessage: {
@@ -352,9 +378,10 @@ const getConversations = async (req, res) => {
                         message: item.lastMessage,
                         createdAt: item.lastMessageAt,
                     },
+                    unreadCount: item.unreadCount || 0,
                     updatedAt: item.lastMessageAt,
                 };
-            }),
+            })
         );
 
         return res.status(200).json({

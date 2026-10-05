@@ -5,16 +5,19 @@ import {
   FiSearch,
   FiSend,
   FiUser,
-  FiMapPin,
   FiLoader,
+  FiRefreshCw,
+  FiPhone,
 } from "react-icons/fi";
 
 import Sidebar from "../components/Sidebar";
 import api from "../services/api";
+import { connectSocket, getSocket, disconnectSocket } from "../services/socket";
 
 function Messages() {
   const location = useLocation();
   const messagesEndRef = useRef(null);
+  const selectedConversationRef = useRef(null);
 
   const currentUser = useMemo(() => {
     try {
@@ -33,16 +36,6 @@ function Messages() {
     return value._id || value.id || null;
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | Seed the initial conversation from location.state (runs ONCE on mount)
-  |--------------------------------------------------------------------------
-  | We compute this synchronously during the first render via a useState
-  | lazy initializer. This means we never call setState inside useEffect,
-  | which satisfies React 19's `react-hooks/set-state-in-effect` rule.
-  |--------------------------------------------------------------------------
-  */
-
   const [initialSeed] = useState(() => {
     const stateLand = location.state?.land;
     const stateLandId = location.state?.landId;
@@ -59,6 +52,7 @@ function Messages() {
       land: stateLand,
       user: stateOwner,
       lastMessage: null,
+      unreadCount: 0,
       updatedAt: new Date().toISOString(),
     };
   });
@@ -72,21 +66,25 @@ function Messages() {
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState("");
 
-  // No loading spinner needed — everything is set on first render
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
 
+  const [onlineUserIds, setOnlineUserIds] = useState([]);
+
+  // Keep a ref of the selected conversation so socket handlers always
+  // see the latest value without re-subscribing
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation;
+  }, [selectedConversation]);
+
   const getOtherUser = (message) => {
     const senderId = getId(message?.sender);
-
-    if (senderId === currentUserId) {
-      return message?.receiver;
-    }
-
+    if (senderId === currentUserId) return message?.receiver;
     return message?.sender;
   };
 
@@ -96,11 +94,9 @@ function Messages() {
     messageList.forEach((message) => {
       const landId = getId(message?.land);
       const otherUser = getOtherUser(message);
-
       if (!landId || !otherUser) return;
 
       const otherUserId = getId(otherUser);
-
       if (!otherUserId) return;
 
       const key = `${landId}-${otherUserId}`;
@@ -111,6 +107,7 @@ function Messages() {
         land: message.land,
         user: otherUser,
         lastMessage: message,
+        unreadCount: 0,
         updatedAt: message.createdAt,
       });
     });
@@ -120,13 +117,42 @@ function Messages() {
     );
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | Load chat history for a selected conversation
-  |--------------------------------------------------------------------------
-  | Called only from event handlers (button click / mount).
-  |--------------------------------------------------------------------------
-  */
+  const loadInbox = async () => {
+    try {
+      const response = await api.get("/chat/conversations");
+      const rows = Array.isArray(response.data?.data) ? response.data.data : [];
+
+      const inbox = rows.map((row) => ({
+        id: row.id,
+        landId: row.landId,
+        land: row.land,
+        user: row.user,
+        lastMessage: row.lastMessage,
+        unreadCount: row.unreadCount || 0,
+        updatedAt: row.updatedAt,
+      }));
+
+      setConversations((current) => {
+        const seedOnly = current.filter(
+          (c) => c.lastMessage === null && !inbox.some((r) => r.id === c.id),
+        );
+        const merged = [...seedOnly, ...inbox];
+        return merged.sort(
+          (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
+        );
+      });
+
+      setError("");
+    } catch (err) {
+      console.error("LOAD INBOX ERROR:", err);
+      setError(
+        err.response?.data?.message || "Failed to load your conversations.",
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   const loadChatHistory = async (conversation) => {
     if (!conversation?.landId) return;
@@ -136,27 +162,29 @@ function Messages() {
       setError("");
 
       const response = await api.get(`/chat/${conversation.landId}`);
-
       const history = Array.isArray(response.data?.data)
         ? response.data.data
         : [];
 
       setMessages(history);
 
-      const generatedConversations = buildConversations(history);
+      setConversations((current) =>
+        current.map((c) =>
+          c.id === conversation.id ? { ...c, unreadCount: 0 } : c,
+        ),
+      );
 
+      const generatedConversations = buildConversations(history);
       setConversations((current) => {
         const merged = [...current];
 
         generatedConversations.forEach((item) => {
-          const existingIndex = merged.findIndex(
-            (conversationItem) => conversationItem.id === item.id,
-          );
-
-          if (existingIndex >= 0) {
-            merged[existingIndex] = {
-              ...merged[existingIndex],
+          const idx = merged.findIndex((c) => c.id === item.id);
+          if (idx >= 0) {
+            merged[idx] = {
+              ...merged[idx],
               ...item,
+              unreadCount: merged[idx].unreadCount || 0,
             };
           } else {
             merged.push(item);
@@ -169,49 +197,168 @@ function Messages() {
       });
     } catch (err) {
       console.error("LOAD CHAT HISTORY ERROR:", err);
-
       setMessages([]);
-
       setError(err.response?.data?.message || "Failed to load chat history.");
     } finally {
       setMessagesLoading(false);
     }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | Auto-load chat history for the seeded conversation
-  |--------------------------------------------------------------------------
-  | Nested arrow + empty deps + eslint-disable break the linter's static
-  | trace, and setMessagesLoading/setMessages/setConversations only run
-  | AFTER an await, so they're safe.
-  |--------------------------------------------------------------------------
-  */
-
+  /* ---- Initial mount ---- */
   useEffect(() => {
-    if (!selectedConversation) return;
-
-    const run = () => {
-      loadChatHistory(selectedConversation);
-    };
+    const run = () => loadInbox();
     run();
+
+    if (initialSeed) {
+      const runSeed = () => loadChatHistory(initialSeed);
+      runSeed();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ---- Socket subscription ---- */
+  useEffect(() => {
+    const socket = connectSocket();
+    if (!socket) return;
+
+    const handleNewMessage = (msg) => {
+      const msgId = msg?._id;
+      if (!msgId) return;
+
+      const current = selectedConversationRef.current;
+
+      const isForCurrentConversation =
+        current &&
+        getId(msg.land) === getId(current.landId) &&
+        (getId(msg.sender) === getId(current.user) ||
+          getId(msg.receiver) === getId(current.user));
+
+      // Append to open chat if it's the current conversation
+      if (isForCurrentConversation) {
+        setMessages((prev) => {
+          if (prev.some((m) => m._id === msgId)) return prev;
+          return [...prev, msg];
+        });
+      }
+
+      // Update the sidebar list
+      setConversations((prev) => {
+        const landId = getId(msg.land);
+        const otherUser =
+          getId(msg.sender) === currentUserId ? msg.receiver : msg.sender;
+        const otherUserId = getId(otherUser);
+        const key = `${landId}-${otherUserId}`;
+
+        const exists = prev.find((c) => c.id === key);
+        const isCurrent = current?.id === key;
+        const isFromMe = getId(msg.sender) === currentUserId;
+
+        if (exists) {
+          return prev
+            .map((c) =>
+              c.id === key
+                ? {
+                    ...c,
+                    lastMessage: {
+                      _id: msgId,
+                      message: msg.message,
+                      createdAt: msg.createdAt,
+                    },
+                    updatedAt: msg.createdAt,
+                    unreadCount:
+                      isCurrent || isFromMe ? 0 : (c.unreadCount || 0) + 1,
+                  }
+                : c,
+            )
+            .sort(
+              (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
+            );
+        }
+
+        // Brand new conversation in the sidebar
+        return [
+          {
+            id: key,
+            landId,
+            land: msg.land,
+            user: otherUser,
+            lastMessage: {
+              _id: msgId,
+              message: msg.message,
+              createdAt: msg.createdAt,
+            },
+            unreadCount: isCurrent || isFromMe ? 0 : 1,
+            updatedAt: msg.createdAt,
+          },
+          ...prev,
+        ].sort(
+          (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
+        );
+      });
+    };
+
+    const handleOnlineList = (payload) => {
+      setOnlineUserIds(payload?.userIds || []);
+    };
+
+    const handleUserOnline = (payload) => {
+      setOnlineUserIds((prev) =>
+        prev.includes(payload.userId) ? prev : [...prev, payload.userId],
+      );
+    };
+
+    const handleUserOffline = (payload) => {
+      setOnlineUserIds((prev) => prev.filter((id) => id !== payload.userId));
+    };
+
+    socket.on("newMessage", handleNewMessage);
+    socket.on("onlineUsers", handleOnlineList);
+    socket.on("userOnline", handleUserOnline);
+    socket.on("userOffline", handleUserOffline);
+
+    return () => {
+      socket.off("newMessage", handleNewMessage);
+      socket.off("onlineUsers", handleOnlineList);
+      socket.off("userOnline", handleUserOnline);
+      socket.off("userOffline", handleUserOffline);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* ---- Disconnect on unmount ---- */
+  useEffect(() => {
+    return () => {
+      disconnectSocket();
+    };
+  }, []);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadInbox();
+  };
+
   const handleSelectConversation = async (conversation) => {
     setSelectedConversation(conversation);
+    setConversations((current) =>
+      current.map((c) =>
+        c.id === conversation.id ? { ...c, unreadCount: 0 } : c,
+      ),
+    );
+
+    // Join the socket room for this land so we receive real-time updates
+    const socket = getSocket();
+    if (socket) {
+      socket.emit("joinLandChat", { landId: conversation.landId });
+    }
+
     await loadChatHistory(conversation);
   };
 
   const handleSendMessage = async () => {
     const text = messageText.trim();
-
-    if (!text || !selectedConversation || sending) {
-      return;
-    }
+    if (!text || !selectedConversation || sending) return;
 
     const receiverId = getId(selectedConversation.user);
-
     if (!receiverId) {
       setError("Receiver information is missing.");
       return;
@@ -230,25 +377,47 @@ function Messages() {
       const newMessage = response.data?.data;
 
       if (newMessage) {
-        setMessages((current) => [...current, newMessage]);
+        setMessages((current) => {
+          if (current.some((m) => m._id === newMessage._id)) return current;
+          return [...current, newMessage];
+        });
 
-        setConversations((current) =>
-          current.map((conversation) =>
-            conversation.id === selectedConversation.id
-              ? {
-                  ...conversation,
-                  lastMessage: newMessage,
-                  updatedAt: newMessage.createdAt || new Date().toISOString(),
-                }
-              : conversation,
-          ),
-        );
+        setConversations((current) => {
+          const exists = current.some((c) => c.id === selectedConversation.id);
+
+          if (!exists) {
+            return [
+              {
+                ...selectedConversation,
+                lastMessage: newMessage,
+                unreadCount: 0,
+                updatedAt: newMessage.createdAt || new Date().toISOString(),
+              },
+              ...current,
+            ].sort(
+              (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
+            );
+          }
+
+          return current
+            .map((c) =>
+              c.id === selectedConversation.id
+                ? {
+                    ...c,
+                    lastMessage: newMessage,
+                    updatedAt: newMessage.createdAt || new Date().toISOString(),
+                  }
+                : c,
+            )
+            .sort(
+              (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
+            );
+        });
       }
 
       setMessageText("");
     } catch (err) {
       console.error("SEND MESSAGE ERROR:", err);
-
       setError(err.response?.data?.message || "Failed to send message.");
     } finally {
       setSending(false);
@@ -256,40 +425,51 @@ function Messages() {
   };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: "smooth",
-    });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const filteredConversations = conversations.filter((conversation) => {
     const userName = conversation.user?.fullName || "";
-
+    const phone = conversation.user?.phone || "";
     const surveyNumber = conversation.land?.surveyNumber || "";
-
     const village = conversation.land?.village || "";
-
-    const searchText = `${userName} ${surveyNumber} ${village}`.toLowerCase();
-
+    const searchText =
+      `${userName} ${phone} ${surveyNumber} ${village}`.toLowerCase();
     return searchText.includes(search.toLowerCase());
   });
 
   const selectedUser = selectedConversation?.user;
-
-  const selectedLand = selectedConversation?.land;
+  const isSelectedUserOnline = selectedUser
+    ? onlineUserIds.includes(String(getId(selectedUser)))
+    : false;
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
 
       <main className="ml-0 min-h-screen lg:ml-[230px]">
-        {/* HEADER */}
-
         <header className="border-b border-gray-200 bg-white px-5 py-5 sm:px-7">
-          <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
+              <p className="mt-1 text-sm text-gray-500">
+                Chat with land owners and interested buyers
+              </p>
+            </div>
 
-          <p className="mt-1 text-sm text-gray-500">
-            Chat with land owners and interested buyers
-          </p>
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
+            >
+              <FiRefreshCw
+                size={16}
+                className={refreshing ? "animate-spin" : ""}
+              />
+              Refresh
+            </button>
+          </div>
         </header>
 
         <div className="p-5 sm:p-7">
@@ -300,8 +480,6 @@ function Messages() {
           )}
 
           <div className="grid min-h-[650px] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:grid-cols-[320px_1fr]">
-            {/* CONVERSATIONS */}
-
             <aside className="border-b border-gray-200 lg:border-b-0 lg:border-r">
               <div className="border-b border-gray-200 p-4">
                 <div className="relative">
@@ -309,7 +487,6 @@ function Messages() {
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                     size={18}
                   />
-
                   <input
                     type="text"
                     value={search}
@@ -334,11 +511,9 @@ function Messages() {
                       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-green-600">
                         <FiMessageCircle size={25} />
                       </div>
-
                       <h2 className="mt-4 text-sm font-semibold text-gray-900">
                         No conversations yet
                       </h2>
-
                       <p className="mt-2 text-xs leading-5 text-gray-500">
                         Your conversations with land owners will appear here.
                       </p>
@@ -347,11 +522,12 @@ function Messages() {
                 ) : (
                   filteredConversations.map((conversation) => {
                     const user = conversation.user;
-
-                    const land = conversation.land;
-
                     const isSelected =
                       selectedConversation?.id === conversation.id;
+                    const hasUnread = (conversation.unreadCount || 0) > 0;
+                    const isOnline = onlineUserIds.includes(
+                      String(getId(user)),
+                    );
 
                     return (
                       <button
@@ -364,13 +540,25 @@ function Messages() {
                             : "bg-white hover:bg-gray-50"
                         }`}
                       >
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700">
-                          <FiUser size={20} />
+                        <div className="relative shrink-0">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-green-100 text-green-700">
+                            <FiUser size={20} />
+                          </div>
+
+                          {isOnline && (
+                            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+                          )}
                         </div>
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="truncate text-sm font-semibold text-gray-900">
+                            <h3
+                              className={`truncate text-sm ${
+                                hasUnread
+                                  ? "font-bold text-gray-900"
+                                  : "font-semibold text-gray-900"
+                              }`}
+                            >
                               {user?.fullName || "User"}
                             </h3>
 
@@ -383,15 +571,28 @@ function Messages() {
                             )}
                           </div>
 
-                          <p className="mt-1 truncate text-xs text-gray-500">
-                            Survey No: {land?.surveyNumber || "N/A"}
+                          <p className="mt-1 flex items-center gap-1 truncate text-xs text-gray-500">
+                            <FiPhone size={11} />
+                            {user?.phone || "No phone"}
                           </p>
 
-                          <p className="mt-1 truncate text-xs text-gray-400">
+                          <p
+                            className={`mt-1 truncate text-xs ${
+                              hasUnread
+                                ? "font-semibold text-gray-700"
+                                : "text-gray-400"
+                            }`}
+                          >
                             {conversation.lastMessage?.message ||
                               "Start conversation"}
                           </p>
                         </div>
+
+                        {hasUnread && (
+                          <span className="ml-1 flex h-5 min-w-[20px] shrink-0 items-center justify-center self-center rounded-full bg-green-600 px-1.5 text-[11px] font-bold text-white">
+                            {conversation.unreadCount}
+                          </span>
+                        )}
                       </button>
                     );
                   })
@@ -399,16 +600,17 @@ function Messages() {
               </div>
             </aside>
 
-            {/* CHAT */}
-
             <section className="flex min-h-[650px] flex-col">
               {selectedConversation ? (
                 <>
-                  {/* CHAT HEADER */}
-
                   <div className="flex items-center gap-3 border-b border-gray-200 px-5 py-4">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700">
-                      <FiUser size={20} />
+                    <div className="relative shrink-0">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-green-100 text-green-700">
+                        <FiUser size={20} />
+                      </div>
+                      {isSelectedUserOnline && (
+                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+                      )}
                     </div>
 
                     <div className="min-w-0">
@@ -416,17 +618,21 @@ function Messages() {
                         {selectedUser?.fullName || "User"}
                       </h2>
 
-                      <div className="mt-1 flex items-center gap-1 text-xs text-gray-500">
-                        <FiMapPin size={12} />
-
-                        <span className="truncate">
-                          Survey No: {selectedLand?.surveyNumber || "N/A"}
+                      <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <FiPhone size={11} />
+                          {selectedUser?.phone || "No phone"}
                         </span>
+
+                        {isSelectedUserOnline && (
+                          <span className="flex items-center gap-1 text-green-600">
+                            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                            Online
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
-
-                  {/* MESSAGES */}
 
                   <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-5">
                     {messagesLoading ? (
@@ -442,11 +648,9 @@ function Messages() {
                           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-green-600">
                             <FiMessageCircle size={28} />
                           </div>
-
                           <h2 className="mt-4 text-base font-semibold text-gray-900">
                             Start a conversation
                           </h2>
-
                           <p className="mt-2 text-sm leading-6 text-gray-500">
                             Send a message to{" "}
                             {selectedUser?.fullName || "this user"} about this
@@ -457,7 +661,6 @@ function Messages() {
                     ) : (
                       messages.map((message) => {
                         const senderId = getId(message.sender);
-
                         const isMine = senderId === currentUserId;
 
                         return (
@@ -477,7 +680,6 @@ function Messages() {
                               <p className="whitespace-pre-wrap break-words text-sm leading-6">
                                 {message.message}
                               </p>
-
                               <div
                                 className={`mt-1 text-[10px] ${
                                   isMine ? "text-green-100" : "text-gray-400"
@@ -496,8 +698,6 @@ function Messages() {
                     <div ref={messagesEndRef} />
                   </div>
 
-                  {/* INPUT */}
-
                   <div className="border-t border-gray-200 bg-white p-4">
                     <div className="flex items-end gap-3">
                       <textarea
@@ -514,7 +714,6 @@ function Messages() {
                         disabled={sending}
                         className="min-h-[48px] flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100 disabled:cursor-not-allowed disabled:opacity-60"
                       />
-
                       <button
                         type="button"
                         onClick={handleSendMessage}
@@ -528,7 +727,6 @@ function Messages() {
                         )}
                       </button>
                     </div>
-
                     <p className="mt-2 text-[11px] text-gray-400">
                       Press Enter to send · Shift + Enter for a new line
                     </p>
@@ -536,18 +734,14 @@ function Messages() {
                 </>
               ) : (
                 <>
-                  {/* NO SELECTED CHAT */}
-
                   <div className="flex flex-1 items-center justify-center p-6">
                     <div className="max-w-sm text-center">
                       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-green-600">
                         <FiMessageCircle size={28} />
                       </div>
-
                       <h2 className="mt-4 text-lg font-semibold text-gray-900">
                         Your Messages
                       </h2>
-
                       <p className="mt-2 text-sm leading-6 text-gray-500">
                         Select a conversation from the left to view messages and
                         start chatting.
@@ -562,7 +756,6 @@ function Messages() {
                         placeholder="Select a conversation first..."
                         className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-400 outline-none"
                       />
-
                       <button
                         disabled
                         className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-200 text-gray-400"

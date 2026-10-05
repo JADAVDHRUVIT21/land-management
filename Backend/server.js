@@ -21,9 +21,6 @@ import { redactMessage } from "./src/utils/chatRedaction.js";
 
 dotenv.config();
 
-/* ------------------------------------------------------------------ */
-/*  Startup sanity check — confirm Cloudinary env vars are loaded      */
-/* ------------------------------------------------------------------ */
 console.log("===== ENV CHECK =====");
 console.log(
     "CLOUDINARY_CLOUD_NAME:",
@@ -53,14 +50,6 @@ const io = new Server(httpServer, {
 });
 
 app.use(cors());
-
-/* ------------------------------------------------------------------ */
-/*  Body parsers                                                       */
-/*  ⚠️ IMPORTANT: These run for every request, INCLUDING multipart.    */
-/*  But since express.json() and express.urlencoded() both SKIP when   */
-/*  Content-Type is multipart/form-data, multer still works.           */
-/*  This is correct and safe.                                          */
-/* ------------------------------------------------------------------ */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -83,8 +72,22 @@ app.get("/", (req, res) => {
 });
 
 /* ------------------------------------------------------------------ */
-/*  Socket.io                                                          */
+/*  Online presence tracking                                           */
 /* ------------------------------------------------------------------ */
+/*  Map<userId, Set<socketId>> so multiple tabs are handled correctly. */
+/* ------------------------------------------------------------------ */
+
+export const onlineUsers = new Map();
+
+const isUserOnline = (userId) => {
+    const set = onlineUsers.get(String(userId));
+    return !!set && set.size > 0;
+};
+
+/* ------------------------------------------------------------------ */
+/*  Socket.io auth                                                     */
+/* ------------------------------------------------------------------ */
+
 io.use((socket, next) => {
     try {
         const token = socket.handshake.auth?.token;
@@ -100,13 +103,12 @@ io.use((socket, next) => {
         next();
     } catch (error) {
         console.error("SOCKET JWT ERROR:", error.message);
-
         next(new Error("Invalid or expired token"));
     }
 });
 
 io.on("connection", (socket) => {
-    const userId = socket.user?.id || socket.user?._id;
+    const userId = String(socket.user?.id || socket.user?._id);
     const userRole = socket.user?.role;
 
     console.log(
@@ -117,6 +119,31 @@ io.on("connection", (socket) => {
         "Role:",
         userRole
     );
+
+    /* ---- Presence: register this socket ---- */
+
+    if (!onlineUsers.has(userId)) {
+        onlineUsers.set(userId, new Set());
+    }
+
+    const userSockets = onlineUsers.get(userId);
+    const wasOffline = userSockets.size === 0;
+    userSockets.add(socket.id);
+
+    // Every user automatically joins their personal room
+    socket.join(`user_${userId}`);
+
+    // If this is the first socket for this user, broadcast "online"
+    if (wasOffline) {
+        io.emit("userOnline", { userId });
+    }
+
+    // Tell the newly connected socket who is currently online
+    socket.emit("onlineUsers", {
+        userIds: Array.from(onlineUsers.keys()),
+    });
+
+    /* ---- Optional: existing joinLandChat still works ---- */
 
     socket.on("joinLandChat", async (data) => {
         try {
@@ -154,7 +181,14 @@ io.on("connection", (socket) => {
                 ],
             });
 
-            if (!isAdmin && !isCurrentOwner && !isTransferParticipant) {
+            const isPublicListing = land.isForSale === true;
+
+            if (
+                !isAdmin &&
+                !isCurrentOwner &&
+                !isTransferParticipant &&
+                !isPublicListing
+            ) {
                 socket.emit("chatError", {
                     message: "You are not authorized to join this chat",
                 });
@@ -162,8 +196,6 @@ io.on("connection", (socket) => {
             }
 
             socket.join(`land_${landId}`);
-
-            console.log(`User ${userId} joined land chat ${landId}`);
 
             socket.emit("chatJoined", {
                 success: true,
@@ -175,6 +207,30 @@ io.on("connection", (socket) => {
             socket.emit("chatError", { message: "Failed to join chat" });
         }
     });
+
+    /* ---- Typing indicators ---- */
+
+    socket.on("typing", (data) => {
+        const { landId, receiverId } = data || {};
+        if (!landId || !receiverId) return;
+
+        io.to(`user_${receiverId}`).emit("typing", {
+            landId,
+            fromUserId: userId,
+        });
+    });
+
+    socket.on("stopTyping", (data) => {
+        const { landId, receiverId } = data || {};
+        if (!landId || !receiverId) return;
+
+        io.to(`user_${receiverId}`).emit("stopTyping", {
+            landId,
+            fromUserId: userId,
+        });
+    });
+
+    /* ---- Socket-based sendMessage (legacy) ---- */
 
     socket.on("sendMessage", async (data) => {
         try {
@@ -188,7 +244,6 @@ io.on("connection", (socket) => {
             }
 
             const land = await Land.findById(landId);
-
             if (!land) {
                 socket.emit("chatError", { message: "Land not found" });
                 return;
@@ -230,11 +285,13 @@ io.on("connection", (socket) => {
                 ],
             });
 
-            const senderIsParticipant = !!senderTransfer;
-            const receiverIsParticipant = !!receiverTransfer;
+            const isPublicListing = land.isForSale === true;
 
             const senderAuthorized =
-                senderIsAdmin || senderIsCurrentOwner || senderIsParticipant;
+                senderIsAdmin ||
+                senderIsCurrentOwner ||
+                !!senderTransfer ||
+                isPublicListing;
 
             if (!senderAuthorized) {
                 socket.emit("chatError", {
@@ -247,12 +304,12 @@ io.on("connection", (socket) => {
             const receiverAuthorized =
                 receiverIsAdmin ||
                 receiverIsCurrentOwner ||
-                receiverIsParticipant;
+                !!receiverTransfer ||
+                isPublicListing;
 
             if (!receiverAuthorized) {
                 socket.emit("chatError", {
-                    message:
-                        "Receiver is not authorized for this land chat",
+                    message: "Receiver is not authorized for this land chat",
                 });
                 return;
             }
@@ -265,14 +322,16 @@ io.on("connection", (socket) => {
                 receiver: receiverId,
                 message: filtered.message,
                 isRedacted: filtered.isRedacted,
+                read: false,
             });
 
             const populatedMessage = await ChatMessage.findById(chatMessage._id)
-                .populate("sender", "fullName email role")
-                .populate("receiver", "fullName email role")
+                .populate("sender", "fullName email role phone")
+                .populate("receiver", "fullName email role phone")
                 .populate("land", "surveyNumber village district state");
 
-            io.to(`land_${landId}`).emit("newMessage", populatedMessage);
+            io.to(`user_${receiverId}`).emit("newMessage", populatedMessage);
+            io.to(`user_${userId}`).emit("newMessage", populatedMessage);
 
             socket.emit("messageSent", {
                 success: true,
@@ -286,36 +345,39 @@ io.on("connection", (socket) => {
         }
     });
 
+    /* ---- Disconnect & presence cleanup ---- */
+
     socket.on("disconnect", () => {
-        console.log(
-            "Socket disconnected:",
-            socket.id,
-            "User:",
-            userId
-        );
+        const set = onlineUsers.get(userId);
+
+        if (set) {
+            set.delete(socket.id);
+
+            if (set.size === 0) {
+                onlineUsers.delete(userId);
+                io.emit("userOffline", { userId });
+            }
+        }
+
+        console.log("Socket disconnected:", socket.id, "User:", userId);
     });
 });
 
 /* ------------------------------------------------------------------ */
-/*  GLOBAL ERROR HANDLER                                               */
-/*  Must be the LAST app.use() — catches multer errors, JWT errors,    */
-/*  and any unhandled errors from routes.                              */
+/*  Global error handler                                               */
 /* ------------------------------------------------------------------ */
 app.use((err, req, res, next) => {
     console.error("\n========== GLOBAL ERROR ==========");
     console.error("Name:", err.name);
     console.error("Message:", err.message);
     console.error("Code:", err.code);
-    console.error("Stack:", err.stack);
     console.error("==================================\n");
 
-    // Multer-specific errors
     if (err instanceof multer.MulterError) {
         if (err.code === "LIMIT_FILE_SIZE") {
             return res.status(413).json({
                 success: false,
-                message:
-                    "File too large. Maximum size is 100MB per file.",
+                message: "File too large. Maximum size is 100MB per file.",
             });
         }
         if (err.code === "LIMIT_FILE_COUNT") {
@@ -337,7 +399,6 @@ app.use((err, req, res, next) => {
         });
     }
 
-    // Custom file-filter error from CloudinaryUpload.js
     if (err.message?.startsWith("Unsupported file format")) {
         return res.status(400).json({
             success: false,
@@ -356,3 +417,6 @@ const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => {
     console.log(`Server Running on Port ${PORT}`);
 });
+
+/* Export io so controllers can emit events after HTTP requests */
+export { io };
