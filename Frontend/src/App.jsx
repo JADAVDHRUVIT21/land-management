@@ -8,6 +8,7 @@ import AddLand from "./pages/AddLand";
 import EditLand from "./pages/EditLand";
 import LandDetail from "./pages/LandDetail";
 import BrowseLands from "./pages/BrowseLands";
+import Messages from "./pages/Messages";
 
 function App() {
   return (
@@ -23,6 +24,8 @@ function App() {
 
       <Route path="/edit-land/:id" element={<EditLand />} />
       <Route path="/lands/:id" element={<LandDetail />} />
+
+      <Route path="/messages" element={<Messages />} />
 
       <Route path="*" element={<Home />} />
     </Routes>

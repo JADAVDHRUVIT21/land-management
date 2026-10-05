@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   FiArrowLeft,
@@ -54,10 +54,44 @@ function LandDetails() {
     land && currentUserId && getOwnerId(land.owner) === currentUserId;
 
   /* ---------------------------------------------------------------- */
-  /*  fetchLand wrapped in useCallback so it can be safely used       */
-  /*  inside useEffect without triggering the exhaustive-deps warning */
+  /*  Fetch land — logic INLINE inside useEffect to avoid            */
+  /*  the react-hooks/exhaustive-deps ESLint warning entirely.       */
   /* ---------------------------------------------------------------- */
-  const fetchLand = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadLand = async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        const response = await api.get(`/lands/${id}`);
+        if (!cancelled) {
+          setLand(response.data?.land || response.data);
+        }
+      } catch (err) {
+        console.error("Land details error:", err);
+        if (!cancelled) {
+          setError(
+            err?.response?.data?.message || "Unable to load land details.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadLand();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  /* Manual retry handler for the error screen */
+  const handleRetry = async () => {
     setLoading(true);
     setError("");
 
@@ -70,11 +104,7 @@ function LandDetails() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
-
-  useEffect(() => {
-    fetchLand();
-  }, [fetchLand]);
+  };
 
   const getImages = () => {
     if (!land?.image || !Array.isArray(land.image)) {
@@ -169,7 +199,7 @@ function LandDetails() {
               <div className="mt-6 flex justify-center gap-3">
                 <button
                   type="button"
-                  onClick={fetchLand}
+                  onClick={handleRetry}
                   className="rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
                 >
                   Try Again
