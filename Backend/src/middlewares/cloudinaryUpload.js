@@ -3,11 +3,18 @@ import multer from "multer";
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
+    console.log("=== MULTER fileFilter ===");
+    console.log("fieldname:", file.fieldname);
+    console.log("originalname:", file.originalname);
+    console.log("mimetype:", file.mimetype);
+
     const allowedImages = [
         "image/jpg",
         "image/jpeg",
         "image/png",
         "image/webp",
+        "image/gif",
+        "image/heic",
     ];
 
     const allowedVideos = [
@@ -17,6 +24,8 @@ const fileFilter = (req, file, cb) => {
         "video/x-msvideo",
         "video/x-matroska",
         "video/webm",
+        "video/mov",
+        "video/3gpp",
     ];
 
     const allowedDocuments = [
@@ -25,20 +34,15 @@ const fileFilter = (req, file, cb) => {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ];
 
-    if (allowedImages.includes(file.mimetype)) {
-        console.log("IMAGE ACCEPTED");
-        cb(null, true);
-    } else if (allowedVideos.includes(file.mimetype)) {
-        console.log("VIDEO ACCEPTED");
-        cb(null, true);
-    } else if (allowedDocuments.includes(file.mimetype)) {
-        console.log("DOCUMENT ACCEPTED");
+    const all = [...allowedImages, ...allowedVideos, ...allowedDocuments];
+
+    if (all.includes(file.mimetype)) {
+        console.log("✓ ACCEPTED:", file.mimetype);
         cb(null, true);
     } else {
+        console.error("✗ REJECTED:", file.mimetype);
         cb(
-            new Error(
-                `Unsupported file format: ${file.mimetype}`
-            ),
+            new Error(`Unsupported file format: ${file.mimetype}`),
             false
         );
     }
@@ -47,10 +51,9 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
     storage,
     fileFilter,
-
     limits: {
         files: 15,
-        fileSize: 100 * 1024 * 1024,
+        fileSize: 100 * 1024 * 1024, // 100 MB
     },
 });
 

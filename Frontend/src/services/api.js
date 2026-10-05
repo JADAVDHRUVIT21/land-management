@@ -2,7 +2,7 @@ import axios from "axios";
 
 const api = axios.create({
     baseURL: "http://localhost:5000/api",
-    // ⚠️ NO headers here. NO Content-Type. Let the browser set it.
+    //  NO Content-Type header here!
 });
 
 api.interceptors.request.use(
@@ -15,8 +15,7 @@ api.interceptors.request.use(
             config.headers.Authorization = `Bearer ${token}`;
         }
 
-        // If body is FormData, DELETE any Content-Type
-        // so the browser can set multipart/form-data + boundary
+        // If body is FormData, remove any hardcoded Content-Type
         if (config.data instanceof FormData) {
             delete config.headers["Content-Type"];
             delete config.headers["content-type"];

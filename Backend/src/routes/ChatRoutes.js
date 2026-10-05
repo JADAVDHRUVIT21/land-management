@@ -1,21 +1,20 @@
 import express from "express";
 
-import {sendMessage, getChatHistory,} from "../controllers/ChatController.js";
+import {
+    sendMessage,
+    getChatHistory,
+    getConversations,
+} from "../controllers/ChatController.js";
 
-import {verifyToken,} from "../middlewares/authMiddleware.js";
+import { verifyToken } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-router.post(
-    "/send",
-    verifyToken,
-    sendMessage
-);
+router.post("/send", verifyToken, sendMessage);
 
-router.get(
-    "/:landId",
-    verifyToken,
-    getChatHistory
-);
+
+router.get("/conversations", verifyToken, getConversations);
+
+router.get("/:landId", verifyToken, getChatHistory);
 
 export default router;

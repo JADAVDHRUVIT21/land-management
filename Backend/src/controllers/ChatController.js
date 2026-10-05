@@ -7,79 +7,76 @@ import OwnershipTransfer from "../models/OwnershipTransfer.js";
 import { redactMessage } from "../utils/chatRedaction.js";
 import { checkProfanity } from "../utils/profanityService.js";
 
-// SEND MESSAGE
+/* ------------------------------------------------------------------ */
+/*  Helper: is this user allowed to chat about this land?              */
+/* ------------------------------------------------------------------ */
+/*  Allowed if ANY of the following is true:                           */
+/*    1. User is an admin                                              */
+/*    2. User is the current owner of the land                         */
+/*    3. User is a participant in a Pending/Approved transfer          */
+/*    4. The land is publicly listed for sale (any logged-in user)     */
+/* ------------------------------------------------------------------ */
+
+const isUserAuthorizedForLandChat = async ({ userId, user, land }) => {
+    // 1. Admin
+    if (user.role === "admin") return true;
+
+    // 2. Current owner
+    if (land.owner.toString() === userId.toString()) return true;
+
+    // 3. Ownership transfer participant
+    const transfer = await OwnershipTransfer.findOne({
+        land: land._id,
+        status: { $in: ["Pending", "Approved"] },
+        $or: [{ currentOwner: userId }, { newOwner: userId }],
+    });
+
+    if (transfer) return true;
+
+    // 4. Public listing — any authenticated user can initiate chat
+    if (land.isForSale === true) return true;
+
+    return false;
+};
+
+/* ------------------------------------------------------------------ */
+/*  SEND MESSAGE                                                       */
+/* ------------------------------------------------------------------ */
 
 const sendMessage = async (req, res) => {
     try {
+        const userId = req.user?.id || req.user?._id;
 
-        // Get logged-in user
-
-        const userId =
-            req.user?.id ||
-            req.user?._id;
-
-        // Get request body
-
-        const {
-            landId,
-            receiverId,
-            message,
-        } = req.body;
-
-        // Authentication check
+        const { landId, receiverId, message } = req.body;
 
         if (!userId) {
             return res.status(401).json({
                 success: false,
-                message:
-                    "Authentication required",
+                message: "Authentication required",
             });
         }
 
-        // Required fields
+        if (!landId || !receiverId || !message?.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: "landId, receiverId and message are required",
+            });
+        }
 
         if (
-            !landId ||
-            !receiverId ||
-            !message?.trim()
+            !mongoose.Types.ObjectId.isValid(landId) ||
+            !mongoose.Types.ObjectId.isValid(receiverId)
         ) {
             return res.status(400).json({
                 success: false,
-                message:
-                    "landId, receiverId and message are required",
+                message: "Invalid landId or receiverId",
             });
         }
 
-        // Validate ObjectIds
+        const cleanMessage = message.trim();
 
-        if (
-            !mongoose.Types.ObjectId.isValid(
-                landId
-            ) ||
-            !mongoose.Types.ObjectId.isValid(
-                receiverId
-            )
-        ) {
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Invalid landId or receiverId",
-            });
-        }
-
-        // CLEAN MESSAGE
-
-        const cleanMessage =
-            message.trim();
-
-        // PROFANITY CHECK
-
-        const profanityResult =
-            await checkProfanity(
-                cleanMessage
-            );
-
-        // PROFANITY API ERROR
+        // Profanity check
+        const profanityResult = await checkProfanity(cleanMessage);
 
         if (profanityResult.error) {
             return res.status(503).json({
@@ -89,8 +86,6 @@ const sendMessage = async (req, res) => {
             });
         }
 
-        // ABUSIVE MESSAGE DETECTED
-
         if (profanityResult.isProfanity) {
             return res.status(400).json({
                 success: false,
@@ -99,124 +94,40 @@ const sendMessage = async (req, res) => {
             });
         }
 
-        // FIND LAND
-
-        const land =
-            await Land.findById(
-                landId
-            );
+        // Load land, sender, receiver
+        const land = await Land.findById(landId);
 
         if (!land) {
             return res.status(404).json({
                 success: false,
-                message:
-                    "Land not found",
+                message: "Land not found",
             });
         }
 
-        // FIND SENDER
+        const sender = await User.findById(userId);
+        const receiver = await User.findById(receiverId);
 
-        const sender =
-            await User.findById(
-                userId
-            );
-
-        // FIND RECEIVER
-
-        const receiver =
-            await User.findById(
-                receiverId
-            );
-
-        if (
-            !sender ||
-            !receiver
-        ) {
+        if (!sender || !receiver) {
             return res.status(404).json({
                 success: false,
-                message:
-                    "User not found",
+                message: "User not found",
             });
         }
 
-        // CHECK ADMIN
+        // Can't message yourself
+        if (userId.toString() === receiverId.toString()) {
+            return res.status(400).json({
+                success: false,
+                message: "You cannot send a message to yourself",
+            });
+        }
 
-        const senderIsAdmin =
-            sender.role === "admin";
-
-        const receiverIsAdmin =
-            receiver.role === "admin";
-
-        // CHECK CURRENT OWNER
-
-        const senderIsCurrentOwner =
-            land.owner.toString() ===
-            userId.toString();
-
-        const receiverIsCurrentOwner =
-            land.owner.toString() ===
-            receiverId.toString();
-
-        // CHECK SENDER OWNERSHIP TRANSFER
-
-        const senderTransfer =
-            await OwnershipTransfer.findOne(
-                {
-                    land: landId,
-
-                    status: {
-                        $in: [
-                            "Pending",
-                            "Approved",
-                        ],
-                    },
-
-                    $or: [
-                        {
-                            currentOwner:
-                                userId,
-                        },
-                        {
-                            newOwner:
-                                userId,
-                        },
-                    ],
-                }
-            );
-
-        // CHECK RECEIVER OWNERSHIP TRANSFER
-
-        const receiverTransfer =
-            await OwnershipTransfer.findOne(
-                {
-                    land: landId,
-
-                    status: {
-                        $in: [
-                            "Pending",
-                            "Approved",
-                        ],
-                    },
-
-                    $or: [
-                        {
-                            currentOwner:
-                                receiverId,
-                        },
-                        {
-                            newOwner:
-                                receiverId,
-                        },
-                    ],
-                }
-            );
-
-        // SENDER AUTHORIZATION
-
-        const senderAuthorized =
-            senderIsAdmin ||
-            senderIsCurrentOwner ||
-            !!senderTransfer;
+        // Sender authorization
+        const senderAuthorized = await isUserAuthorizedForLandChat({
+            userId,
+            user: sender,
+            land,
+        });
 
         if (!senderAuthorized) {
             return res.status(403).json({
@@ -226,284 +137,238 @@ const sendMessage = async (req, res) => {
             });
         }
 
-        // RECEIVER AUTHORIZATION
-
-        const receiverAuthorized =
-            receiverIsAdmin ||
-            receiverIsCurrentOwner ||
-            !!receiverTransfer;
+        // Receiver authorization
+        const receiverAuthorized = await isUserAuthorizedForLandChat({
+            userId: receiverId,
+            user: receiver,
+            land,
+        });
 
         if (!receiverAuthorized) {
             return res.status(403).json({
                 success: false,
-                message:
-                    "Receiver is not authorized for this land chat",
+                message: "Receiver is not authorized for this land chat",
             });
         }
 
-        // EMAIL + PHONE REDACTION
+        // Redact email / phone
+        const filtered = redactMessage(cleanMessage);
 
-        const filtered =
-            redactMessage(
-                cleanMessage
-            );
+        // Create
+        const chatMessage = await ChatMessage.create({
+            land: landId,
+            sender: userId,
+            receiver: receiverId,
+            message: filtered.message,
+            isRedacted: filtered.isRedacted,
+        });
 
-        // CREATE CHAT MESSAGE
-
-        const chatMessage =
-            await ChatMessage.create(
-                {
-                    land: landId,
-
-                    sender: userId,
-
-                    receiver:
-                        receiverId,
-
-                    message:
-                        filtered.message,
-
-                    isRedacted:
-                        filtered.isRedacted,
-                }
-            );
-
-        // POPULATE MESSAGE
-
-        const populatedMessage =
-            await ChatMessage.findById(
-                chatMessage._id
-            )
-                .populate(
-                    "sender",
-                    "fullName email role"
-                )
-                .populate(
-                    "receiver",
-                    "fullName email role"
-                )
-                .populate(
-                    "land",
-                    "surveyNumber village district state"
-                );
-
-        // SUCCESS RESPONSE
+        const populatedMessage = await ChatMessage.findById(chatMessage._id)
+            .populate("sender", "fullName email role")
+            .populate("receiver", "fullName email role")
+            .populate("land", "surveyNumber village district state");
 
         return res.status(201).json({
             success: true,
-
-            message:
-                "Message sent successfully",
-
-            data:
-                populatedMessage,
+            message: "Message sent successfully",
+            data: populatedMessage,
         });
-
     } catch (error) {
-
-        console.error(
-            "SEND CHAT MESSAGE ERROR:",
-            error
-        );
+        console.error("SEND CHAT MESSAGE ERROR:", error);
 
         return res.status(500).json({
             success: false,
-
-            message:
-                error.message ||
-                "Failed to send message",
+            message: error.message || "Failed to send message",
         });
     }
 };
 
-// GET CHAT HISTORY
+/* ------------------------------------------------------------------ */
+/*  GET CHAT HISTORY (per land)                                        */
+/* ------------------------------------------------------------------ */
 
 const getChatHistory = async (req, res) => {
     try {
-
-        // Get logged-in user
-
-        const userId =
-            req.user?.id ||
-            req.user?._id;
-
-        // Get land ID
-
-        const {
-            landId,
-        } = req.params;
-
-        // Authentication check
+        const userId = req.user?.id || req.user?._id;
+        const { landId } = req.params;
 
         if (!userId) {
             return res.status(401).json({
                 success: false,
-                message:
-                    "Authentication required",
+                message: "Authentication required",
             });
         }
 
-        // Validate land ID
-
-        if (
-            !mongoose.Types.ObjectId.isValid(
-                landId
-            )
-        ) {
+        if (!mongoose.Types.ObjectId.isValid(landId)) {
             return res.status(400).json({
                 success: false,
-                message:
-                    "Invalid landId",
+                message: "Invalid landId",
             });
         }
 
-        // FIND LAND
-
-        const land =
-            await Land.findById(
-                landId
-            );
+        const land = await Land.findById(landId);
 
         if (!land) {
             return res.status(404).json({
                 success: false,
-                message:
-                    "Land not found",
+                message: "Land not found",
             });
         }
 
-        // FIND USER
-
-        const user =
-            await User.findById(
-                userId
-            );
+        const user = await User.findById(userId);
 
         if (!user) {
             return res.status(404).json({
                 success: false,
-                message:
-                    "User not found",
+                message: "User not found",
             });
         }
 
-        // CHECK ADMIN
+        const authorized = await isUserAuthorizedForLandChat({
+            userId,
+            user,
+            land,
+        });
 
-        const isAdmin =
-            user.role === "admin";
-
-        // CHECK CURRENT OWNER
-
-        const isCurrentOwner =
-            land.owner.toString() ===
-            userId.toString();
-
-        // CHECK OWNERSHIP TRANSFER
-
-        const transfer =
-            await OwnershipTransfer.findOne(
-                {
-                    land: landId,
-
-                    status: {
-                        $in: [
-                            "Pending",
-                            "Approved",
-                        ],
-                    },
-
-                    $or: [
-                        {
-                            currentOwner:
-                                userId,
-                        },
-                        {
-                            newOwner:
-                                userId,
-                        },
-                    ],
-                }
-            );
-
-        const isTransferParticipant =
-            !!transfer;
-
-        // CHAT AUTHORIZATION
-
-        if (
-            !isAdmin &&
-            !isCurrentOwner &&
-            !isTransferParticipant
-        ) {
+        if (!authorized) {
             return res.status(403).json({
                 success: false,
-                message:
-                    "You are not authorized to view this chat",
+                message: "You are not authorized to view this chat",
             });
         }
 
-        // GET CHAT HISTORY
-
-        const messages =
-            await ChatMessage.find(
-                {
-                    land: landId,
-
-                    $or: [
-                        {
-                            sender:
-                                userId,
-                        },
-                        {
-                            receiver:
-                                userId,
-                        },
-                    ],
-                }
-            )
-                .sort({
-                    createdAt: 1,
-                })
-                .populate(
-                    "sender",
-                    "fullName email role"
-                )
-                .populate(
-                    "receiver",
-                    "fullName email role"
-                )
-                .populate(
-                    "land",
-                    "surveyNumber village district state"
-                );
-
-        // SUCCESS RESPONSE
+        // Return only messages where the current user is sender or receiver
+        const messages = await ChatMessage.find({
+            land: landId,
+            $or: [{ sender: userId }, { receiver: userId }],
+        })
+            .sort({ createdAt: 1 })
+            .populate("sender", "fullName email role")
+            .populate("receiver", "fullName email role")
+            .populate("land", "surveyNumber village district state");
 
         return res.status(200).json({
             success: true,
-
-            count:
-                messages.length,
-
-            data:
-                messages,
+            count: messages.length,
+            data: messages,
         });
-
     } catch (error) {
-
-        console.error(
-            "GET CHAT HISTORY ERROR:",
-            error
-        );
+        console.error("GET CHAT HISTORY ERROR:", error);
 
         return res.status(500).json({
             success: false,
-
-            message:
-                error.message ||
-                "Failed to get chat history",
+            message: error.message || "Failed to get chat history",
         });
     }
 };
 
-export { sendMessage, getChatHistory, };
+/* ------------------------------------------------------------------ */
+/*  GET MY CONVERSATIONS (inbox for Messages page)                     */
+/* ------------------------------------------------------------------ */
+/*  Returns one entry per (land, other-user) pair the current user     */
+/*  has exchanged messages with.                                       */
+/* ------------------------------------------------------------------ */
+
+const getConversations = async (req, res) => {
+    try {
+        const userId = req.user?.id || req.user?._id;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "Authentication required",
+            });
+        }
+
+        const userObjectId = new mongoose.Types.ObjectId(userId);
+
+        const conversations = await ChatMessage.aggregate([
+            {
+                $match: {
+                    $or: [
+                        { sender: userObjectId },
+                        { receiver: userObjectId },
+                    ],
+                },
+            },
+            {
+                $sort: { createdAt: -1 },
+            },
+            {
+                $group: {
+                    _id: {
+                        land: "$land",
+                        otherUser: {
+                            $cond: [
+                                { $eq: ["$sender", userObjectId] },
+                                "$receiver",
+                                "$sender",
+                            ],
+                        },
+                    },
+                    lastMessage: { $first: "$message" },
+                    lastMessageAt: { $first: "$createdAt" },
+                    lastMessageId: { $first: "$_id" },
+                },
+            },
+            {
+                $sort: { lastMessageAt: -1 },
+            },
+        ]);
+
+        const hydrated = await Promise.all(
+            conversations.map(async (item) => {
+                const [land, otherUser] = await Promise.all([
+                    Land.findById(item._id.land)
+                        .select("surveyNumber village district state")
+                        .lean(),
+                    User.findById(item._id.otherUser)
+                        .select("fullName email role")
+                        .lean(),
+                ]);
+
+                return {
+                    id: `${item._id.land}-${item._id.otherUser}`,
+                    landId: String(item._id.land),
+                    land: land
+                        ? {
+                            _id: String(land._id),
+                            surveyNumber: land.surveyNumber,
+                            village: land.village,
+                            district: land.district,
+                            state: land.state,
+                        }
+                        : null,
+                    user: otherUser
+                        ? {
+                            _id: String(otherUser._id),
+                            fullName: otherUser.fullName,
+                            email: otherUser.email,
+                            role: otherUser.role,
+                        }
+                        : null,
+                    lastMessage: {
+                        _id: String(item.lastMessageId),
+                        message: item.lastMessage,
+                        createdAt: item.lastMessageAt,
+                    },
+                    updatedAt: item.lastMessageAt,
+                };
+            }),
+        );
+
+        return res.status(200).json({
+            success: true,
+            count: hydrated.length,
+            data: hydrated,
+        });
+    } catch (error) {
+        console.error("GET CONVERSATIONS ERROR:", error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Failed to load conversations",
+        });
+    }
+};
+
+export { sendMessage, getChatHistory, getConversations };

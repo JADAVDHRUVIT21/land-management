@@ -1,12 +1,12 @@
 import mongoose from "mongoose";
 
-const LandSchema = new mongoose.Schema(
+const landSchema = new mongoose.Schema(
     {
         surveyNumber: {
             type: String,
             required: true,
-            unique: true,
             trim: true,
+            unique: true,
         },
 
         owner: {
@@ -18,7 +18,11 @@ const LandSchema = new mongoose.Schema(
         area: {
             type: Number,
             required: true,
-            min: 0,
+        },
+
+        areaUnit: {
+            type: String,
+            default: "sqft",
         },
 
         village: {
@@ -39,40 +43,16 @@ const LandSchema = new mongoose.Schema(
             trim: true,
         },
 
-        location: {
-            latitude: {
-                type: Number,
-                required: true,
-                min: -90,
-                max: 90,
-            },
-
-            longitude: {
-                type: Number,
-                required: true,
-                min: -180,
-                max: 180,
-            },
-        },
-
         landType: {
             type: String,
-            enum: [
-                "Agricultural",
-                "Residential",
-                "Commercial",
-                "Industrial",
-            ],
-            default: "Residential",
+            required: true,
+            enum: ["Agricultural", "Residential", "Commercial", "Industrial"],
         },
 
         listingType: {
             type: String,
-            enum: [
-                "For Sale",
-                "Wanted to Buy",
-            ],
-            default: "For Sale",
+            required: true,
+            enum: ["For Sale", "Wanted to Buy"],
         },
 
         isForSale: {
@@ -83,15 +63,19 @@ const LandSchema = new mongoose.Schema(
         price: {
             type: Number,
             required: true,
-            min: 0,
         },
 
         description: {
             type: String,
-            required: true,
+            default: "",
             trim: true,
         },
 
+        /* ============================================================= */
+        /*  IMAGES — MUST be an array of objects with a `url` field       */
+        /*  ❌ WRONG:  image: [String]                                     */
+        /*  ✅ RIGHT:  image: [{ url: String }]                            */
+        /* ============================================================= */
         image: [
             {
                 url: {
@@ -101,6 +85,9 @@ const LandSchema = new mongoose.Schema(
             },
         ],
 
+        /* ============================================================= */
+        /*  VIDEOS — same structure                                       */
+        /* ============================================================= */
         video: [
             {
                 url: {
@@ -112,16 +99,31 @@ const LandSchema = new mongoose.Schema(
 
         documents: [
             {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "Document",
+                url: {
+                    type: String,
+                },
+                name: {
+                    type: String,
+                },
             },
         ],
+
+        location: {
+            latitude: {
+                type: Number,
+                required: true,
+            },
+            longitude: {
+                type: Number,
+                required: true,
+            },
+        },
     },
     {
         timestamps: true,
     }
 );
 
-const Land = mongoose.model("Land", LandSchema);
+const Land = mongoose.model("Land", landSchema);
 
 export default Land;
