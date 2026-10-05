@@ -7,9 +7,8 @@ import OwnershipTransfer from "../models/OwnershipTransfer.js";
 import { redactMessage } from "../utils/chatRedaction.js";
 import { checkProfanity } from "../utils/profanityService.js";
 
-/* NEW — for emitting real-time events after HTTP requests */
+/* for emitting real-time events after HTTP requests */
 import { io } from "../../server.js";
-
 
 const isUserAuthorizedForLandChat = async ({ userId, user, land }) => {
     // 1. Admin
@@ -88,9 +87,7 @@ const sendMessage = async (req, res) => {
             });
         }
 
-        // Load land, sender, receiver
         const land = await Land.findById(landId);
-
         if (!land) {
             return res.status(404).json({
                 success: false,
@@ -108,7 +105,6 @@ const sendMessage = async (req, res) => {
             });
         }
 
-        // Can't message yourself
         if (userId.toString() === receiverId.toString()) {
             return res.status(400).json({
                 success: false,
@@ -116,7 +112,6 @@ const sendMessage = async (req, res) => {
             });
         }
 
-        // Sender authorization
         const senderAuthorized = await isUserAuthorizedForLandChat({
             userId,
             user: sender,
@@ -131,7 +126,6 @@ const sendMessage = async (req, res) => {
             });
         }
 
-        // Receiver authorization
         const receiverAuthorized = await isUserAuthorizedForLandChat({
             userId: receiverId,
             user: receiver,
@@ -145,10 +139,8 @@ const sendMessage = async (req, res) => {
             });
         }
 
-        // Redact email / phone
         const filtered = redactMessage(cleanMessage);
 
-        // Create the message
         const chatMessage = await ChatMessage.create({
             land: landId,
             sender: userId,
@@ -156,6 +148,7 @@ const sendMessage = async (req, res) => {
             message: filtered.message,
             isRedacted: filtered.isRedacted,
             read: false,
+            readAt: null,
         });
 
         const populatedMessage = await ChatMessage.findById(chatMessage._id)
@@ -163,11 +156,6 @@ const sendMessage = async (req, res) => {
             .populate("receiver", "fullName email role phone")
             .populate("land", "surveyNumber village district state");
 
-        /*
-        |------------------------------------------------------------------
-        | Emit the new message over Socket.io so both users see it live.
-        |------------------------------------------------------------------
-        */
         io.to(`user_${receiverId}`).emit("newMessage", populatedMessage);
         io.to(`user_${userId}`).emit("newMessage", populatedMessage);
 
@@ -189,7 +177,9 @@ const sendMessage = async (req, res) => {
 /* ------------------------------------------------------------------ */
 /*  GET CHAT HISTORY (per land)                                        */
 /* ------------------------------------------------------------------ */
-/*  Also marks all messages where current user is receiver as read.    */
+/*  Marks all messages where current user is receiver as read +        */
+/*  records readAt. Emits "messagesRead" to the other user so ticks    */
+/*  turn blue live.                                                    */
 /* ------------------------------------------------------------------ */
 
 const getChatHistory = async (req, res) => {
@@ -212,7 +202,6 @@ const getChatHistory = async (req, res) => {
         }
 
         const land = await Land.findById(landId);
-
         if (!land) {
             return res.status(404).json({
                 success: false,
@@ -221,7 +210,6 @@ const getChatHistory = async (req, res) => {
         }
 
         const user = await User.findById(userId);
-
         if (!user) {
             return res.status(404).json({
                 success: false,
@@ -242,13 +230,43 @@ const getChatHistory = async (req, res) => {
             });
         }
 
-        // Mark everything addressed to me in this land as read
-        await ChatMessage.updateMany(
+        /*
+        |------------------------------------------------------------------
+        | Mark all messages addressed to me in this land as read.
+        | Only messages that are currently unread get a readAt stamp.
+        |------------------------------------------------------------------
+        */
+        const now = new Date();
+
+        const unreadResult = await ChatMessage.updateMany(
             { land: landId, receiver: userId, read: false },
-            { $set: { read: true } }
+            { $set: { read: true, readAt: now } }
         );
 
-        // Return only messages where the current user is sender or receiver
+        /*
+        |------------------------------------------------------------------
+        | Notify the OTHER user that their messages were just read.
+        | We send the landId so the sender can filter.
+        |------------------------------------------------------------------
+        */
+        if (unreadResult.modifiedCount > 0) {
+            // Find the other user(s) on this land (anyone who sent me a msg)
+            const otherUsers = await ChatMessage.distinct("sender", {
+                land: landId,
+                receiver: userId,
+                read: true,
+                readAt: now,
+            });
+
+            otherUsers.forEach((otherId) => {
+                io.to(`user_${otherId}`).emit("messagesRead", {
+                    landId: String(landId),
+                    readerId: String(userId),
+                    readAt: now.toISOString(),
+                });
+            });
+        }
+
         const messages = await ChatMessage.find({
             land: landId,
             $or: [{ sender: userId }, { receiver: userId }],
@@ -275,9 +293,6 @@ const getChatHistory = async (req, res) => {
 
 /* ------------------------------------------------------------------ */
 /*  GET MY CONVERSATIONS (inbox for Messages page)                     */
-/* ------------------------------------------------------------------ */
-/*  Returns one entry per (land, other-user) pair the current user     */
-/*  has exchanged messages with. Includes unreadCount and phone.       */
 /* ------------------------------------------------------------------ */
 
 const getConversations = async (req, res) => {
@@ -320,6 +335,8 @@ const getConversations = async (req, res) => {
                     lastMessage: { $first: "$message" },
                     lastMessageAt: { $first: "$createdAt" },
                     lastMessageId: { $first: "$_id" },
+                    lastMessageRead: { $first: "$read" },
+                    lastMessageReadAt: { $first: "$readAt" },
                     unreadCount: {
                         $sum: {
                             $cond: [
@@ -377,6 +394,8 @@ const getConversations = async (req, res) => {
                         _id: String(item.lastMessageId),
                         message: item.lastMessage,
                         createdAt: item.lastMessageAt,
+                        read: item.lastMessageRead || false,
+                        readAt: item.lastMessageReadAt || null,
                     },
                     unreadCount: item.unreadCount || 0,
                     updatedAt: item.lastMessageAt,

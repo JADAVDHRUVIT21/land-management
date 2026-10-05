@@ -8,6 +8,7 @@ import {
   FiLoader,
   FiRefreshCw,
   FiPhone,
+  FiCheck,
 } from "react-icons/fi";
 
 import Sidebar from "../components/Sidebar";
@@ -76,8 +77,6 @@ function Messages() {
 
   const [onlineUserIds, setOnlineUserIds] = useState([]);
 
-  // Keep a ref of the selected conversation so socket handlers always
-  // see the latest value without re-subscribing
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
@@ -204,7 +203,6 @@ function Messages() {
     }
   };
 
-  /* ---- Initial mount ---- */
   useEffect(() => {
     const run = () => loadInbox();
     run();
@@ -216,7 +214,6 @@ function Messages() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ---- Socket subscription ---- */
   useEffect(() => {
     const socket = connectSocket();
     if (!socket) return;
@@ -233,7 +230,6 @@ function Messages() {
         (getId(msg.sender) === getId(current.user) ||
           getId(msg.receiver) === getId(current.user));
 
-      // Append to open chat if it's the current conversation
       if (isForCurrentConversation) {
         setMessages((prev) => {
           if (prev.some((m) => m._id === msgId)) return prev;
@@ -241,7 +237,6 @@ function Messages() {
         });
       }
 
-      // Update the sidebar list
       setConversations((prev) => {
         const landId = getId(msg.land);
         const otherUser =
@@ -263,6 +258,8 @@ function Messages() {
                       _id: msgId,
                       message: msg.message,
                       createdAt: msg.createdAt,
+                      read: msg.read || false,
+                      readAt: msg.readAt || null,
                     },
                     updatedAt: msg.createdAt,
                     unreadCount:
@@ -275,7 +272,6 @@ function Messages() {
             );
         }
 
-        // Brand new conversation in the sidebar
         return [
           {
             id: key,
@@ -286,6 +282,8 @@ function Messages() {
               _id: msgId,
               message: msg.message,
               createdAt: msg.createdAt,
+              read: msg.read || false,
+              readAt: msg.readAt || null,
             },
             unreadCount: isCurrent || isFromMe ? 0 : 1,
             updatedAt: msg.createdAt,
@@ -295,6 +293,55 @@ function Messages() {
           (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
         );
       });
+    };
+
+    /*
+    |----------------------------------------------------------------------
+    | The OTHER user just read our messages → mark them read locally so
+    | all the double-ticks turn blue on our side instantly.
+    |----------------------------------------------------------------------
+    */
+    const handleMessagesRead = (payload) => {
+      const { landId, readerId, readAt } = payload || {};
+      if (!landId || !readerId) return;
+
+      const current = selectedConversationRef.current;
+      if (!current || getId(current.landId) !== String(landId)) return;
+
+      // Only for messages I sent to the reader
+      setMessages((prev) =>
+        prev.map((m) => {
+          const isFromMe = getId(m.sender) === currentUserId;
+          const toReader = getId(m.receiver) === String(readerId);
+          if (isFromMe && toReader && !m.read) {
+            return {
+              ...m,
+              read: true,
+              readAt: readAt || new Date().toISOString(),
+            };
+          }
+          return m;
+        }),
+      );
+
+      // Also update the sidebar preview tick (only if that preview is my own msg)
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id !== current.id) return c;
+          const lm = c.lastMessage;
+          if (!lm) return c;
+          const isFromMe = getId(lm.sender) === currentUserId;
+          if (!isFromMe) return c;
+          return {
+            ...c,
+            lastMessage: {
+              ...lm,
+              read: true,
+              readAt: readAt || new Date().toISOString(),
+            },
+          };
+        }),
+      );
     };
 
     const handleOnlineList = (payload) => {
@@ -312,12 +359,14 @@ function Messages() {
     };
 
     socket.on("newMessage", handleNewMessage);
+    socket.on("messagesRead", handleMessagesRead);
     socket.on("onlineUsers", handleOnlineList);
     socket.on("userOnline", handleUserOnline);
     socket.on("userOffline", handleUserOffline);
 
     return () => {
       socket.off("newMessage", handleNewMessage);
+      socket.off("messagesRead", handleMessagesRead);
       socket.off("onlineUsers", handleOnlineList);
       socket.off("userOnline", handleUserOnline);
       socket.off("userOffline", handleUserOffline);
@@ -325,7 +374,6 @@ function Messages() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ---- Disconnect on unmount ---- */
   useEffect(() => {
     return () => {
       disconnectSocket();
@@ -345,7 +393,6 @@ function Messages() {
       ),
     );
 
-    // Join the socket room for this land so we receive real-time updates
     const socket = getSocket();
     if (socket) {
       socket.emit("joinLandChat", { landId: conversation.landId });
@@ -442,6 +489,45 @@ function Messages() {
   const isSelectedUserOnline = selectedUser
     ? onlineUserIds.includes(String(getId(selectedUser)))
     : false;
+
+  /*
+  |----------------------------------------------------------------------
+  | Tick renderer — for MY messages only.
+  |----------------------------------------------------------------------
+  |   Not read  → single grey tick
+  |   Read      → double blue tick
+  |----------------------------------------------------------------------
+  */
+  const renderTicks = (message) => {
+    const isRead = Boolean(message.read || message.readAt);
+
+    if (isRead) {
+      // double blue tick
+      return (
+        <span className="relative ml-1 inline-flex h-3 w-4 shrink-0 align-middle">
+          <FiCheck
+            size={11}
+            className="absolute left-0 top-0 text-blue-300"
+            strokeWidth={3}
+          />
+          <FiCheck
+            size={11}
+            className="absolute left-[3px] top-0 text-blue-300"
+            strokeWidth={3}
+          />
+        </span>
+      );
+    }
+
+    // single grey tick
+    return (
+      <FiCheck
+        size={11}
+        className="ml-1 inline shrink-0 text-green-100 align-middle"
+        strokeWidth={3}
+      />
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -681,13 +767,18 @@ function Messages() {
                                 {message.message}
                               </p>
                               <div
-                                className={`mt-1 text-[10px] ${
+                                className={`mt-1 flex items-center gap-1 text-[10px] ${
                                   isMine ? "text-green-100" : "text-gray-400"
-                                }`}
+                                } ${isMine ? "justify-end" : ""}`}
                               >
-                                {message.createdAt
-                                  ? new Date(message.createdAt).toLocaleString()
-                                  : ""}
+                                <span>
+                                  {message.createdAt
+                                    ? new Date(
+                                        message.createdAt,
+                                      ).toLocaleString()
+                                    : ""}
+                                </span>
+                                {isMine && renderTicks(message)}
                               </div>
                             </div>
                           </div>

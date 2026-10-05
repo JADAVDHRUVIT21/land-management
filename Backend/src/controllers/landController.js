@@ -57,6 +57,34 @@ const uploadVideoToCloudinary = (fileBuffer, folder = "videos") => {
 
 /*
 |--------------------------------------------------------------------------
+| Helper: find an existing land with the same survey number IN THE SAME
+| village + district (case-insensitive on village/district to prevent
+| near-duplicates like "bhavnagar" vs "Bhavnagar").
+|--------------------------------------------------------------------------
+*/
+
+const findDuplicateLand = async ({ surveyNumber, village, district, excludeId }) => {
+    const query = {
+        surveyNumber: String(surveyNumber).trim(),
+        village: {
+            $regex: `^${String(village).trim()}$`,
+            $options: "i",
+        },
+        district: {
+            $regex: `^${String(district).trim()}$`,
+            $options: "i",
+        },
+    };
+
+    if (excludeId) {
+        query._id = { $ne: excludeId };
+    }
+
+    return Land.findOne(query);
+};
+
+/*
+|--------------------------------------------------------------------------
 | Create Land
 |--------------------------------------------------------------------------
 */
@@ -151,18 +179,22 @@ const createLand = async (req, res) => {
             });
         }
 
-        const existingLand = await Land.findOne({
-            surveyNumber: surveyNumber.trim(),
+        /* ---- 4. Scoped duplicate check (surveyNumber + village + district) ---- */
+        const existingLand = await findDuplicateLand({
+            surveyNumber,
+            village,
+            district,
         });
 
         if (existingLand) {
             return res.status(400).json({
                 success: false,
-                message: "Survey Number already exists.",
+                message:
+                    "Survey Number already exists in this village and district.",
             });
         }
 
-        /* ---- 4. Location parsing ---- */
+        /* ---- 5. Location parsing ---- */
         let parsedLocation;
         try {
             parsedLocation =
@@ -213,7 +245,7 @@ const createLand = async (req, res) => {
 
         console.log("[createLand] ✓ All text fields + location validated");
 
-        /* ---- 5. Upload images ---- */
+        /* ---- 6. Upload images ---- */
         let images = [];
 
         if (req.files?.image && req.files.image.length > 0) {
@@ -242,7 +274,7 @@ const createLand = async (req, res) => {
             console.log("[createLand] ⚠ No images in req.files.image (skipping)");
         }
 
-        /* ---- 6. Upload videos ---- */
+        /* ---- 7. Upload videos ---- */
         let videos = [];
 
         if (req.files?.video && req.files.video.length > 0) {
@@ -271,7 +303,7 @@ const createLand = async (req, res) => {
             console.log("[createLand] ⚠ No videos in req.files.video (skipping)");
         }
 
-        /* ---- 7. Save to Mongo ---- */
+        /* ---- 8. Save to Mongo ---- */
         console.log("[createLand] Saving to MongoDB...");
         console.log("  images being saved:", images);
         console.log("  videos being saved:", videos);
@@ -313,6 +345,15 @@ const createLand = async (req, res) => {
     } catch (error) {
         console.error("[createLand] ✗✗✗ FATAL ERROR:", error);
         console.error("Stack:", error.stack);
+
+        // Handle the compound unique index race-condition error
+        if (error?.code === 11000) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Survey Number already exists in this village and district.",
+            });
+        }
 
         return res.status(500).json({
             success: false,
@@ -624,22 +665,56 @@ const updateLand = async (req, res) => {
             }
         }
 
-        if (updateData.surveyNumber) {
-            const surveyNumber = String(updateData.surveyNumber).trim();
+        /*
+        |----------------------------------------------------------------------
+        | Scoped duplicate check
+        |----------------------------------------------------------------------
+        | Compare against the FINAL values of surveyNumber, village, and
+        | district — i.e. the incoming values if present, otherwise the
+        | existing land's values. This way editing just the survey number
+        | (while keeping the same village/district) still gets checked
+        | correctly.
+        |----------------------------------------------------------------------
+        */
 
-            const duplicate = await Land.findOne({
-                surveyNumber,
-                _id: { $ne: id },
+        const finalSurveyNumber =
+            updateData.surveyNumber !== undefined
+                ? String(updateData.surveyNumber).trim()
+                : land.surveyNumber;
+
+        const finalVillage =
+            updateData.village !== undefined
+                ? String(updateData.village).trim()
+                : land.village;
+
+        const finalDistrict =
+            updateData.district !== undefined
+                ? String(updateData.district).trim()
+                : land.district;
+
+        if (
+            updateData.surveyNumber !== undefined ||
+            updateData.village !== undefined ||
+            updateData.district !== undefined
+        ) {
+            const duplicate = await findDuplicateLand({
+                surveyNumber: finalSurveyNumber,
+                village: finalVillage,
+                district: finalDistrict,
+                excludeId: id,
             });
 
             if (duplicate) {
                 return res.status(400).json({
                     success: false,
-                    message: "Survey Number already exists.",
+                    message:
+                        "Survey Number already exists in this village and district.",
                 });
             }
+        }
 
-            updateData.surveyNumber = surveyNumber;
+        if (updateData.surveyNumber !== undefined) {
+            updateData.surveyNumber = finalSurveyNumber;
         }
 
         if (updateData.area !== undefined) {
@@ -828,6 +903,15 @@ const updateLand = async (req, res) => {
         });
     } catch (error) {
         console.error("Update Land Error:", error);
+
+        if (error?.code === 11000) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Survey Number already exists in this village and district.",
+            });
+        }
+
         return res.status(500).json({
             success: false,
             message: error.message || "Server Error",

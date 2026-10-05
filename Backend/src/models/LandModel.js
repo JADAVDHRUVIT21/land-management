@@ -6,7 +6,7 @@ const landSchema = new mongoose.Schema(
             type: String,
             required: true,
             trim: true,
-            unique: true,
+            // by the compound index below, scoped per village + district.
         },
 
         owner: {
@@ -71,11 +71,6 @@ const landSchema = new mongoose.Schema(
             trim: true,
         },
 
-        /* ============================================================= */
-        /*  IMAGES — MUST be an array of objects with a `url` field       */
-        /*  ❌ WRONG:  image: [String]                                     */
-        /*  ✅ RIGHT:  image: [{ url: String }]                            */
-        /* ============================================================= */
         image: [
             {
                 url: {
@@ -85,9 +80,6 @@ const landSchema = new mongoose.Schema(
             },
         ],
 
-        /* ============================================================= */
-        /*  VIDEOS — same structure                                       */
-        /* ============================================================= */
         video: [
             {
                 url: {
@@ -122,6 +114,11 @@ const landSchema = new mongoose.Schema(
     {
         timestamps: true,
     }
+);
+
+landSchema.index(
+    { surveyNumber: 1, village: 1, district: 1 },
+    { unique: true, name: "unique_survey_per_village_district" }
 );
 
 const Land = mongoose.model("Land", landSchema);

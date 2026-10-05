@@ -19,7 +19,7 @@ import {
 import Sidebar from "../components/Sidebar";
 import api from "../services/api";
 
-function LandDetails() {
+function LandDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -53,10 +53,6 @@ function LandDetails() {
   const isOwner =
     land && currentUserId && getOwnerId(land.owner) === currentUserId;
 
-  /* ---------------------------------------------------------------- */
-  /*  Fetch land — logic INLINE inside useEffect to avoid            */
-  /*  the react-hooks/exhaustive-deps ESLint warning entirely.       */
-  /* ---------------------------------------------------------------- */
   useEffect(() => {
     let cancelled = false;
 
@@ -90,7 +86,6 @@ function LandDetails() {
     };
   }, [id]);
 
-  /* Manual retry handler for the error screen */
   const handleRetry = async () => {
     setLoading(true);
     setError("");
@@ -225,7 +220,6 @@ function LandDetails() {
       <Sidebar />
 
       <main className="ml-0 min-h-screen lg:ml-[230px]">
-        {/* Header */}
         <header className="border-b border-gray-200 bg-white px-5 py-5 sm:px-7">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
@@ -245,11 +239,10 @@ function LandDetails() {
               </p>
             </div>
 
-            {/* Owner / Viewer Action */}
             <div>
               {isOwner ? (
                 <Link
-                  to={`/lands/${land._id}/edit`}
+                  to={`/edit-land/${land._id}`}
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-green-600 bg-green-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 hover:shadow-md"
                 >
                   <FiEdit3 size={17} />
@@ -271,7 +264,6 @@ function LandDetails() {
 
         <div className="p-5 sm:p-7">
           <div className="mx-auto max-w-7xl">
-            {/* Main Image */}
             <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
               <div className="relative h-[280px] bg-gray-100 sm:h-[380px] lg:h-[450px]">
                 {images.length > 0 ? (
@@ -311,11 +303,8 @@ function LandDetails() {
               </div>
             </div>
 
-            {/* Details Grid */}
             <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-              {/* Main Details */}
               <div className="space-y-6 lg:col-span-2">
-                {/* Basic Information */}
                 <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -376,7 +365,6 @@ function LandDetails() {
                   </div>
                 </section>
 
-                {/* Description */}
                 {land.description && (
                   <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                     <h2 className="text-lg font-semibold text-gray-900">
@@ -388,7 +376,6 @@ function LandDetails() {
                   </section>
                 )}
 
-                {/* Location */}
                 <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50 text-green-600">
@@ -424,7 +411,6 @@ function LandDetails() {
                   )}
                 </section>
 
-                {/* Images */}
                 {images.length > 0 && (
                   <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                     <div className="flex items-center gap-3">
@@ -471,7 +457,6 @@ function LandDetails() {
                   </section>
                 )}
 
-                {/* Videos */}
                 {videos.length > 0 && (
                   <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                     <div className="flex items-center gap-3">
@@ -519,7 +504,6 @@ function LandDetails() {
                 )}
               </div>
 
-              {/* Owner Sidebar */}
               <div className="space-y-6">
                 <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                   <h2 className="text-lg font-semibold text-gray-900">
@@ -582,7 +566,6 @@ function LandDetails() {
                   )}
                 </section>
 
-                {/* Owner-only Edit */}
                 {isOwner && (
                   <section className="rounded-2xl border border-green-100 bg-green-50 p-5">
                     <p className="text-sm font-medium text-green-800">
@@ -594,7 +577,7 @@ function LandDetails() {
                     </p>
 
                     <Link
-                      to={`/lands/${land._id}/edit`}
+                      to={`/edit-land/${land._id}`}
                       className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-green-600 bg-white px-4 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-100"
                     >
                       <FiEdit3 size={17} />
@@ -603,7 +586,6 @@ function LandDetails() {
                   </section>
                 )}
 
-                {/* Buyer Information */}
                 {!isOwner && (
                   <section className="rounded-2xl border border-green-100 bg-green-50 p-5">
                     <h3 className="font-semibold text-green-900">
@@ -629,7 +611,6 @@ function LandDetails() {
         </div>
       </main>
 
-      {/* Preview Modal */}
       {preview && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-4"
@@ -668,4 +649,4 @@ function LandDetails() {
   );
 }
 
-export default LandDetails;
+export default LandDetail;

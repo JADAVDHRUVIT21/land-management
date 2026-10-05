@@ -14,15 +14,26 @@ import {
   FiX,
 } from "react-icons/fi";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "../context/useAuth";
+import api from "../services/api";
 
 const Sidebar = () => {
   const navigate = useNavigate();
   const { logout } = useAuth();
 
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  /* ------------------------------------------------------------------ */
+  /*  Unread badge state                                                 */
+  /* ------------------------------------------------------------------ */
+
+  const [totalUnread, setTotalUnread] = useState(0);
+  const [showNumber, setShowNumber] = useState(false);
+
+  const lastUnreadAtRef = useRef(0);
+  const fadeTimerRef = useRef(null);
 
   const menuItems = [
     {
@@ -61,6 +72,76 @@ const Sidebar = () => {
       icon: FiUser,
     },
   ];
+
+  /* ------------------------------------------------------------------ */
+  /*  Poll unread every 15s                                              */
+  /* ------------------------------------------------------------------ */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchUnread = async () => {
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
+
+      if (!token) return;
+
+      try {
+        const response = await api.get("/chat/conversations");
+        if (cancelled) return;
+
+        const rows = Array.isArray(response.data?.data)
+          ? response.data.data
+          : [];
+
+        const total = rows.reduce(
+          (sum, row) => sum + (Number(row.unreadCount) || 0),
+          0,
+        );
+
+        setTotalUnread(total);
+
+        if (total > 0) {
+          // New unread detected — show the number for 5 seconds
+          lastUnreadAtRef.current = Date.now();
+          setShowNumber(true);
+
+          if (fadeTimerRef.current) {
+            clearTimeout(fadeTimerRef.current);
+          }
+
+          fadeTimerRef.current = setTimeout(() => {
+            setShowNumber(false);
+          }, 5000);
+        } else {
+          // Nothing unread — hide everything
+          setShowNumber(false);
+          if (fadeTimerRef.current) {
+            clearTimeout(fadeTimerRef.current);
+            fadeTimerRef.current = null;
+          }
+        }
+      } catch (err) {
+        // Silent — sidebar shouldn't crash the app if the API hiccups
+        // eslint-disable-next-line no-console
+        console.warn("[sidebar] unread fetch failed:", err?.message);
+      }
+    };
+
+    // First fetch immediately
+    fetchUnread();
+
+    // Then every 15 seconds
+    const interval = setInterval(fetchUnread, 15000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      if (fadeTimerRef.current) {
+        clearTimeout(fadeTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -134,6 +215,7 @@ const Sidebar = () => {
           <nav className="space-y-1">
             {menuItems.map((item) => {
               const Icon = item.icon;
+              const isMessages = item.path === "/messages";
 
               return (
                 <NavLink
@@ -161,7 +243,20 @@ const Sidebar = () => {
                         <Icon size={18} />
                       </span>
 
-                      <span>{item.label}</span>
+                      <span className="flex-1">{item.label}</span>
+
+                      {/* Messages unread indicator */}
+                      {isMessages && totalUnread > 0 && (
+                        <>
+                          {showNumber ? (
+                            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-green-600 px-1.5 text-[11px] font-bold text-white">
+                              {totalUnread}
+                            </span>
+                          ) : (
+                            <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+                          )}
+                        </>
+                      )}
                     </>
                   )}
                 </NavLink>
