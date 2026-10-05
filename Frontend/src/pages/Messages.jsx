@@ -9,16 +9,85 @@ import {
   FiRefreshCw,
   FiPhone,
   FiCheck,
+  FiArrowLeft,
+  FiMoreVertical,
+  FiTrash2,
+  FiAlertCircle,
 } from "react-icons/fi";
 
 import Sidebar from "../components/Sidebar";
 import api from "../services/api";
 import { connectSocket, getSocket, disconnectSocket } from "../services/socket";
 
+/* ================================================================== */
+/*  iOS-style Confirm Dialog                                          */
+/* ================================================================== */
+
+const ConfirmDialog = ({
+  open,
+  title,
+  message,
+  confirmLabel = "Delete",
+  loading = false,
+  onConfirm,
+  onCancel,
+}) => {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-sm overflow-hidden rounded-3xl bg-white/95 shadow-2xl backdrop-blur-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 pt-6 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-500">
+            <FiAlertCircle size={26} />
+          </div>
+          <h3 className="mt-4 text-lg font-semibold text-gray-900">{title}</h3>
+          <p className="mt-2 text-sm leading-6 text-gray-500">{message}</p>
+        </div>
+
+        <div className="mt-6 flex gap-2 border-t border-gray-100 p-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="h-11 flex-1 rounded-2xl bg-gray-100 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-red-500 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-60"
+          >
+            {loading ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            ) : (
+              <FiTrash2 size={15} />
+            )}
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ================================================================== */
+/*  Main Component                                                    */
+/* ================================================================== */
+
 function Messages() {
   const location = useLocation();
   const messagesEndRef = useRef(null);
   const selectedConversationRef = useRef(null);
+  const menuRef = useRef(null);
 
   const currentUser = useMemo(() => {
     try {
@@ -28,13 +97,24 @@ function Messages() {
     }
   }, []);
 
-  const currentUserId =
-    currentUser?._id || currentUser?.id || currentUser?.userId || null;
+  const currentUserId = String(
+    currentUser?._id || currentUser?.id || currentUser?.userId || "",
+  );
 
   const getId = (value) => {
     if (!value) return null;
     if (typeof value === "string") return value;
     return value._id || value.id || null;
+  };
+
+  const idStr = (value) => {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "object") {
+      const inner = value._id || value.id;
+      return inner ? String(inner) : "";
+    }
+    return String(value);
   };
 
   const [initialSeed] = useState(() => {
@@ -45,7 +125,7 @@ function Messages() {
     if (!stateLandId || !stateLand || !stateOwner) return null;
 
     const ownerId = getId(stateOwner);
-    if (!ownerId || ownerId === currentUserId) return null;
+    if (!ownerId || String(ownerId) === currentUserId) return null;
 
     return {
       id: `${stateLandId}-${ownerId}`,
@@ -77,12 +157,28 @@ function Messages() {
 
   const [onlineUserIds, setOnlineUserIds] = useState([]);
 
+  /* Menu + confirm */
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirm, setConfirm] = useState(null);
+
+  /* Close dropdown when clicking outside */
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
+
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
 
   const getOtherUser = (message) => {
-    const senderId = getId(message?.sender);
+    const senderId = idStr(message?.sender);
     if (senderId === currentUserId) return message?.receiver;
     return message?.sender;
   };
@@ -91,11 +187,11 @@ function Messages() {
     const grouped = new Map();
 
     messageList.forEach((message) => {
-      const landId = getId(message?.land);
+      const landId = idStr(message?.land);
       const otherUser = getOtherUser(message);
       if (!landId || !otherUser) return;
 
-      const otherUserId = getId(otherUser);
+      const otherUserId = idStr(otherUser);
       if (!otherUserId) return;
 
       const key = `${landId}-${otherUserId}`;
@@ -223,12 +319,15 @@ function Messages() {
       if (!msgId) return;
 
       const current = selectedConversationRef.current;
+      const currentLandId = idStr(current?.landId);
+      const msgLandId = idStr(msg.land);
+      const otherUserId = idStr(current?.user);
 
       const isForCurrentConversation =
         current &&
-        getId(msg.land) === getId(current.landId) &&
-        (getId(msg.sender) === getId(current.user) ||
-          getId(msg.receiver) === getId(current.user));
+        currentLandId === msgLandId &&
+        (idStr(msg.sender) === otherUserId ||
+          idStr(msg.receiver) === otherUserId);
 
       if (isForCurrentConversation) {
         setMessages((prev) => {
@@ -238,15 +337,16 @@ function Messages() {
       }
 
       setConversations((prev) => {
-        const landId = getId(msg.land);
+        const landId = msgLandId;
+        const senderIdStr = idStr(msg.sender);
         const otherUser =
-          getId(msg.sender) === currentUserId ? msg.receiver : msg.sender;
-        const otherUserId = getId(otherUser);
-        const key = `${landId}-${otherUserId}`;
+          senderIdStr === currentUserId ? msg.receiver : msg.sender;
+        const otherIdStr = idStr(otherUser);
+        const key = `${landId}-${otherIdStr}`;
 
         const exists = prev.find((c) => c.id === key);
         const isCurrent = current?.id === key;
-        const isFromMe = getId(msg.sender) === currentUserId;
+        const isFromMe = senderIdStr === currentUserId;
 
         if (exists) {
           return prev
@@ -258,6 +358,8 @@ function Messages() {
                       _id: msgId,
                       message: msg.message,
                       createdAt: msg.createdAt,
+                      sender: msg.sender,
+                      receiver: msg.receiver,
                       read: msg.read || false,
                       readAt: msg.readAt || null,
                     },
@@ -268,7 +370,8 @@ function Messages() {
                 : c,
             )
             .sort(
-              (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
+              (a, b) =>
+                new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
             );
         }
 
@@ -282,6 +385,8 @@ function Messages() {
               _id: msgId,
               message: msg.message,
               createdAt: msg.createdAt,
+              sender: msg.sender,
+              receiver: msg.receiver,
               read: msg.read || false,
               readAt: msg.readAt || null,
             },
@@ -295,49 +400,50 @@ function Messages() {
       });
     };
 
-    /*
-    |----------------------------------------------------------------------
-    | The OTHER user just read our messages → mark them read locally so
-    | all the double-ticks turn blue on our side instantly.
-    |----------------------------------------------------------------------
-    */
     const handleMessagesRead = (payload) => {
-      const { landId, readerId, readAt } = payload || {};
+      const landId = idStr(payload?.landId);
+      const readerId = idStr(payload?.readerId);
+      const readAt = payload?.readAt || new Date().toISOString();
+
       if (!landId || !readerId) return;
 
       const current = selectedConversationRef.current;
-      if (!current || getId(current.landId) !== String(landId)) return;
+      if (!current) return;
 
-      // Only for messages I sent to the reader
+      const currentLandId = idStr(current.landId);
+      if (currentLandId !== landId) return;
+
       setMessages((prev) =>
         prev.map((m) => {
-          const isFromMe = getId(m.sender) === currentUserId;
-          const toReader = getId(m.receiver) === String(readerId);
+          const senderIdStr = idStr(m.sender);
+          const receiverIdStr = idStr(m.receiver);
+
+          const isFromMe = senderIdStr === currentUserId;
+          const toReader = receiverIdStr === readerId;
+
           if (isFromMe && toReader && !m.read) {
-            return {
-              ...m,
-              read: true,
-              readAt: readAt || new Date().toISOString(),
-            };
+            return { ...m, read: true, readAt };
           }
           return m;
         }),
       );
 
-      // Also update the sidebar preview tick (only if that preview is my own msg)
       setConversations((prev) =>
         prev.map((c) => {
           if (c.id !== current.id) return c;
           const lm = c.lastMessage;
           if (!lm) return c;
-          const isFromMe = getId(lm.sender) === currentUserId;
+
+          const lmSenderIdStr = idStr(lm.sender);
+          const isFromMe = lmSenderIdStr === currentUserId;
           if (!isFromMe) return c;
+
           return {
             ...c,
             lastMessage: {
               ...lm,
               read: true,
-              readAt: readAt || new Date().toISOString(),
+              readAt,
             },
           };
         }),
@@ -401,6 +507,61 @@ function Messages() {
     await loadChatHistory(conversation);
   };
 
+  const handleBackToList = () => {
+    setSelectedConversation(null);
+    setMessages([]);
+  };
+
+  /* ---------------------------------------------------------------- */
+  /*  DELETE                                                           */
+  /* ---------------------------------------------------------------- */
+
+  const performDeleteChat = async () => {
+    if (!selectedConversation) return;
+    try {
+      setConfirm((prev) => ({ ...prev, loading: true }));
+
+      const otherUserId = idStr(selectedConversation.user);
+      const landId = selectedConversation.landId;
+
+      await api.delete(`/chat/${landId}/${otherUserId}`);
+
+      setConversations((current) =>
+        current.filter((c) => c.id !== selectedConversation.id),
+      );
+      setSelectedConversation(null);
+      setMessages([]);
+      setConfirm(null);
+      setError("");
+    } catch (err) {
+      console.error("DELETE CHAT ERROR:", err);
+      setError(
+        err.response?.data?.message || "Failed to delete the conversation.",
+      );
+      setConfirm((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  const performClearAll = async () => {
+    try {
+      setConfirm((prev) => ({ ...prev, loading: true }));
+
+      await api.delete("/chat");
+
+      setConversations([]);
+      setSelectedConversation(null);
+      setMessages([]);
+      setConfirm(null);
+      setError("");
+    } catch (err) {
+      console.error("CLEAR ALL ERROR:", err);
+      setError(
+        err.response?.data?.message || "Failed to clear all conversations.",
+      );
+      setConfirm((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
   const handleSendMessage = async () => {
     const text = messageText.trim();
     if (!text || !selectedConversation || sending) return;
@@ -442,7 +603,8 @@ function Messages() {
               },
               ...current,
             ].sort(
-              (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
+              (a, b) =>
+                new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
             );
           }
 
@@ -452,12 +614,14 @@ function Messages() {
                 ? {
                     ...c,
                     lastMessage: newMessage,
-                    updatedAt: newMessage.createdAt || new Date().toISOString(),
+                    updatedAt:
+                      newMessage.createdAt || new Date().toISOString(),
                   }
                 : c,
             )
             .sort(
-              (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
+              (a, b) =>
+                new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
             );
         });
       }
@@ -487,22 +651,13 @@ function Messages() {
 
   const selectedUser = selectedConversation?.user;
   const isSelectedUserOnline = selectedUser
-    ? onlineUserIds.includes(String(getId(selectedUser)))
+    ? onlineUserIds.includes(idStr(selectedUser))
     : false;
 
-  /*
-  |----------------------------------------------------------------------
-  | Tick renderer — for MY messages only.
-  |----------------------------------------------------------------------
-  |   Not read  → single grey tick
-  |   Read      → double blue tick
-  |----------------------------------------------------------------------
-  */
   const renderTicks = (message) => {
     const isRead = Boolean(message.read || message.readAt);
 
     if (isRead) {
-      // double blue tick
       return (
         <span className="relative ml-1 inline-flex h-3 w-4 shrink-0 align-middle">
           <FiCheck
@@ -519,7 +674,6 @@ function Messages() {
       );
     }
 
-    // single grey tick
     return (
       <FiCheck
         size={11}
@@ -565,131 +719,160 @@ function Messages() {
             </div>
           )}
 
-          <div className="grid min-h-[650px] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:grid-cols-[320px_1fr]">
-            <aside className="border-b border-gray-200 lg:border-b-0 lg:border-r">
-              <div className="border-b border-gray-200 p-4">
-                <div className="relative">
-                  <FiSearch
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                    size={18}
-                  />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search conversations..."
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100"
-                  />
-                </div>
-              </div>
-
-              <div className="max-h-[560px] overflow-y-auto">
-                {loading ? (
-                  <div className="flex min-h-[250px] items-center justify-center">
-                    <FiLoader
-                      className="animate-spin text-green-600"
-                      size={24}
+          {/*
+          |--------------------------------------------------------------
+          | Outer container is a flex column with a fixed height so the
+          | chat header + input stay put while only the messages scroll.
+          |--------------------------------------------------------------
+          */}
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:grid lg:h-[calc(100vh-12rem)] lg:min-h-[600px] lg:grid-cols-[320px_1fr]">
+            {/* Conversations list */}
+            <aside
+              className={`border-gray-200 lg:border-b-0 lg:border-r ${
+                selectedConversation ? "hidden lg:block" : "block"
+              }`}
+            >
+              <div className="flex h-full flex-col">
+                <div className="border-b border-gray-200 p-4">
+                  <div className="relative">
+                    <FiSearch
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      size={18}
+                    />
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search conversations..."
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100"
                     />
                   </div>
-                ) : filteredConversations.length === 0 ? (
-                  <div className="flex min-h-[300px] items-center justify-center p-6">
-                    <div className="text-center">
-                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-green-600">
-                        <FiMessageCircle size={25} />
-                      </div>
-                      <h2 className="mt-4 text-sm font-semibold text-gray-900">
-                        No conversations yet
-                      </h2>
-                      <p className="mt-2 text-xs leading-5 text-gray-500">
-                        Your conversations with land owners will appear here.
-                      </p>
+                </div>
+
+                <div className="flex-1 overflow-y-auto">
+                  {loading ? (
+                    <div className="flex min-h-[250px] items-center justify-center">
+                      <FiLoader
+                        className="animate-spin text-green-600"
+                        size={24}
+                      />
                     </div>
-                  </div>
-                ) : (
-                  filteredConversations.map((conversation) => {
-                    const user = conversation.user;
-                    const isSelected =
-                      selectedConversation?.id === conversation.id;
-                    const hasUnread = (conversation.unreadCount || 0) > 0;
-                    const isOnline = onlineUserIds.includes(
-                      String(getId(user)),
-                    );
-
-                    return (
-                      <button
-                        key={conversation.id}
-                        type="button"
-                        onClick={() => handleSelectConversation(conversation)}
-                        className={`flex w-full gap-3 border-b border-gray-100 p-4 text-left transition ${
-                          isSelected
-                            ? "bg-green-50"
-                            : "bg-white hover:bg-gray-50"
-                        }`}
-                      >
-                        <div className="relative shrink-0">
-                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-green-100 text-green-700">
-                            <FiUser size={20} />
-                          </div>
-
-                          {isOnline && (
-                            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
-                          )}
+                  ) : filteredConversations.length === 0 ? (
+                    <div className="flex min-h-[300px] items-center justify-center p-6">
+                      <div className="text-center">
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-green-600">
+                          <FiMessageCircle size={25} />
                         </div>
+                        <h2 className="mt-4 text-sm font-semibold text-gray-900">
+                          No conversations yet
+                        </h2>
+                        <p className="mt-2 text-xs leading-5 text-gray-500">
+                          Your conversations with land owners will appear here.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    filteredConversations.map((conversation) => {
+                      const user = conversation.user;
+                      const isSelected =
+                        selectedConversation?.id === conversation.id;
+                      const hasUnread = (conversation.unreadCount || 0) > 0;
+                      const isOnline = onlineUserIds.includes(idStr(user));
 
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <h3
-                              className={`truncate text-sm ${
-                                hasUnread
-                                  ? "font-bold text-gray-900"
-                                  : "font-semibold text-gray-900"
-                              }`}
-                            >
-                              {user?.fullName || "User"}
-                            </h3>
+                      return (
+                        <button
+                          key={conversation.id}
+                          type="button"
+                          onClick={() =>
+                            handleSelectConversation(conversation)
+                          }
+                          className={`flex w-full gap-3 border-b border-gray-100 p-4 text-left transition ${
+                            isSelected
+                              ? "bg-green-50"
+                              : "bg-white hover:bg-gray-50"
+                          }`}
+                        >
+                          <div className="relative shrink-0">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-green-100 text-green-700">
+                              <FiUser size={20} />
+                            </div>
 
-                            {conversation.updatedAt && (
-                              <span className="shrink-0 text-[10px] text-gray-400">
-                                {new Date(
-                                  conversation.updatedAt,
-                                ).toLocaleDateString()}
-                              </span>
+                            {isOnline && (
+                              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
                             )}
                           </div>
 
-                          <p className="mt-1 flex items-center gap-1 truncate text-xs text-gray-500">
-                            <FiPhone size={11} />
-                            {user?.phone || "No phone"}
-                          </p>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <h3
+                                className={`truncate text-sm ${
+                                  hasUnread
+                                    ? "font-bold text-gray-900"
+                                    : "font-semibold text-gray-900"
+                                }`}
+                              >
+                                {user?.fullName || "User"}
+                              </h3>
 
-                          <p
-                            className={`mt-1 truncate text-xs ${
-                              hasUnread
-                                ? "font-semibold text-gray-700"
-                                : "text-gray-400"
-                            }`}
-                          >
-                            {conversation.lastMessage?.message ||
-                              "Start conversation"}
-                          </p>
-                        </div>
+                              {conversation.updatedAt && (
+                                <span className="shrink-0 text-[10px] text-gray-400">
+                                  {new Date(
+                                    conversation.updatedAt,
+                                  ).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
 
-                        {hasUnread && (
-                          <span className="ml-1 flex h-5 min-w-[20px] shrink-0 items-center justify-center self-center rounded-full bg-green-600 px-1.5 text-[11px] font-bold text-white">
-                            {conversation.unreadCount}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
+                            <p className="mt-1 flex items-center gap-1 truncate text-xs text-gray-500">
+                              <FiPhone size={11} />
+                              {user?.phone || "No phone"}
+                            </p>
+
+                            <p
+                              className={`mt-1 truncate text-xs ${
+                                hasUnread
+                                  ? "font-semibold text-gray-700"
+                                  : "text-gray-400"
+                              }`}
+                            >
+                              {conversation.lastMessage?.message ||
+                                "Start conversation"}
+                            </p>
+                          </div>
+
+                          {hasUnread && (
+                            <span className="ml-1 flex h-5 min-w-[20px] shrink-0 items-center justify-center self-center rounded-full bg-green-600 px-1.5 text-[11px] font-bold text-white">
+                              {conversation.unreadCount}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </aside>
 
-            <section className="flex min-h-[650px] flex-col">
+            {/* Chat pane */}
+            <section
+              className={`flex h-full min-h-0 flex-col ${
+                selectedConversation ? "flex" : "hidden lg:flex"
+              }`}
+            >
               {selectedConversation ? (
                 <>
-                  <div className="flex items-center gap-3 border-b border-gray-200 px-5 py-4">
+                  {/* Header — fixed, not scrollable */}
+                  <div className="flex shrink-0 items-center gap-3 border-b border-gray-200 px-5 py-4">
+                    {/* Back button */}
+                    <button
+                      type="button"
+                      onClick={handleBackToList}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 lg:hidden"
+                      aria-label="Back to conversations"
+                    >
+                      <FiArrowLeft size={20} />
+                    </button>
+
                     <div className="relative shrink-0">
                       <div className="flex h-11 w-11 items-center justify-center rounded-full bg-green-100 text-green-700">
                         <FiUser size={20} />
@@ -699,7 +882,7 @@ function Messages() {
                       )}
                     </div>
 
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <h2 className="truncate text-sm font-bold text-gray-900">
                         {selectedUser?.fullName || "User"}
                       </h2>
@@ -718,8 +901,49 @@ function Messages() {
                         )}
                       </div>
                     </div>
+
+                    {/* 3-dot menu — dropdown opens anchored under the button */}
+                    <div className="relative shrink-0" ref={menuRef}>
+                      <button
+                        type="button"
+                        onClick={() => setMenuOpen((prev) => !prev)}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100"
+                        aria-label="More options"
+                      >
+                        <FiMoreVertical size={20} />
+                      </button>
+
+                      {menuOpen && (
+                        <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMenuOpen(false);
+                              setConfirm({ type: "chat", loading: false });
+                            }}
+                            className="flex w-full items-center gap-2 border-b border-gray-100 px-4 py-3 text-left text-sm font-medium text-red-600 transition hover:bg-red-50"
+                          >
+                            <FiTrash2 size={16} />
+                            Delete this chat
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMenuOpen(false);
+                              setConfirm({ type: "all", loading: false });
+                            }}
+                            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-red-600 transition hover:bg-red-50"
+                          >
+                            <FiAlertCircle size={16} />
+                            Clear all conversations
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
+                  {/* Messages — this is the ONLY scrollable area */}
                   <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-5">
                     {messagesLoading ? (
                       <div className="flex h-full items-center justify-center">
@@ -746,7 +970,7 @@ function Messages() {
                       </div>
                     ) : (
                       messages.map((message) => {
-                        const senderId = getId(message.sender);
+                        const senderId = idStr(message.sender);
                         const isMine = senderId === currentUserId;
 
                         return (
@@ -789,7 +1013,8 @@ function Messages() {
                     <div ref={messagesEndRef} />
                   </div>
 
-                  <div className="border-t border-gray-200 bg-white p-4">
+                  {/* Input — fixed at the bottom */}
+                  <div className="shrink-0 border-t border-gray-200 bg-white p-4">
                     <div className="flex items-end gap-3">
                       <textarea
                         value={messageText}
@@ -861,6 +1086,29 @@ function Messages() {
           </div>
         </div>
       </main>
+
+      {/* Confirm dialog */}
+      <ConfirmDialog
+        open={!!confirm}
+        title={
+          confirm?.type === "all"
+            ? "Clear all conversations?"
+            : "Delete this chat?"
+        }
+        message={
+          confirm?.type === "all"
+            ? "All your conversations will be permanently deleted. This action cannot be undone."
+            : "This conversation will be permanently deleted. This action cannot be undone."
+        }
+        confirmLabel={
+          confirm?.type === "all" ? "Yes, Clear All" : "Yes, Delete"
+        }
+        loading={confirm?.loading}
+        onConfirm={
+          confirm?.type === "all" ? performClearAll : performDeleteChat
+        }
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 }

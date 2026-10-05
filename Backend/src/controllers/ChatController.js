@@ -177,10 +177,6 @@ const sendMessage = async (req, res) => {
 /* ------------------------------------------------------------------ */
 /*  GET CHAT HISTORY (per land)                                        */
 /* ------------------------------------------------------------------ */
-/*  Marks all messages where current user is receiver as read +        */
-/*  records readAt. Emits "messagesRead" to the other user so ticks    */
-/*  turn blue live.                                                    */
-/* ------------------------------------------------------------------ */
 
 const getChatHistory = async (req, res) => {
     try {
@@ -230,12 +226,6 @@ const getChatHistory = async (req, res) => {
             });
         }
 
-        /*
-        |------------------------------------------------------------------
-        | Mark all messages addressed to me in this land as read.
-        | Only messages that are currently unread get a readAt stamp.
-        |------------------------------------------------------------------
-        */
         const now = new Date();
 
         const unreadResult = await ChatMessage.updateMany(
@@ -243,14 +233,7 @@ const getChatHistory = async (req, res) => {
             { $set: { read: true, readAt: now } }
         );
 
-        /*
-        |------------------------------------------------------------------
-        | Notify the OTHER user that their messages were just read.
-        | We send the landId so the sender can filter.
-        |------------------------------------------------------------------
-        */
         if (unreadResult.modifiedCount > 0) {
-            // Find the other user(s) on this land (anyone who sent me a msg)
             const otherUsers = await ChatMessage.distinct("sender", {
                 land: landId,
                 receiver: userId,
@@ -417,4 +400,145 @@ const getConversations = async (req, res) => {
     }
 };
 
-export { sendMessage, getChatHistory, getConversations };
+/* ------------------------------------------------------------------ */
+/*  DELETE A SINGLE CONVERSATION                                       */
+/* ------------------------------------------------------------------ */
+/*  Route: DELETE /api/chat/:landId/:otherUserId                       */
+/*                                                                     */
+/*  Deletes every message between the current user and "otherUserId"   */
+/*  on the specified land. Does NOT touch the other user's messages    */
+/*  with a third party.                                                */
+/* ------------------------------------------------------------------ */
+
+const deleteConversation = async (req, res) => {
+    try {
+        const userId = req.user?.id || req.user?._id;
+        const { landId, otherUserId } = req.params;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "Authentication required",
+            });
+        }
+
+        if (
+            !mongoose.Types.ObjectId.isValid(landId) ||
+            !mongoose.Types.ObjectId.isValid(otherUserId)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid landId or otherUserId",
+            });
+        }
+
+        /*
+        |------------------------------------------------------------------
+        | Delete messages where this conversation is between me and the
+        | other user on this land — in EITHER direction.
+        |------------------------------------------------------------------
+        */
+        const result = await ChatMessage.deleteMany({
+            land: landId,
+            $or: [
+                { sender: userId, receiver: otherUserId },
+                { sender: otherUserId, receiver: userId },
+            ],
+        });
+
+        /*
+        |------------------------------------------------------------------
+        | Notify the other user so their inbox updates live too.
+        |------------------------------------------------------------------
+        */
+        io.to(`user_${otherUserId}`).emit("conversationDeleted", {
+            landId: String(landId),
+            withUserId: String(userId),
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Conversation deleted successfully",
+            deletedCount: result.deletedCount || 0,
+        });
+    } catch (error) {
+        console.error("DELETE CONVERSATION ERROR:", error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Failed to delete the conversation",
+        });
+    }
+};
+
+/* ------------------------------------------------------------------ */
+/*  CLEAR ALL CONVERSATIONS                                            */
+/* ------------------------------------------------------------------ */
+/*  Route: DELETE /api/chat                                            */
+/*                                                                     */
+/*  Deletes every message where the current user is either the         */
+/*  sender or the receiver. This wipes their whole inbox.              */
+/* ------------------------------------------------------------------ */
+
+const clearAllConversations = async (req, res) => {
+    try {
+        const userId = req.user?.id || req.user?._id;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "Authentication required",
+            });
+        }
+
+        /*
+        |------------------------------------------------------------------
+        | We collect the OTHER users we've talked to BEFORE deleting, so
+        | we can notify each of them.
+        |------------------------------------------------------------------
+        */
+        const otherUserIds = await ChatMessage.distinct("sender", {
+            receiver: userId,
+        });
+
+        const otherReceiverIds = await ChatMessage.distinct("receiver", {
+            sender: userId,
+        });
+
+        const notifyIds = new Set([
+            ...otherUserIds.map(String),
+            ...otherReceiverIds.map(String),
+        ]);
+        notifyIds.delete(String(userId));
+
+        const result = await ChatMessage.deleteMany({
+            $or: [{ sender: userId }, { receiver: userId }],
+        });
+
+        notifyIds.forEach((otherId) => {
+            io.to(`user_${otherId}`).emit("conversationDeleted", {
+                landId: null, // all lands
+                withUserId: String(userId),
+            });
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "All conversations cleared successfully",
+            deletedCount: result.deletedCount || 0,
+        });
+    } catch (error) {
+        console.error("CLEAR ALL CONVERSATIONS ERROR:", error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Failed to clear conversations",
+        });
+    }
+};
+
+export {
+    sendMessage,
+    getChatHistory,
+    getConversations,
+    deleteConversation,
+    clearAllConversations,
+};
