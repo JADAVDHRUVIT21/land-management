@@ -370,8 +370,7 @@ function Messages() {
                 : c,
             )
             .sort(
-              (a, b) =>
-                new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
+              (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
             );
         }
 
@@ -450,6 +449,53 @@ function Messages() {
       );
     };
 
+    /*
+    |------------------------------------------------------------------
+    | The OTHER user deleted a conversation (or cleared all).
+    |   - landId === null  → they cleared ALL; remove every conversation
+    |                         with that user.
+    |   - landId is a value → remove only the conversation on that land
+    |                         with that user.
+    |------------------------------------------------------------------
+    */
+    const handleConversationDeleted = (payload) => {
+      const landId = payload?.landId ? String(payload.landId) : null;
+      const withUserId = idStr(payload?.withUserId);
+
+      if (!withUserId) return;
+
+      setConversations((prev) =>
+        prev.filter((c) => {
+          const cOtherUserId = idStr(c.user);
+          if (cOtherUserId !== withUserId) return true; // keep others
+
+          if (landId === null) {
+            // Clear all — remove every conversation with this user
+            return false;
+          }
+
+          const cLandId = idStr(c.landId);
+          // Remove only if the landId matches
+          return cLandId !== landId;
+        }),
+      );
+
+      // If the currently open chat was the one deleted, close it
+      const current = selectedConversationRef.current;
+      if (current) {
+        const currentOtherUserId = idStr(current.user);
+        const currentLandId = idStr(current.landId);
+
+        const matchesUser = currentOtherUserId === withUserId;
+        const matchesLand = landId === null || currentLandId === landId;
+
+        if (matchesUser && matchesLand) {
+          setSelectedConversation(null);
+          setMessages([]);
+        }
+      }
+    };
+
     const handleOnlineList = (payload) => {
       setOnlineUserIds(payload?.userIds || []);
     };
@@ -466,6 +512,7 @@ function Messages() {
 
     socket.on("newMessage", handleNewMessage);
     socket.on("messagesRead", handleMessagesRead);
+    socket.on("conversationDeleted", handleConversationDeleted);
     socket.on("onlineUsers", handleOnlineList);
     socket.on("userOnline", handleUserOnline);
     socket.on("userOffline", handleUserOffline);
@@ -473,6 +520,7 @@ function Messages() {
     return () => {
       socket.off("newMessage", handleNewMessage);
       socket.off("messagesRead", handleMessagesRead);
+      socket.off("conversationDeleted", handleConversationDeleted);
       socket.off("onlineUsers", handleOnlineList);
       socket.off("userOnline", handleUserOnline);
       socket.off("userOffline", handleUserOffline);
@@ -603,8 +651,7 @@ function Messages() {
               },
               ...current,
             ].sort(
-              (a, b) =>
-                new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
+              (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
             );
           }
 
@@ -614,14 +661,12 @@ function Messages() {
                 ? {
                     ...c,
                     lastMessage: newMessage,
-                    updatedAt:
-                      newMessage.createdAt || new Date().toISOString(),
+                    updatedAt: newMessage.createdAt || new Date().toISOString(),
                   }
                 : c,
             )
             .sort(
-              (a, b) =>
-                new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
+              (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
             );
         });
       }
@@ -719,14 +764,7 @@ function Messages() {
             </div>
           )}
 
-          {/*
-          |--------------------------------------------------------------
-          | Outer container is a flex column with a fixed height so the
-          | chat header + input stay put while only the messages scroll.
-          |--------------------------------------------------------------
-          */}
           <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:grid lg:h-[calc(100vh-12rem)] lg:min-h-[600px] lg:grid-cols-[320px_1fr]">
-            {/* Conversations list */}
             <aside
               className={`border-gray-200 lg:border-b-0 lg:border-r ${
                 selectedConversation ? "hidden lg:block" : "block"
@@ -783,9 +821,7 @@ function Messages() {
                         <button
                           key={conversation.id}
                           type="button"
-                          onClick={() =>
-                            handleSelectConversation(conversation)
-                          }
+                          onClick={() => handleSelectConversation(conversation)}
                           className={`flex w-full gap-3 border-b border-gray-100 p-4 text-left transition ${
                             isSelected
                               ? "bg-green-50"
@@ -853,7 +889,6 @@ function Messages() {
               </div>
             </aside>
 
-            {/* Chat pane */}
             <section
               className={`flex h-full min-h-0 flex-col ${
                 selectedConversation ? "flex" : "hidden lg:flex"
@@ -861,9 +896,7 @@ function Messages() {
             >
               {selectedConversation ? (
                 <>
-                  {/* Header — fixed, not scrollable */}
                   <div className="flex shrink-0 items-center gap-3 border-b border-gray-200 px-5 py-4">
-                    {/* Back button */}
                     <button
                       type="button"
                       onClick={handleBackToList}
@@ -902,7 +935,6 @@ function Messages() {
                       </div>
                     </div>
 
-                    {/* 3-dot menu — dropdown opens anchored under the button */}
                     <div className="relative shrink-0" ref={menuRef}>
                       <button
                         type="button"
@@ -943,7 +975,6 @@ function Messages() {
                     </div>
                   </div>
 
-                  {/* Messages — this is the ONLY scrollable area */}
                   <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-5">
                     {messagesLoading ? (
                       <div className="flex h-full items-center justify-center">
@@ -1013,7 +1044,6 @@ function Messages() {
                     <div ref={messagesEndRef} />
                   </div>
 
-                  {/* Input — fixed at the bottom */}
                   <div className="shrink-0 border-t border-gray-200 bg-white p-4">
                     <div className="flex items-end gap-3">
                       <textarea
@@ -1087,7 +1117,6 @@ function Messages() {
         </div>
       </main>
 
-      {/* Confirm dialog */}
       <ConfirmDialog
         open={!!confirm}
         title={
