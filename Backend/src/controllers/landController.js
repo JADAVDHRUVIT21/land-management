@@ -83,6 +83,28 @@ const findDuplicateLand = async ({ surveyNumber, village, district, excludeId })
     return Land.findOne(query);
 };
 
+/* ------------------------------------------------------------------ */
+/*  RENT helpers                                                       */
+/* ------------------------------------------------------------------ */
+
+// Valid listing types (buy + rent)
+const VALID_LISTING_TYPES = ["For Sale", "For Rent"];
+
+// Valid rent periods
+const VALID_RENT_PERIODS = [
+    "Per Month",
+    "Per Year",
+    "Per Day",
+    "Per Week",
+];
+
+// Normalize a rent-related input
+const parseOptionalNumber = (value) => {
+    if (value === undefined || value === null || value === "") return null;
+    const n = Number(value);
+    return Number.isNaN(n) ? null : n;
+};
+
 /*
 |--------------------------------------------------------------------------
 | Create Land
@@ -133,6 +155,11 @@ const createLand = async (req, res) => {
             location,
             price,
             description,
+            // ← RENT: new optional fields
+            rentPeriod,
+            minimumRentDuration,
+            securityDeposit,
+            isNegotiable,
         } = req.body;
 
         if (
@@ -155,10 +182,11 @@ const createLand = async (req, res) => {
             });
         }
 
-        if (!["For Sale", "Wanted to Buy"].includes(listingType)) {
+        // ← RENT: updated allowed listing types
+        if (!VALID_LISTING_TYPES.includes(listingType)) {
             return res.status(400).json({
                 success: false,
-                message: "listingType must be For Sale or Wanted to Buy.",
+                message: "listingType must be For Sale or For Rent.",
             });
         }
 
@@ -177,6 +205,43 @@ const createLand = async (req, res) => {
                 success: false,
                 message: "Price must be a valid number.",
             });
+        }
+
+        /* ---- 3b. RENT-specific validation ---- */
+
+        // Normalize rent fields
+        let normalizedRentPeriod = null;
+        let normalizedMinDuration = "";
+        let normalizedSecurityDeposit = null;
+        let normalizedIsNegotiable = false;
+
+        if (listingType === "For Rent") {
+            // rentPeriod: still optional, but if provided it must be valid
+            if (rentPeriod !== undefined && rentPeriod !== null && rentPeriod !== "") {
+                if (!VALID_RENT_PERIODS.includes(rentPeriod)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `rentPeriod must be one of: ${VALID_RENT_PERIODS.join(", ")}.`,
+                    });
+                }
+                normalizedRentPeriod = rentPeriod;
+            }
+
+            if (minimumRentDuration !== undefined && minimumRentDuration !== null) {
+                normalizedMinDuration = String(minimumRentDuration).trim();
+            }
+
+            normalizedSecurityDeposit = parseOptionalNumber(securityDeposit);
+            if (normalizedSecurityDeposit !== null && normalizedSecurityDeposit < 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: "securityDeposit must be a valid non-negative number.",
+                });
+            }
+
+            if (isNegotiable === true || isNegotiable === "true") {
+                normalizedIsNegotiable = true;
+            }
         }
 
         /* ---- 4. Scoped duplicate check (surveyNumber + village + district) ---- */
@@ -320,6 +385,11 @@ const createLand = async (req, res) => {
             isForSale: false,
             price: parsedPrice,
             description: description ? description.trim() : "",
+            // ← RENT: new optional fields
+            rentPeriod: normalizedRentPeriod,
+            minimumRentDuration: normalizedMinDuration,
+            securityDeposit: normalizedSecurityDeposit,
+            isNegotiable: normalizedIsNegotiable,
             image: images,
             video: videos,
             location: {
@@ -346,7 +416,6 @@ const createLand = async (req, res) => {
         console.error("[createLand] ✗✗✗ FATAL ERROR:", error);
         console.error("Stack:", error.stack);
 
-        // Handle the compound unique index race-condition error
         if (error?.code === 11000) {
             return res.status(400).json({
                 success: false,
@@ -379,6 +448,8 @@ const getAllLands = async (req, res) => {
             listingType,
             minPrice,
             maxPrice,
+            // ← RENT: new filter
+            rentPeriod,
             page = 1,
             limit = 10,
         } = req.query;
@@ -389,14 +460,26 @@ const getAllLands = async (req, res) => {
             filter.owner = { $ne: req.user.id };
         }
 
+        // ← RENT: allow both listing types
         if (listingType) {
-            if (!["For Sale", "Wanted to Buy"].includes(listingType)) {
+            if (!VALID_LISTING_TYPES.includes(listingType)) {
                 return res.status(400).json({
                     success: false,
                     message: "Invalid listingType.",
                 });
             }
             filter.listingType = listingType;
+        }
+
+        // ← RENT: optional rent period filter (only meaningful with For Rent)
+        if (rentPeriod) {
+            if (!VALID_RENT_PERIODS.includes(rentPeriod)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid rentPeriod.",
+                });
+            }
+            filter.rentPeriod = rentPeriod;
         }
 
         if (search?.trim()) {
@@ -644,6 +727,11 @@ const updateLand = async (req, res) => {
             "listingType",
             "price",
             "description",
+            // ← RENT: new optional fields
+            "rentPeriod",
+            "minimumRentDuration",
+            "securityDeposit",
+            "isNegotiable",
         ];
 
         allowedTextFields.forEach((field) => {
@@ -652,28 +740,64 @@ const updateLand = async (req, res) => {
             }
         });
 
+        // ← RENT: updated listing type validation
         if (updateData.listingType !== undefined) {
+            if (!VALID_LISTING_TYPES.includes(updateData.listingType)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "listingType must be For Sale or For Rent.",
+                });
+            }
+        }
+
+        // ← RENT: validate rentPeriod if provided
+        if (
+            updateData.rentPeriod !== undefined &&
+            updateData.rentPeriod !== null &&
+            updateData.rentPeriod !== ""
+        ) {
+            if (!VALID_RENT_PERIODS.includes(updateData.rentPeriod)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `rentPeriod must be one of: ${VALID_RENT_PERIODS.join(", ")}.`,
+                });
+            }
+        }
+
+        // ← RENT: normalize securityDeposit
+        if (updateData.securityDeposit !== undefined) {
+            updateData.securityDeposit = parseOptionalNumber(
+                updateData.securityDeposit
+            );
             if (
-                !["For Sale", "Wanted to Buy"].includes(
-                    updateData.listingType
-                )
+                updateData.securityDeposit !== null &&
+                updateData.securityDeposit < 0
             ) {
                 return res.status(400).json({
                     success: false,
-                    message: "listingType must be For Sale or Wanted to Buy.",
+                    message:
+                        "securityDeposit must be a valid non-negative number.",
                 });
             }
+        }
+
+        // ← RENT: normalize isNegotiable
+        if (updateData.isNegotiable !== undefined) {
+            updateData.isNegotiable =
+                updateData.isNegotiable === true ||
+                updateData.isNegotiable === "true";
+        }
+
+        // ← RENT: normalize minimumRentDuration
+        if (updateData.minimumRentDuration !== undefined) {
+            updateData.minimumRentDuration = String(
+                updateData.minimumRentDuration || ""
+            ).trim();
         }
 
         /*
         |----------------------------------------------------------------------
         | Scoped duplicate check
-        |----------------------------------------------------------------------
-        | Compare against the FINAL values of surveyNumber, village, and
-        | district — i.e. the incoming values if present, otherwise the
-        | existing land's values. This way editing just the survey number
-        | (while keeping the same village/district) still gets checked
-        | correctly.
         |----------------------------------------------------------------------
         */
 
@@ -983,7 +1107,7 @@ const deleteLand = async (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
-| Toggle Land For Sale
+| Toggle Land For Sale (also handles For Rent listings)
 |--------------------------------------------------------------------------
 */
 
@@ -1060,11 +1184,12 @@ const toggleLandForSale = async (req, res) => {
         await land.save();
         await land.populate("owner", "fullName email phone role");
 
+        // ← RENT: dynamic message based on listing type
         const listingMessage =
-            land.listingType === "Wanted to Buy"
+            land.listingType === "For Rent"
                 ? isForSale
-                    ? "Your wanted-to-buy listing is now active."
-                    : "Your wanted-to-buy listing is now inactive."
+                    ? "Land is now available for rent."
+                    : "Land removed from rent."
                 : isForSale
                     ? "Land is now available for sale."
                     : "Land removed from sale.";
@@ -1083,12 +1208,4 @@ const toggleLandForSale = async (req, res) => {
     }
 };
 
-export {
-    createLand,
-    getAllLands,
-    getMyLands,
-    getLandById,
-    updateLand,
-    deleteLand,
-    toggleLandForSale,
-};
+export { createLand, getAllLands, getMyLands, getLandById, updateLand, deleteLand, toggleLandForSale};

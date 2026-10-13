@@ -1,5 +1,8 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   font-family:
     Inter,
@@ -16,6 +19,17 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Dark mode base */
+html.dark {
+  color: #f3f4f6;
+  background: #0f172a;
+}
+
+html.dark body {
+  background: #0f172a;
+  color: #f3f4f6;
 }
 
 * {
@@ -41,6 +55,10 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   background: #f9fafb;
+}
+
+html.dark body {
+  background: #0f172a;
 }
 
 #root {

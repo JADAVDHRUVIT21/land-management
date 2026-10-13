@@ -28,13 +28,7 @@ const fileFilter = (req, file, cb) => {
         "video/3gpp",
     ];
 
-    const allowedDocuments = [
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ];
-
-    const all = [...allowedImages, ...allowedVideos, ...allowedDocuments];
+    const all = [...allowedImages, ...allowedVideos];
 
     if (all.includes(file.mimetype)) {
         console.log("✓ ACCEPTED:", file.mimetype);

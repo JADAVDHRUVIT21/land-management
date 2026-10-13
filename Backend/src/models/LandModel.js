@@ -6,7 +6,6 @@ const landSchema = new mongoose.Schema(
             type: String,
             required: true,
             trim: true,
-            // by the compound index below, scoped per village + district.
         },
 
         owner: {
@@ -49,10 +48,15 @@ const landSchema = new mongoose.Schema(
             enum: ["Agricultural", "Residential", "Commercial", "Industrial"],
         },
 
+        /* ------------------------------------------------------------- */
+        /*  LISTING TYPE                                                 */
+        /*  - "For Sale"  → selling the land                             */
+        /*  - "For Rent"  → renting out the land                         */
+        /* ------------------------------------------------------------- */
         listingType: {
             type: String,
             required: true,
-            enum: ["For Sale", "Wanted to Buy"],
+            enum: ["For Sale", "For Rent"],
         },
 
         isForSale: {
@@ -60,9 +64,45 @@ const landSchema = new mongoose.Schema(
             default: false,
         },
 
+        /* ------------------------------------------------------------- */
+        /*  PRICE                                                        */
+        /*  - For Sale listings: total price                             */
+        /*  - For Rent listings: price per rentPeriod                    */
+        /* ------------------------------------------------------------- */
         price: {
             type: Number,
             required: true,
+        },
+
+        /* ------------------------------------------------------------- */
+        /*  RENT-SPECIFIC FIELDS (optional)                              */
+        /*  Only meaningful when listingType = "For Rent".               */
+        /* ------------------------------------------------------------- */
+
+        /* How the rent price is quoted */
+        rentPeriod: {
+            type: String,
+            enum: ["Per Month", "Per Year", "Per Day", "Per Week", null],
+            default: null,
+        },
+
+        /* Minimum rental duration (free text, e.g. "6 months") */
+        minimumRentDuration: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+
+        /* Refundable deposit, if any */
+        securityDeposit: {
+            type: Number,
+            default: null,
+        },
+
+        /* Whether the price is negotiable */
+        isNegotiable: {
+            type: Boolean,
+            default: false,
         },
 
         description: {

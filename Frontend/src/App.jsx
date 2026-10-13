@@ -9,6 +9,10 @@ import EditLand from "./pages/EditLand";
 import LandDetail from "./pages/LandDetail";
 import BrowseLands from "./pages/BrowseLands";
 import Messages from "./pages/Messages";
+import Profile from "./pages/Profile";
+import Contacts from "./pages/Contacts";
+import HelpSupport from "./pages/HelpSupport";
+import ForgotPassword from "./pages/ForgotPassword";
 
 function App() {
   return (
@@ -26,6 +30,11 @@ function App() {
       <Route path="/lands/:id" element={<LandDetail />} />
 
       <Route path="/messages" element={<Messages />} />
+      <Route path="/profile" element={<Profile />} />
+      <Route path="/contacts" element={<Contacts />} />
+      <Route path="/help-support" element={<HelpSupport />} />
+
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
       <Route path="*" element={<Home />} />
     </Routes>

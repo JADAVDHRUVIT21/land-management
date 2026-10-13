@@ -8,16 +8,14 @@ import { Server } from "socket.io";
 import connectDB from "./src/config/db.js";
 import userRoutes from "./src/routes/UserRoutes.js";
 import landRoutes from "./src/routes/LandRoutes.js";
-import ownershipRoutes from "./src/routes/OwnershipRoutes.js";
-import documentRoutes from "./src/routes/DocumentRoutes.js";
 import dashboardRoutes from "./src/routes/DashboardRoutes.js";
 import chatRoutes from "./src/routes/ChatRoutes.js";
 import brokerRoutes from "./src/routes/BrokerRoutes.js";
 import ChatMessage from "./src/models/ChatMessageModel.js";
 import Land from "./src/models/LandModel.js";
 import User from "./src/models/UserModels.js";
-import OwnershipTransfer from "./src/models/OwnershipTransfer.js";
 import { redactMessage } from "./src/utils/chatRedaction.js";
+import supportRoutes from "./src/routes/SupportRoutes.js";
 
 dotenv.config();
 
@@ -33,6 +31,10 @@ console.log(
 console.log(
     "CLOUDINARY_API_SECRET:",
     process.env.CLOUDINARY_API_SECRET ? "✓ present" : "✗ MISSING"
+);
+console.log(
+    "FAST2SMS_API_KEY:",
+    process.env.FAST2SMS_API_KEY ? "✓ present" : "✗ MISSING"
 );
 console.log("=====================\n");
 
@@ -53,16 +55,81 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-/* ------------------------------------------------------------------ */
-/*  Routes                                                             */
-/* ------------------------------------------------------------------ */
+// Routes
 app.use("/api/users", userRoutes);
 app.use("/api/lands", landRoutes);
-app.use("/api/ownership-transfers", ownershipRoutes);
-app.use("/api/documents", documentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/brokers", brokerRoutes);
+app.use("/api/support", supportRoutes);
+
+// SMS Invite Route (Fast2SMS)
+app.post("/api/invite/sms", async (req, res) => {
+    try {
+        const { phone } = req.body || {};
+
+        const normalized = String(phone || "")
+            .replace(/\D/g, "")
+            .slice(-10);
+
+        if (normalized.length !== 10) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid phone number. Must be 10 digits.",
+            });
+        }
+
+        if (!process.env.FAST2SMS_API_KEY) {
+            return res.status(500).json({
+                success: false,
+                message:
+                    "SMS service not configured. Missing FAST2SMS_API_KEY.",
+            });
+        }
+
+        const response = await fetch(
+            "https://www.fast2sms.com/dev/bulkV2",
+            {
+                method: "POST",
+                headers: {
+                    authorization: process.env.FAST2SMS_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    route: "q",
+                    message:
+                        "Join me on LandManage to buy, sell and manage land. Register: https://landmanage.app",
+                    language: "english",
+                    flash: 0,
+                    numbers: normalized,
+                }),
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || data.return === false) {
+            console.error("FAST2SMS ERROR:", data);
+            return res.status(500).json({
+                success: false,
+                message:
+                    (Array.isArray(data.message)
+                        ? data.message[0]
+                        : data.message) ||
+                    "SMS provider rejected the request.",
+            });
+        }
+
+        console.log(`SMS invite sent to ${normalized}`);
+        return res.status(200).json({ success: true });
+    } catch (err) {
+        console.error("SMS INVITE ERROR:", err);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to send SMS invite.",
+        });
+    }
+});
 
 app.get("/", (req, res) => {
     res.status(200).json({
@@ -71,11 +138,7 @@ app.get("/", (req, res) => {
     });
 });
 
-/* ------------------------------------------------------------------ */
-/*  Online presence tracking                                           */
-/* ------------------------------------------------------------------ */
-/*  Map<userId, Set<socketId>> so multiple tabs are handled correctly. */
-/* ------------------------------------------------------------------ */
+// Map<userId, Set<socketId>> so multiple tabs are handled correctly. 
 
 export const onlineUsers = new Map();
 
@@ -84,9 +147,7 @@ const isUserOnline = (userId) => {
     return !!set && set.size > 0;
 };
 
-/* ------------------------------------------------------------------ */
-/*  Socket.io auth                                                     */
-/* ------------------------------------------------------------------ */
+//  Socket.io auth
 
 io.use((socket, next) => {
     try {
@@ -171,24 +232,9 @@ io.on("connection", (socket) => {
             const isAdmin = user.role === "admin";
             const isCurrentOwner =
                 land.owner.toString() === userId.toString();
-
-            const isTransferParticipant = await OwnershipTransfer.exists({
-                land: landId,
-                status: { $in: ["Pending", "Approved"] },
-                $or: [
-                    { currentOwner: userId },
-                    { newOwner: userId },
-                ],
-            });
-
             const isPublicListing = land.isForSale === true;
 
-            if (
-                !isAdmin &&
-                !isCurrentOwner &&
-                !isTransferParticipant &&
-                !isPublicListing
-            ) {
+            if (!isAdmin && !isCurrentOwner && !isPublicListing) {
                 socket.emit("chatError", {
                     message: "You are not authorized to join this chat",
                 });
@@ -267,31 +313,10 @@ io.on("connection", (socket) => {
             const receiverIsCurrentOwner =
                 land.owner.toString() === receiverId.toString();
 
-            const senderTransfer = await OwnershipTransfer.findOne({
-                land: landId,
-                status: { $in: ["Pending", "Approved"] },
-                $or: [
-                    { currentOwner: userId },
-                    { newOwner: userId },
-                ],
-            });
-
-            const receiverTransfer = await OwnershipTransfer.findOne({
-                land: landId,
-                status: { $in: ["Pending", "Approved"] },
-                $or: [
-                    { currentOwner: receiverId },
-                    { newOwner: receiverId },
-                ],
-            });
-
             const isPublicListing = land.isForSale === true;
 
             const senderAuthorized =
-                senderIsAdmin ||
-                senderIsCurrentOwner ||
-                !!senderTransfer ||
-                isPublicListing;
+                senderIsAdmin || senderIsCurrentOwner || isPublicListing;
 
             if (!senderAuthorized) {
                 socket.emit("chatError", {
@@ -302,10 +327,7 @@ io.on("connection", (socket) => {
             }
 
             const receiverAuthorized =
-                receiverIsAdmin ||
-                receiverIsCurrentOwner ||
-                !!receiverTransfer ||
-                isPublicListing;
+                receiverIsAdmin || receiverIsCurrentOwner || isPublicListing;
 
             if (!receiverAuthorized) {
                 socket.emit("chatError", {
@@ -363,9 +385,7 @@ io.on("connection", (socket) => {
     });
 });
 
-/* ------------------------------------------------------------------ */
-/*  Global error handler                                               */
-/* ------------------------------------------------------------------ */
+
 app.use((err, req, res, next) => {
     console.error("\n========== GLOBAL ERROR ==========");
     console.error("Name:", err.name);

@@ -39,6 +39,30 @@ const userSchema = new mongoose.Schema(
             enum: ["admin", "user"],
             default: "user",
         },
+
+        avatar: {
+            type: String,
+            default: null,
+        },
+
+        coverImage: {
+            type: String,
+            default: null,
+        },
+
+        /* ------------------------------------------------------------------ */
+        /*  Password reset (OTP-based)                                         */
+        /*  These are cleared after a successful password reset.               */
+        /* ------------------------------------------------------------------ */
+        resetOtp: {
+            type: String,
+            default: null,
+        },
+
+        resetOtpExpiry: {
+            type: Date,
+            default: null,
+        },
     },
     {
         timestamps: true,

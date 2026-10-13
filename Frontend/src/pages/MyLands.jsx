@@ -41,23 +41,27 @@ const ConfirmModal = ({
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-sm overflow-hidden rounded-3xl bg-white/95 shadow-2xl backdrop-blur-xl"
+        className="w-full max-w-sm overflow-hidden rounded-3xl bg-white/95 shadow-2xl backdrop-blur-xl dark:bg-gray-800/95"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 pt-6 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-500">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-500 dark:bg-red-900/40 dark:text-red-400">
             <FiAlertCircle size={26} />
           </div>
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">{title}</h3>
-          <p className="mt-2 text-sm leading-6 text-gray-500">{message}</p>
+          <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
+            {title}
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
+            {message}
+          </p>
         </div>
 
-        <div className="mt-6 flex gap-2 border-t border-gray-100 p-3">
+        <div className="mt-6 flex gap-2 border-t border-gray-100 p-3 dark:border-gray-700">
           <button
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="h-11 flex-1 rounded-2xl bg-gray-100 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 disabled:opacity-60"
+            className="h-11 flex-1 rounded-2xl bg-gray-100 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 disabled:opacity-60 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
           >
             {cancelLabel}
           </button>
@@ -92,8 +96,8 @@ const Toast = ({ message, type = "success", onClose }) => {
 
   const styles =
     type === "error"
-      ? "border-red-200 bg-red-50 text-red-700"
-      : "border-green-200 bg-green-50 text-green-700";
+      ? "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300"
+      : "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-300";
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-4 z-[10000] flex justify-center px-4">
@@ -137,6 +141,23 @@ const getImageCount = (land) =>
 
 const getVideoCount = (land) =>
   Array.isArray(land?.video) ? land.video.length : 0;
+
+/* ------------------------------------------------------------------ */
+/*  Rent helpers                                                       */
+/* ------------------------------------------------------------------ */
+
+const isRentListing = (land) => land?.listingType === "For Rent";
+
+const rentPeriodSuffix = (period) => {
+  if (!period) return "";
+  const map = {
+    "Per Month": "/month",
+    "Per Year": "/year",
+    "Per Day": "/day",
+    "Per Week": "/week",
+  };
+  return map[period] || "";
+};
 
 /* ------------------------------------------------------------------ */
 /*  Main                                                               */
@@ -237,9 +258,13 @@ const MyLands = () => {
             : item,
         ),
       );
+
+      const rentMode = isRentListing(land);
       setToast({
         message: nextIsForSale
-          ? "Land is now listed for sale."
+          ? rentMode
+            ? "Land is now listed for rent."
+            : "Land is now listed for sale."
           : "Land moved back to draft.",
         type: "success",
       });
@@ -261,6 +286,13 @@ const MyLands = () => {
     return `₹${Number(value).toLocaleString("en-IN")}`;
   };
 
+  const formatPriceForLand = (land) => {
+    const base = formatPrice(land.price);
+    if (base === "—") return base;
+    if (!isRentListing(land)) return base;
+    return `${base}${rentPeriodSuffix(land.rentPeriod)}`;
+  };
+
   const formatArea = (land) => {
     if (!land?.area) return "—";
     const unit = land.areaUnit ? ` ${land.areaUnit}` : "";
@@ -268,17 +300,17 @@ const MyLands = () => {
   };
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-gray-50">
+    <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 dark:bg-gray-950">
       <Sidebar />
 
       <div className="w-full lg:pl-64">
-        <header className="sticky top-0 z-30 mt-16 border-b border-gray-200 bg-white lg:mt-0">
+        <header className="sticky top-0 z-30 mt-16 border-b border-gray-200 bg-white lg:mt-0 dark:border-gray-800 dark:bg-gray-900">
           <div className="flex min-h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:h-20 lg:px-8">
             <div className="min-w-0">
-              <h1 className="truncate text-xl font-bold text-gray-900 sm:text-2xl">
+              <h1 className="truncate text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
                 My Lands
               </h1>
-              <p className="mt-1 hidden text-sm text-gray-500 sm:block">
+              <p className="mt-1 hidden text-sm text-gray-500 sm:block dark:text-gray-400">
                 Manage your land properties and listings
               </p>
             </div>
@@ -297,10 +329,10 @@ const MyLands = () => {
         <main className="w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <div className="mx-auto mb-6 flex w-full max-w-6xl items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                 Your Properties
               </h2>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {lands.length} {lands.length === 1 ? "property" : "properties"}{" "}
                 in your portfolio
               </p>
@@ -310,7 +342,7 @@ const MyLands = () => {
               type="button"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex h-10 items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
+              className="flex h-10 items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
               <FiRefreshCw
                 size={15}
@@ -326,19 +358,19 @@ const MyLands = () => {
                 {[1, 2, 3].map((i) => (
                   <div
                     key={i}
-                    className="h-80 animate-pulse rounded-3xl border border-gray-200 bg-white"
+                    className="h-80 animate-pulse rounded-3xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
                   />
                 ))}
               </div>
             ) : lands.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-white px-6 py-16 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-50 text-green-600">
+              <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-white px-6 py-16 text-center dark:border-gray-700 dark:bg-gray-900">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-400">
                   <FiMapPin size={26} />
                 </div>
-                <h3 className="mt-4 text-lg font-semibold text-gray-900">
+                <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
                   No lands yet
                 </h3>
-                <p className="mt-2 max-w-sm text-sm text-gray-500">
+                <p className="mt-2 max-w-sm text-sm text-gray-500 dark:text-gray-400">
                   Start building your land portfolio by adding your first
                   property.
                 </p>
@@ -357,13 +389,14 @@ const MyLands = () => {
                   const firstImageUrl = getFirstImageUrl(land);
                   const imageCount = getImageCount(land);
                   const videoCount = getVideoCount(land);
+                  const rentMode = isRentListing(land);
 
                   return (
                     <div
                       key={land._id}
-                      className="flex flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md"
+                      className="flex flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:shadow-lg"
                     >
-                      <div className="relative h-44 w-full bg-gray-100">
+                      <div className="relative h-44 w-full bg-gray-100 dark:bg-gray-800">
                         {firstImageUrl ? (
                           <img
                             src={firstImageUrl}
@@ -382,7 +415,7 @@ const MyLands = () => {
                                   "true",
                                 );
                                 fallback.className =
-                                  "flex h-44 w-full items-center justify-center text-gray-300";
+                                  "flex h-44 w-full items-center justify-center text-gray-300 dark:text-gray-600";
                                 fallback.innerHTML =
                                   '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>';
                                 parent.appendChild(fallback);
@@ -390,12 +423,12 @@ const MyLands = () => {
                             }}
                           />
                         ) : (
-                          <div className="flex h-44 w-full items-center justify-center text-gray-300">
+                          <div className="flex h-44 w-full items-center justify-center text-gray-300 dark:text-gray-600">
                             <FiMapPin size={40} />
                           </div>
                         )}
 
-                        <div className="absolute left-3 top-3">
+                        <div className="absolute left-3 top-3 flex items-center gap-2">
                           {land.isForSale ? (
                             <span className="flex items-center gap-1.5 rounded-full bg-green-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow">
                               <FiTag size={11} />
@@ -406,6 +439,16 @@ const MyLands = () => {
                               Not Listed
                             </span>
                           )}
+
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold shadow ${
+                              rentMode
+                                ? "bg-blue-600 text-white"
+                                : "bg-white/90 text-gray-700 dark:bg-gray-800/90 dark:text-gray-200"
+                            }`}
+                          >
+                            {rentMode ? "For Rent" : "For Sale"}
+                          </span>
                         </div>
 
                         {(imageCount > 0 || videoCount > 0) && (
@@ -428,15 +471,15 @@ const MyLands = () => {
 
                       <div className="flex flex-1 flex-col p-4">
                         <div className="flex items-start justify-between gap-2">
-                          <h3 className="truncate text-base font-semibold text-gray-900">
+                          <h3 className="truncate text-base font-semibold text-gray-900 dark:text-white">
                             Survey No. {land.surveyNumber}
                           </h3>
-                          <span className="shrink-0 rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-semibold text-green-700">
+                          <span className="shrink-0 rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-semibold text-green-700 dark:bg-green-900/40 dark:text-green-400">
                             {land.landType}
                           </span>
                         </div>
 
-                        <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
+                        <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
                           <FiMapPin size={12} />
                           <span className="truncate">
                             {[land.village, land.district, land.state]
@@ -445,21 +488,21 @@ const MyLands = () => {
                           </span>
                         </p>
 
-                        <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-gray-50 p-3">
+                        <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-gray-50 p-3 dark:bg-gray-800">
                           <div>
-                            <p className="text-[11px] font-medium text-gray-400">
+                            <p className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
                               Area
                             </p>
-                            <p className="mt-0.5 text-sm font-semibold text-gray-800">
+                            <p className="mt-0.5 text-sm font-semibold text-gray-800 dark:text-gray-100">
                               {formatArea(land)}
                             </p>
                           </div>
                           <div>
-                            <p className="text-[11px] font-medium text-gray-400">
-                              Price
+                            <p className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
+                              {rentMode ? "Rent" : "Price"}
                             </p>
-                            <p className="mt-0.5 text-sm font-semibold text-gray-800">
-                              {formatPrice(land.price)}
+                            <p className="mt-0.5 text-sm font-semibold text-gray-800 dark:text-gray-100">
+                              {formatPriceForLand(land)}
                             </p>
                           </div>
                         </div>
@@ -468,7 +511,7 @@ const MyLands = () => {
                           <button
                             type="button"
                             onClick={() => navigate(`/lands/${land._id}`)}
-                            className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+                            className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                           >
                             <FiEye size={14} />
                             View
@@ -476,7 +519,7 @@ const MyLands = () => {
                           <button
                             type="button"
                             onClick={() => navigate(`/edit-land/${land._id}`)}
-                            className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+                            className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                           >
                             <FiEdit2 size={14} />
                             Edit
@@ -484,7 +527,7 @@ const MyLands = () => {
                           <button
                             type="button"
                             onClick={() => requestDelete(land)}
-                            className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-red-100 bg-red-50 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                            className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-red-100 bg-red-50 text-xs font-semibold text-red-600 transition hover:bg-red-100 dark:border-red-900/50 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
                           >
                             <FiTrash2 size={14} />
                             Delete
@@ -497,8 +540,8 @@ const MyLands = () => {
                           disabled={togglingId === land._id}
                           className={`mt-2 flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
                             land.isForSale
-                              ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                              : "bg-green-50 text-green-700 hover:bg-green-100"
+                              ? "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                              : "bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
                           }`}
                         >
                           {togglingId === land._id ? (
@@ -509,12 +552,14 @@ const MyLands = () => {
                           ) : land.isForSale ? (
                             <>
                               <FiX size={15} />
-                              Remove from Sale
+                              {rentMode
+                                ? "Remove from Rent"
+                                : "Remove from Sale"}
                             </>
                           ) : (
                             <>
                               <FiTag size={15} />
-                              List for Sale
+                              {rentMode ? "List for Rent" : "List for Sale"}
                             </>
                           )}
                         </button>

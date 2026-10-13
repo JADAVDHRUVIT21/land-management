@@ -40,23 +40,27 @@ const ConfirmDialog = ({
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-sm overflow-hidden rounded-3xl bg-white/95 shadow-2xl backdrop-blur-xl"
+        className="w-full max-w-sm overflow-hidden rounded-3xl bg-white/95 shadow-2xl backdrop-blur-xl dark:bg-gray-800/95"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 pt-6 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-500">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-500 dark:bg-red-900/40 dark:text-red-400">
             <FiAlertCircle size={26} />
           </div>
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">{title}</h3>
-          <p className="mt-2 text-sm leading-6 text-gray-500">{message}</p>
+          <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
+            {title}
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
+            {message}
+          </p>
         </div>
 
-        <div className="mt-6 flex gap-2 border-t border-gray-100 p-3">
+        <div className="mt-6 flex gap-2 border-t border-gray-100 p-3 dark:border-gray-700">
           <button
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="h-11 flex-1 rounded-2xl bg-gray-100 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 disabled:opacity-60"
+            className="h-11 flex-1 rounded-2xl bg-gray-100 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 disabled:opacity-60 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
           >
             Cancel
           </button>
@@ -75,6 +79,37 @@ const ConfirmDialog = ({
           </button>
         </div>
       </div>
+    </div>
+  );
+};
+
+/* ================================================================== */
+/*  Avatar                                                            */
+/* ================================================================== */
+
+const Avatar = ({ user, size = "md" }) => {
+  const sizeClasses =
+    size === "sm"
+      ? "h-11 w-11 text-base"
+      : size === "lg"
+        ? "h-14 w-14 text-lg"
+        : "h-11 w-11 text-base";
+
+  if (user?.avatar) {
+    return (
+      <img
+        src={user.avatar}
+        alt={user.fullName || "User"}
+        className={`${sizeClasses} shrink-0 rounded-full object-cover`}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`flex ${sizeClasses} shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400`}
+    >
+      <FiUser size={20} />
     </div>
   );
 };
@@ -122,20 +157,44 @@ function Messages() {
     const stateLandId = location.state?.landId;
     const stateOwner = location.state?.owner;
 
-    if (!stateLandId || !stateLand || !stateOwner) return null;
+    if (stateLandId && stateLand && stateOwner) {
+      const ownerId = getId(stateOwner);
+      if (ownerId && String(ownerId) !== currentUserId) {
+        return {
+          id: `${stateLandId}-${ownerId}`,
+          landId: stateLandId,
+          isDirect: false,
+          land: stateLand,
+          user: stateOwner,
+          lastMessage: null,
+          unreadCount: 0,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+    }
 
-    const ownerId = getId(stateOwner);
-    if (!ownerId || String(ownerId) === currentUserId) return null;
+    const stateContactUser = location.state?.contactUser;
+    const stateContactUserId = location.state?.contactUserId;
 
-    return {
-      id: `${stateLandId}-${ownerId}`,
-      landId: stateLandId,
-      land: stateLand,
-      user: stateOwner,
-      lastMessage: null,
-      unreadCount: 0,
-      updatedAt: new Date().toISOString(),
-    };
+    if (stateContactUser || stateContactUserId) {
+      const contact = stateContactUser || { _id: stateContactUserId };
+      const contactId = getId(contact);
+
+      if (contactId && String(contactId) !== currentUserId) {
+        return {
+          id: `direct-${contactId}`,
+          landId: "direct",
+          isDirect: true,
+          land: null,
+          user: contact,
+          lastMessage: null,
+          unreadCount: 0,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+    }
+
+    return null;
   });
 
   const [conversations, setConversations] = useState(() =>
@@ -157,11 +216,9 @@ function Messages() {
 
   const [onlineUserIds, setOnlineUserIds] = useState([]);
 
-  /* Menu + confirm */
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirm, setConfirm] = useState(null);
 
-  /* Close dropdown when clicking outside */
   useEffect(() => {
     if (!menuOpen) return;
     const handleClickOutside = (e) => {
@@ -189,17 +246,21 @@ function Messages() {
     messageList.forEach((message) => {
       const landId = idStr(message?.land);
       const otherUser = getOtherUser(message);
-      if (!landId || !otherUser) return;
+      if (!otherUser) return;
 
       const otherUserId = idStr(otherUser);
       if (!otherUserId) return;
 
-      const key = `${landId}-${otherUserId}`;
+      const isDirect = !landId || message?.isDirect === true;
+      const conversationKey = isDirect ? "direct" : landId;
+
+      const key = `${conversationKey}-${otherUserId}`;
 
       grouped.set(key, {
         id: key,
-        landId,
-        land: message.land,
+        landId: conversationKey,
+        isDirect,
+        land: isDirect ? null : message.land,
         user: otherUser,
         lastMessage: message,
         unreadCount: 0,
@@ -220,6 +281,7 @@ function Messages() {
       const inbox = rows.map((row) => ({
         id: row.id,
         landId: row.landId,
+        isDirect: row.isDirect === true || row.landId === "direct",
         land: row.land,
         user: row.user,
         lastMessage: row.lastMessage,
@@ -250,13 +312,34 @@ function Messages() {
   };
 
   const loadChatHistory = async (conversation) => {
-    if (!conversation?.landId) return;
+    if (!conversation) return;
 
     try {
       setMessagesLoading(true);
       setError("");
 
-      const response = await api.get(`/chat/${conversation.landId}`);
+      const isDirect =
+        conversation.isDirect === true || conversation.landId === "direct";
+
+      let url = "";
+
+      if (isDirect) {
+        const otherUserId = idStr(conversation.user);
+        if (!otherUserId) {
+          setMessages([]);
+          setMessagesLoading(false);
+          return;
+        }
+        url = `/chat/direct/${otherUserId}`;
+      } else {
+        if (!conversation.landId) {
+          setMessagesLoading(false);
+          return;
+        }
+        url = `/chat/${conversation.landId}`;
+      }
+
+      const response = await api.get(url);
       const history = Array.isArray(response.data?.data)
         ? response.data.data
         : [];
@@ -319,13 +402,17 @@ function Messages() {
       if (!msgId) return;
 
       const current = selectedConversationRef.current;
-      const currentLandId = idStr(current?.landId);
       const msgLandId = idStr(msg.land);
+      const currentLandId = current?.isDirect
+        ? "direct"
+        : idStr(current?.landId);
+      const effectiveMsgLandId = msgLandId || "direct";
+
       const otherUserId = idStr(current?.user);
 
       const isForCurrentConversation =
         current &&
-        currentLandId === msgLandId &&
+        currentLandId === effectiveMsgLandId &&
         (idStr(msg.sender) === otherUserId ||
           idStr(msg.receiver) === otherUserId);
 
@@ -337,7 +424,7 @@ function Messages() {
       }
 
       setConversations((prev) => {
-        const landId = msgLandId;
+        const landId = effectiveMsgLandId;
         const senderIdStr = idStr(msg.sender);
         const otherUser =
           senderIdStr === currentUserId ? msg.receiver : msg.sender;
@@ -378,7 +465,8 @@ function Messages() {
           {
             id: key,
             landId,
-            land: msg.land,
+            isDirect: landId === "direct",
+            land: msg.land || null,
             user: otherUser,
             lastMessage: {
               _id: msgId,
@@ -409,7 +497,7 @@ function Messages() {
       const current = selectedConversationRef.current;
       if (!current) return;
 
-      const currentLandId = idStr(current.landId);
+      const currentLandId = current.isDirect ? "direct" : idStr(current.landId);
       if (currentLandId !== landId) return;
 
       setMessages((prev) =>
@@ -449,52 +537,8 @@ function Messages() {
       );
     };
 
-    /*
-    |------------------------------------------------------------------
-    | The OTHER user deleted a conversation (or cleared all).
-    |   - landId === null  → they cleared ALL; remove every conversation
-    |                         with that user.
-    |   - landId is a value → remove only the conversation on that land
-    |                         with that user.
-    |------------------------------------------------------------------
-    */
-    const handleConversationDeleted = (payload) => {
-      const landId = payload?.landId ? String(payload.landId) : null;
-      const withUserId = idStr(payload?.withUserId);
-
-      if (!withUserId) return;
-
-      setConversations((prev) =>
-        prev.filter((c) => {
-          const cOtherUserId = idStr(c.user);
-          if (cOtherUserId !== withUserId) return true; // keep others
-
-          if (landId === null) {
-            // Clear all — remove every conversation with this user
-            return false;
-          }
-
-          const cLandId = idStr(c.landId);
-          // Remove only if the landId matches
-          return cLandId !== landId;
-        }),
-      );
-
-      // If the currently open chat was the one deleted, close it
-      const current = selectedConversationRef.current;
-      if (current) {
-        const currentOtherUserId = idStr(current.user);
-        const currentLandId = idStr(current.landId);
-
-        const matchesUser = currentOtherUserId === withUserId;
-        const matchesLand = landId === null || currentLandId === landId;
-
-        if (matchesUser && matchesLand) {
-          setSelectedConversation(null);
-          setMessages([]);
-        }
-      }
-    };
+    const handleConversationDeleted = () => {};
+    const handleConversationCleared = () => {};
 
     const handleOnlineList = (payload) => {
       setOnlineUserIds(payload?.userIds || []);
@@ -513,6 +557,7 @@ function Messages() {
     socket.on("newMessage", handleNewMessage);
     socket.on("messagesRead", handleMessagesRead);
     socket.on("conversationDeleted", handleConversationDeleted);
+    socket.on("conversationCleared", handleConversationCleared);
     socket.on("onlineUsers", handleOnlineList);
     socket.on("userOnline", handleUserOnline);
     socket.on("userOffline", handleUserOffline);
@@ -521,6 +566,7 @@ function Messages() {
       socket.off("newMessage", handleNewMessage);
       socket.off("messagesRead", handleMessagesRead);
       socket.off("conversationDeleted", handleConversationDeleted);
+      socket.off("conversationCleared", handleConversationCleared);
       socket.off("onlineUsers", handleOnlineList);
       socket.off("userOnline", handleUserOnline);
       socket.off("userOffline", handleUserOffline);
@@ -548,7 +594,10 @@ function Messages() {
     );
 
     const socket = getSocket();
-    if (socket) {
+    const isDirect =
+      conversation.isDirect === true || conversation.landId === "direct";
+
+    if (socket && !isDirect && conversation.landId) {
       socket.emit("joinLandChat", { landId: conversation.landId });
     }
 
@@ -560,19 +609,21 @@ function Messages() {
     setMessages([]);
   };
 
-  /* ---------------------------------------------------------------- */
-  /*  DELETE                                                           */
-  /* ---------------------------------------------------------------- */
-
   const performDeleteChat = async () => {
     if (!selectedConversation) return;
     try {
       setConfirm((prev) => ({ ...prev, loading: true }));
 
       const otherUserId = idStr(selectedConversation.user);
-      const landId = selectedConversation.landId;
+      const isDirect =
+        selectedConversation.isDirect === true ||
+        selectedConversation.landId === "direct";
 
-      await api.delete(`/chat/${landId}/${otherUserId}`);
+      if (isDirect) {
+        await api.delete(`/chat/direct/${otherUserId}`);
+      } else {
+        await api.delete(`/chat/${selectedConversation.landId}/${otherUserId}`);
+      }
 
       setConversations((current) =>
         current.filter((c) => c.id !== selectedConversation.id),
@@ -596,9 +647,16 @@ function Messages() {
 
       await api.delete("/chat");
 
-      setConversations([]);
-      setSelectedConversation(null);
+      setConversations((current) =>
+        current.map((c) => ({
+          ...c,
+          lastMessage: null,
+          unreadCount: 0,
+        })),
+      );
+
       setMessages([]);
+
       setConfirm(null);
       setError("");
     } catch (err) {
@@ -620,12 +678,16 @@ function Messages() {
       return;
     }
 
+    const isDirect =
+      selectedConversation.isDirect === true ||
+      selectedConversation.landId === "direct";
+
     try {
       setSending(true);
       setError("");
 
       const response = await api.post("/chat/send", {
-        landId: selectedConversation.landId,
+        landId: isDirect ? "direct" : selectedConversation.landId,
         receiverId,
         message: text,
       });
@@ -729,15 +791,17 @@ function Messages() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Sidebar />
 
       <main className="ml-0 min-h-screen lg:ml-[230px]">
-        <header className="border-b border-gray-200 bg-white px-5 py-5 sm:px-7">
+        <header className="border-b border-gray-200 bg-white px-5 py-5 sm:px-7 dark:border-gray-800 dark:bg-gray-900">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Messages
+              </h1>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Chat with land owners and interested buyers
               </p>
             </div>
@@ -746,7 +810,7 @@ function Messages() {
               type="button"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
               <FiRefreshCw
                 size={16}
@@ -759,22 +823,22 @@ function Messages() {
 
         <div className="p-5 sm:p-7">
           {error && (
-            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
               {error}
             </div>
           )}
 
-          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:grid lg:h-[calc(100vh-12rem)] lg:min-h-[600px] lg:grid-cols-[320px_1fr]">
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:grid lg:h-[calc(100vh-12rem)] lg:min-h-[600px] lg:grid-cols-[320px_1fr] dark:border-gray-800 dark:bg-gray-900">
             <aside
-              className={`border-gray-200 lg:border-b-0 lg:border-r ${
+              className={`border-gray-200 lg:border-b-0 lg:border-r dark:border-gray-800 ${
                 selectedConversation ? "hidden lg:block" : "block"
               }`}
             >
               <div className="flex h-full flex-col">
-                <div className="border-b border-gray-200 p-4">
+                <div className="border-b border-gray-200 p-4 dark:border-gray-800">
                   <div className="relative">
                     <FiSearch
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
                       size={18}
                     />
                     <input
@@ -782,7 +846,7 @@ function Messages() {
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="Search conversations..."
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100"
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900 dark:focus:ring-green-900/40"
                     />
                   </div>
                 </div>
@@ -791,20 +855,20 @@ function Messages() {
                   {loading ? (
                     <div className="flex min-h-[250px] items-center justify-center">
                       <FiLoader
-                        className="animate-spin text-green-600"
+                        className="animate-spin text-green-600 dark:text-green-400"
                         size={24}
                       />
                     </div>
                   ) : filteredConversations.length === 0 ? (
                     <div className="flex min-h-[300px] items-center justify-center p-6">
                       <div className="text-center">
-                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-green-600">
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-400">
                           <FiMessageCircle size={25} />
                         </div>
-                        <h2 className="mt-4 text-sm font-semibold text-gray-900">
+                        <h2 className="mt-4 text-sm font-semibold text-gray-900 dark:text-white">
                           No conversations yet
                         </h2>
-                        <p className="mt-2 text-xs leading-5 text-gray-500">
+                        <p className="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
                           Your conversations with land owners will appear here.
                         </p>
                       </div>
@@ -822,19 +886,17 @@ function Messages() {
                           key={conversation.id}
                           type="button"
                           onClick={() => handleSelectConversation(conversation)}
-                          className={`flex w-full gap-3 border-b border-gray-100 p-4 text-left transition ${
+                          className={`flex w-full gap-3 border-b border-gray-100 p-4 text-left transition dark:border-gray-800 ${
                             isSelected
-                              ? "bg-green-50"
-                              : "bg-white hover:bg-gray-50"
+                              ? "bg-green-50 dark:bg-green-900/30"
+                              : "bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-800"
                           }`}
                         >
                           <div className="relative shrink-0">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-green-100 text-green-700">
-                              <FiUser size={20} />
-                            </div>
+                            <Avatar user={user} size="sm" />
 
                             {isOnline && (
-                              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+                              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500 dark:border-gray-900" />
                             )}
                           </div>
 
@@ -843,15 +905,15 @@ function Messages() {
                               <h3
                                 className={`truncate text-sm ${
                                   hasUnread
-                                    ? "font-bold text-gray-900"
-                                    : "font-semibold text-gray-900"
+                                    ? "font-bold text-gray-900 dark:text-white"
+                                    : "font-semibold text-gray-900 dark:text-white"
                                 }`}
                               >
                                 {user?.fullName || "User"}
                               </h3>
 
                               {conversation.updatedAt && (
-                                <span className="shrink-0 text-[10px] text-gray-400">
+                                <span className="shrink-0 text-[10px] text-gray-400 dark:text-gray-500">
                                   {new Date(
                                     conversation.updatedAt,
                                   ).toLocaleDateString()}
@@ -859,7 +921,7 @@ function Messages() {
                               )}
                             </div>
 
-                            <p className="mt-1 flex items-center gap-1 truncate text-xs text-gray-500">
+                            <p className="mt-1 flex items-center gap-1 truncate text-xs text-gray-500 dark:text-gray-400">
                               <FiPhone size={11} />
                               {user?.phone || "No phone"}
                             </p>
@@ -867,8 +929,8 @@ function Messages() {
                             <p
                               className={`mt-1 truncate text-xs ${
                                 hasUnread
-                                  ? "font-semibold text-gray-700"
-                                  : "text-gray-400"
+                                  ? "font-semibold text-gray-700 dark:text-gray-200"
+                                  : "text-gray-400 dark:text-gray-500"
                               }`}
                             >
                               {conversation.lastMessage?.message ||
@@ -896,38 +958,36 @@ function Messages() {
             >
               {selectedConversation ? (
                 <>
-                  <div className="flex shrink-0 items-center gap-3 border-b border-gray-200 px-5 py-4">
+                  <div className="flex shrink-0 items-center gap-3 border-b border-gray-200 px-5 py-4 dark:border-gray-800">
                     <button
                       type="button"
                       onClick={handleBackToList}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 lg:hidden"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 lg:hidden dark:text-gray-300 dark:hover:bg-gray-800"
                       aria-label="Back to conversations"
                     >
                       <FiArrowLeft size={20} />
                     </button>
 
                     <div className="relative shrink-0">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-green-100 text-green-700">
-                        <FiUser size={20} />
-                      </div>
+                      <Avatar user={selectedUser} size="sm" />
                       {isSelectedUserOnline && (
-                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500 dark:border-gray-900" />
                       )}
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <h2 className="truncate text-sm font-bold text-gray-900">
+                      <h2 className="truncate text-sm font-bold text-gray-900 dark:text-white">
                         {selectedUser?.fullName || "User"}
                       </h2>
 
-                      <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                      <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                         <span className="flex items-center gap-1">
                           <FiPhone size={11} />
                           {selectedUser?.phone || "No phone"}
                         </span>
 
                         {isSelectedUserOnline && (
-                          <span className="flex items-center gap-1 text-green-600">
+                          <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
                             <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
                             Online
                           </span>
@@ -939,21 +999,21 @@ function Messages() {
                       <button
                         type="button"
                         onClick={() => setMenuOpen((prev) => !prev)}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                         aria-label="More options"
                       >
                         <FiMoreVertical size={20} />
                       </button>
 
                       {menuOpen && (
-                        <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg">
+                        <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
                           <button
                             type="button"
                             onClick={() => {
                               setMenuOpen(false);
                               setConfirm({ type: "chat", loading: false });
                             }}
-                            className="flex w-full items-center gap-2 border-b border-gray-100 px-4 py-3 text-left text-sm font-medium text-red-600 transition hover:bg-red-50"
+                            className="flex w-full items-center gap-2 border-b border-gray-100 px-4 py-3 text-left text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-gray-700 dark:text-red-400 dark:hover:bg-red-900/30"
                           >
                             <FiTrash2 size={16} />
                             Delete this chat
@@ -965,7 +1025,7 @@ function Messages() {
                               setMenuOpen(false);
                               setConfirm({ type: "all", loading: false });
                             }}
-                            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-red-600 transition hover:bg-red-50"
+                            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
                           >
                             <FiAlertCircle size={16} />
                             Clear all conversations
@@ -975,27 +1035,26 @@ function Messages() {
                     </div>
                   </div>
 
-                  <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-5">
+                  <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-5 dark:bg-gray-950">
                     {messagesLoading ? (
                       <div className="flex h-full items-center justify-center">
                         <FiLoader
-                          className="animate-spin text-green-600"
+                          className="animate-spin text-green-600 dark:text-green-400"
                           size={25}
                         />
                       </div>
                     ) : messages.length === 0 ? (
                       <div className="flex h-full items-center justify-center">
                         <div className="max-w-sm text-center">
-                          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-green-600">
+                          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-400">
                             <FiMessageCircle size={28} />
                           </div>
-                          <h2 className="mt-4 text-base font-semibold text-gray-900">
+                          <h2 className="mt-4 text-base font-semibold text-gray-900 dark:text-white">
                             Start a conversation
                           </h2>
-                          <p className="mt-2 text-sm leading-6 text-gray-500">
-                            Send a message to{" "}
-                            {selectedUser?.fullName || "this user"} about this
-                            land.
+                          <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                            Send your first message to{" "}
+                            {selectedUser?.fullName || "this user"}.
                           </p>
                         </div>
                       </div>
@@ -1015,7 +1074,7 @@ function Messages() {
                               className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-sm ${
                                 isMine
                                   ? "rounded-br-md bg-green-600 text-white"
-                                  : "rounded-bl-md border border-gray-200 bg-white text-gray-900"
+                                  : "rounded-bl-md border border-gray-200 bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                               }`}
                             >
                               <p className="whitespace-pre-wrap break-words text-sm leading-6">
@@ -1023,7 +1082,9 @@ function Messages() {
                               </p>
                               <div
                                 className={`mt-1 flex items-center gap-1 text-[10px] ${
-                                  isMine ? "text-green-100" : "text-gray-400"
+                                  isMine
+                                    ? "text-green-100"
+                                    : "text-gray-400 dark:text-gray-500"
                                 } ${isMine ? "justify-end" : ""}`}
                               >
                                 <span>
@@ -1044,7 +1105,7 @@ function Messages() {
                     <div ref={messagesEndRef} />
                   </div>
 
-                  <div className="shrink-0 border-t border-gray-200 bg-white p-4">
+                  <div className="shrink-0 border-t border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
                     <div className="flex items-end gap-3">
                       <textarea
                         value={messageText}
@@ -1058,13 +1119,13 @@ function Messages() {
                         rows={1}
                         placeholder="Type a message..."
                         disabled={sending}
-                        className="min-h-[48px] flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="min-h-[48px] flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900 dark:focus:ring-green-900/40"
                       />
                       <button
                         type="button"
                         onClick={handleSendMessage}
                         disabled={sending || !messageText.trim()}
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-600 text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-600 text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-gray-700"
                       >
                         {sending ? (
                           <FiLoader className="animate-spin" size={18} />
@@ -1073,7 +1134,7 @@ function Messages() {
                         )}
                       </button>
                     </div>
-                    <p className="mt-2 text-[11px] text-gray-400">
+                    <p className="mt-2 text-[11px] text-gray-400 dark:text-gray-500">
                       Press Enter to send · Shift + Enter for a new line
                     </p>
                   </div>
@@ -1082,29 +1143,29 @@ function Messages() {
                 <>
                   <div className="flex flex-1 items-center justify-center p-6">
                     <div className="max-w-sm text-center">
-                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-green-600">
+                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-400">
                         <FiMessageCircle size={28} />
                       </div>
-                      <h2 className="mt-4 text-lg font-semibold text-gray-900">
+                      <h2 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
                         Your Messages
                       </h2>
-                      <p className="mt-2 text-sm leading-6 text-gray-500">
+                      <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
                         Select a conversation from the left to view messages and
                         start chatting.
                       </p>
                     </div>
                   </div>
 
-                  <div className="border-t border-gray-200 bg-white p-4">
+                  <div className="border-t border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
                     <div className="flex items-center gap-3">
                       <input
                         disabled
                         placeholder="Select a conversation first..."
-                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-400 outline-none"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-400 outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500"
                       />
                       <button
                         disabled
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-200 text-gray-400"
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500"
                       >
                         <FiSend size={18} />
                       </button>
@@ -1126,8 +1187,8 @@ function Messages() {
         }
         message={
           confirm?.type === "all"
-            ? "All your conversations will be permanently deleted. This action cannot be undone."
-            : "This conversation will be permanently deleted. This action cannot be undone."
+            ? "All messages will be cleared from your view. The conversations stay in your list. Other users keep their copy."
+            : "This chat will be removed from your inbox only. The other user keeps their copy."
         }
         confirmLabel={
           confirm?.type === "all" ? "Yes, Clear All" : "Yes, Delete"

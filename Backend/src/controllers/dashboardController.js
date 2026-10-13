@@ -1,57 +1,15 @@
 import User from "../models/UserModels.js";
 import Land from "../models/LandModel.js";
-import Document from "../models/DocumentModel.js";
-import OwnershipTransfer from "../models/OwnershipTransfer.js";
 
 const getDashboardStats = async (req, res) => {
     try {
-        const [
-            totalUsers,
-            totalLands,
-            landsForSale,
-            totalDocuments,
-            pendingDocuments,
-            approvedDocuments,
-            rejectedDocuments,
-            totalTransfers,
-            pendingTransfers,
-            approvedTransfers,
-            rejectedTransfers,
-        ] = await Promise.all([
+        const [totalUsers, totalLands, landsForSale] = await Promise.all([
             User.countDocuments(),
 
             Land.countDocuments(),
 
             Land.countDocuments({
                 isForSale: true,
-            }),
-
-            Document.countDocuments(),
-
-            Document.countDocuments({
-                status: "Pending",
-            }),
-
-            Document.countDocuments({
-                status: "Approved",
-            }),
-
-            Document.countDocuments({
-                status: "Rejected",
-            }),
-
-            OwnershipTransfer.countDocuments(),
-
-            OwnershipTransfer.countDocuments({
-                status: "Pending",
-            }),
-
-            OwnershipTransfer.countDocuments({
-                status: "Approved",
-            }),
-
-            OwnershipTransfer.countDocuments({
-                status: "Rejected",
             }),
         ]);
 
@@ -64,18 +22,6 @@ const getDashboardStats = async (req, res) => {
                 lands: {
                     total: totalLands,
                     forSale: landsForSale,
-                },
-                documents: {
-                    total: totalDocuments,
-                    pending: pendingDocuments,
-                    approved: approvedDocuments,
-                    rejected: rejectedDocuments,
-                },
-                ownershipTransfers: {
-                    total: totalTransfers,
-                    pending: pendingTransfers,
-                    approved: approvedTransfers,
-                    rejected: rejectedTransfers,
                 },
             },
         });

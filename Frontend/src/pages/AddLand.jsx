@@ -31,12 +31,7 @@ import {
 import Sidebar from "../components/Sidebar";
 import api from "../services/api";
 
-/*
-|--------------------------------------------------------------------------
-| Fix Leaflet marker icon
-|--------------------------------------------------------------------------
-*/
-
+/* marker icon (unchanged) */
 const markerIcon = new L.Icon({
   iconUrl:
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
@@ -50,19 +45,7 @@ const markerIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
-/*
-|--------------------------------------------------------------------------
-| Default map location
-|--------------------------------------------------------------------------
-*/
-
 const DEFAULT_LOCATION = [22.2587, 71.1924];
-
-/*
-|--------------------------------------------------------------------------
-| Area units
-|--------------------------------------------------------------------------
-*/
 
 const AREA_UNITS = [
   { value: "sqft", label: "Sq Ft" },
@@ -74,17 +57,19 @@ const AREA_UNITS = [
   { value: "bigha", label: "Bigha" },
 ];
 
-/*
-|--------------------------------------------------------------------------
-| Map click handler
-|--------------------------------------------------------------------------
-*/
+const RENT_PERIODS = [
+  { value: "", label: "Select period (optional)" },
+  { value: "Per Month", label: "Per Month" },
+  { value: "Per Year", label: "Per Year" },
+  { value: "Per Day", label: "Per Day" },
+  { value: "Per Week", label: "Per Week" },
+];
 
+/* ---------------- LocationMarker ---------------- */
 const LocationMarker = ({ position, setPosition, setFormData }) => {
   useMapEvents({
     click(event) {
       const { lat, lng } = event.latlng;
-
       setPosition([lat, lng]);
       setFormData((current) => ({
         ...current,
@@ -93,40 +78,21 @@ const LocationMarker = ({ position, setPosition, setFormData }) => {
       }));
     },
   });
-
-  if (!position) {
-    return null;
-  }
-
+  if (!position) return null;
   return <Marker position={position} icon={markerIcon} />;
 };
 
-/*
-|--------------------------------------------------------------------------
-| Move map to selected location
-|--------------------------------------------------------------------------
-*/
-
+/* ---------------- MapController ---------------- */
 const MapController = ({ position }) => {
   const map = useMap();
-
   useEffect(() => {
     if (!position) return;
-
-    map.flyTo(position, Math.max(map.getZoom(), 15), {
-      duration: 1,
-    });
+    map.flyTo(position, Math.max(map.getZoom(), 15), { duration: 1 });
   }, [position, map]);
-
   return null;
 };
 
-/*
-|--------------------------------------------------------------------------
-| Search bar inside map
-|--------------------------------------------------------------------------
-*/
-
+/* ---------------- MapSearch ---------------- */
 const MapSearch = ({ onSearch }) => {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -158,11 +124,7 @@ const MapSearch = ({ onSearch }) => {
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
           trimmed,
         )}&limit=5`,
-        {
-          headers: {
-            Accept: "application/json",
-          },
-        },
+        { headers: { Accept: "application/json" } },
       );
       const data = await response.json();
       if (!Array.isArray(data) || data.length === 0) {
@@ -189,10 +151,7 @@ const MapSearch = ({ onSearch }) => {
   };
 
   const handleSelectResult = (result) => {
-    const lat = parseFloat(result.lat);
-    const lng = parseFloat(result.lon);
-
-    onSearch([lat, lng]);
+    onSearch([parseFloat(result.lat), parseFloat(result.lon)]);
     setShowResults(false);
     setQuery(result.display_name);
   };
@@ -206,7 +165,7 @@ const MapSearch = ({ onSearch }) => {
         <div className="relative flex-1">
           <FiSearch
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
           />
           <input
             type="text"
@@ -214,14 +173,14 @@ const MapSearch = ({ onSearch }) => {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search location..."
-            className="h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-gray-900 shadow-md outline-none transition placeholder:text-gray-400 focus:border-green-500 focus:ring-2 focus:ring-green-100"
+            className="h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-gray-900 shadow-md outline-none transition placeholder:text-gray-400 focus:border-green-500 focus:ring-2 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500 dark:focus:ring-green-900/40"
           />
         </div>
         <button
           type="button"
           onClick={performSearch}
           disabled={searching}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-gray-600 shadow-md transition hover:bg-gray-50 disabled:opacity-60"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-gray-600 shadow-md transition hover:bg-gray-50 disabled:opacity-60 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
         >
           {searching ? (
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-green-600 border-t-transparent" />
@@ -232,15 +191,18 @@ const MapSearch = ({ onSearch }) => {
       </div>
 
       {showResults && results.length > 0 && (
-        <div className="mt-1 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+        <div className="mt-1 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
           {results.map((result, index) => (
             <button
               key={`${result.place_id}-${index}`}
               type="button"
               onClick={() => handleSelectResult(result)}
-              className="flex w-full items-start gap-2 px-3 py-2.5 text-left text-sm text-gray-700 transition hover:bg-gray-50"
+              className="flex w-full items-start gap-2 px-3 py-2.5 text-left text-sm text-gray-700 transition hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
             >
-              <FiMapPin size={14} className="mt-0.5 shrink-0 text-green-600" />
+              <FiMapPin
+                size={14}
+                className="mt-0.5 shrink-0 text-green-600 dark:text-green-400"
+              />
               <span className="line-clamp-2">{result.display_name}</span>
             </button>
           ))}
@@ -248,7 +210,7 @@ const MapSearch = ({ onSearch }) => {
       )}
 
       {showResults && !searching && searchError && (
-        <div className="mt-1 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-500 shadow-lg">
+        <div className="mt-1 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-500 shadow-lg dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
           {searchError}
         </div>
       )}
@@ -256,12 +218,7 @@ const MapSearch = ({ onSearch }) => {
   );
 };
 
-/*
-|--------------------------------------------------------------------------
-| Zoomable Media Preview Modal
-|--------------------------------------------------------------------------
-*/
-
+/* ---------------- MediaPreviewModal ---------------- */
 const MediaPreviewModal = ({ media, onClose, type = "image" }) => {
   const [currentIndex, setCurrentIndex] = useState(media?.index ?? 0);
   const [zoom, setZoom] = useState(1);
@@ -455,12 +412,7 @@ const MediaPreviewModal = ({ media, onClose, type = "image" }) => {
   );
 };
 
-/*
-|--------------------------------------------------------------------------
-| iOS-style Select Dropdown
-|--------------------------------------------------------------------------
-*/
-
+/* ---------------- IOSSelect ---------------- */
 const IOSSelect = ({ label, name, value, onChange, options, error }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -483,13 +435,13 @@ const IOSSelect = ({ label, name, value, onChange, options, error }) => {
   };
 
   const baseBorder = error
-    ? "border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-100"
-    : "border-gray-200 bg-gray-50 focus:border-green-500 focus:ring-green-100";
+    ? "border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-100 dark:border-red-800 dark:bg-red-900/30 dark:focus:ring-red-900/40"
+    : "border-gray-200 bg-gray-50 focus:border-green-500 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-800 dark:focus:ring-green-900/40";
 
   return (
     <div ref={containerRef} className="relative">
       {label && (
-        <label className="mb-2 block text-sm font-medium text-gray-700">
+        <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
           {label}
         </label>
       )}
@@ -497,21 +449,21 @@ const IOSSelect = ({ label, name, value, onChange, options, error }) => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex h-12 w-full items-center justify-between gap-2 rounded-2xl border px-4 text-sm text-gray-900 outline-none transition focus:bg-white focus:ring-4 ${baseBorder}`}
+        className={`flex h-12 w-full items-center justify-between gap-2 rounded-2xl border px-4 text-sm text-gray-900 outline-none transition focus:bg-white focus:ring-4 dark:text-white dark:focus:bg-gray-900 ${baseBorder}`}
       >
         <span className="truncate text-left">
           {selectedOption?.label || "Select..."}
         </span>
         <FiChevronDown
           size={16}
-          className={`shrink-0 text-gray-400 transition-transform ${
+          className={`shrink-0 text-gray-400 transition-transform dark:text-gray-500 ${
             isOpen ? "rotate-180" : ""
           }`}
         />
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-2 max-h-60 w-full overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-lg">
+        <div className="absolute z-50 mt-2 max-h-60 w-full overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
           {options.map((option) => (
             <button
               key={option.value}
@@ -519,13 +471,16 @@ const IOSSelect = ({ label, name, value, onChange, options, error }) => {
               onClick={() => handleSelect(option.value)}
               className={`flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm transition ${
                 option.value === value
-                  ? "bg-green-50 font-semibold text-green-700"
-                  : "text-gray-700 hover:bg-gray-50"
+                  ? "bg-green-50 font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                  : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
               }`}
             >
               <span className="truncate">{option.label}</span>
               {option.value === value && (
-                <FiCheck size={16} className="shrink-0 text-green-600" />
+                <FiCheck
+                  size={16}
+                  className="shrink-0 text-green-600 dark:text-green-400"
+                />
               )}
             </button>
           ))}
@@ -535,12 +490,7 @@ const IOSSelect = ({ label, name, value, onChange, options, error }) => {
   );
 };
 
-/*
-|--------------------------------------------------------------------------
-| Toast
-|--------------------------------------------------------------------------
-*/
-
+/* ---------------- Toast ---------------- */
 const Toast = ({ message, type = "error", onClose }) => {
   useEffect(() => {
     const timer = setTimeout(onClose, 3500);
@@ -549,8 +499,8 @@ const Toast = ({ message, type = "error", onClose }) => {
 
   const styles =
     type === "error"
-      ? "border-red-200 bg-red-50 text-red-700"
-      : "border-green-200 bg-green-50 text-green-700";
+      ? "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300"
+      : "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-300";
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-4 z-[10000] flex justify-center px-4">
@@ -567,12 +517,7 @@ const Toast = ({ message, type = "error", onClose }) => {
   );
 };
 
-/*
-|--------------------------------------------------------------------------
-| Main Component
-|--------------------------------------------------------------------------
-*/
-
+/* ---------------- Main Component ---------------- */
 const AddLand = () => {
   const navigate = useNavigate();
 
@@ -589,10 +534,13 @@ const AddLand = () => {
     description: "",
     latitude: "",
     longitude: "",
+    rentPeriod: "",
+    minimumRentDuration: "",
+    securityDeposit: "",
+    isNegotiable: false,
   });
 
   const [mapPosition, setMapPosition] = useState(DEFAULT_LOCATION);
-
   const [images, setImages] = useState([]);
   const [videos, setVideos] = useState([]);
 
@@ -605,6 +553,8 @@ const AddLand = () => {
   const [previewMedia, setPreviewMedia] = useState(null);
   const [previewType, setPreviewType] = useState("image");
   const [previewKey, setPreviewKey] = useState(0);
+
+  const isRentListing = formData.listingType === "For Rent";
 
   const clearFieldError = (name) => {
     setFieldErrors((prev) => {
@@ -621,9 +571,15 @@ const AddLand = () => {
 
     if (name === "price") {
       const numericValue = value.replace(/[^0-9]/g, "");
+      setFormData((current) => ({ ...current, price: numericValue }));
+      return;
+    }
+
+    if (name === "securityDeposit") {
+      const numericValue = value.replace(/[^0-9]/g, "");
       setFormData((current) => ({
         ...current,
-        price: numericValue,
+        securityDeposit: numericValue,
       }));
       return;
     }
@@ -634,10 +590,15 @@ const AddLand = () => {
       return;
     }
 
-    setFormData((current) => ({
-      ...current,
-      [name]: value,
-    }));
+    if (name === "isNegotiable") {
+      setFormData((current) => ({
+        ...current,
+        isNegotiable: Boolean(value),
+      }));
+      return;
+    }
+
+    setFormData((current) => ({ ...current, [name]: value }));
   };
 
   const formatPrice = (value) => {
@@ -796,11 +757,7 @@ const AddLand = () => {
         setToast({ message, type: "error" });
         setLocationLoading(false);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
   };
 
@@ -816,6 +773,14 @@ const AddLand = () => {
     if (!formData.latitude || !formData.longitude) {
       errors.latitude = true;
       errors.longitude = true;
+    }
+
+    if (
+      isRentListing &&
+      formData.securityDeposit &&
+      Number(formData.securityDeposit) < 0
+    ) {
+      errors.securityDeposit = true;
     }
 
     return errors;
@@ -859,6 +824,28 @@ const AddLand = () => {
       data.append("price", String(Number(formData.price)));
       data.append("description", formData.description.trim());
 
+      if (isRentListing) {
+        if (formData.rentPeriod) {
+          data.append("rentPeriod", formData.rentPeriod);
+        }
+        if (formData.minimumRentDuration.trim()) {
+          data.append(
+            "minimumRentDuration",
+            formData.minimumRentDuration.trim(),
+          );
+        }
+        if (
+          formData.securityDeposit !== "" &&
+          formData.securityDeposit !== null
+        ) {
+          data.append(
+            "securityDeposit",
+            String(Number(formData.securityDeposit)),
+          );
+        }
+        data.append("isNegotiable", String(formData.isNegotiable));
+      }
+
       data.append(
         "location",
         JSON.stringify({
@@ -867,16 +854,11 @@ const AddLand = () => {
         }),
       );
 
-      images.forEach((image) => {
-        data.append("image", image);
-      });
+      images.forEach((image) => data.append("image", image));
+      videos.forEach((video) => data.append("video", video));
 
-      videos.forEach((video) => {
-        data.append("video", video);
-      });
-
-      /* ---------- DEBUG: verify what's inside FormData ---------- */
       console.log("===== Submitting Add Land =====");
+      console.log("listingType:", formData.listingType);
       console.log("image files:", images.length);
       console.log("video files:", videos.length);
       for (const [key, value] of data.entries()) {
@@ -889,10 +871,7 @@ const AddLand = () => {
         }
       }
 
-      // NOTE: Do NOT pass a third argument with headers.
-      // Axios will auto-set multipart/form-data + boundary.
       const response = await api.post("/lands", data);
-
       console.log("Create Land response:", response.data);
 
       setToast({
@@ -930,34 +909,34 @@ const AddLand = () => {
 
   const inputClass = (name) => {
     const hasError = fieldErrors[name];
-    return `h-12 w-full rounded-2xl border px-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:bg-white focus:ring-4 ${
+    return `h-12 w-full rounded-2xl border px-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:bg-white focus:ring-4 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900 ${
       hasError
-        ? "border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-100"
-        : "border-gray-200 bg-gray-50 focus:border-green-500 focus:ring-green-100"
+        ? "border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-100 dark:border-red-800 dark:bg-red-900/30 dark:focus:ring-red-900/40"
+        : "border-gray-200 bg-gray-50 focus:border-green-500 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-800 dark:focus:ring-green-900/40"
     }`;
   };
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-gray-50">
+    <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 dark:bg-gray-950">
       <Sidebar />
 
       <div className="w-full lg:pl-64">
-        <header className="sticky top-0 z-30 mt-16 border-b border-gray-200 bg-white lg:mt-0">
+        <header className="sticky top-0 z-30 mt-16 border-b border-gray-200 bg-white lg:mt-0 dark:border-gray-800 dark:bg-gray-900">
           <div className="flex min-h-16 items-center gap-3 px-4 sm:px-6 lg:h-20 lg:px-8">
             <button
               type="button"
               onClick={() => navigate("/my-lands")}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
             >
               <FiArrowLeft size={19} />
             </button>
 
             <div className="min-w-0">
-              <h1 className="truncate text-xl font-bold text-gray-900 sm:text-2xl">
+              <h1 className="truncate text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
                 Add Land
               </h1>
 
-              <p className="mt-1 hidden text-sm text-gray-500 sm:block">
+              <p className="mt-1 hidden text-sm text-gray-500 sm:block dark:text-gray-400">
                 Add a new property to your land portfolio
               </p>
             </div>
@@ -971,13 +950,13 @@ const AddLand = () => {
             className="mx-auto w-full max-w-4xl"
           >
             {/* Property Information */}
-            <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-100 px-5 py-5 sm:px-7">
-                <h2 className="text-lg font-semibold text-gray-900">
+            <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <div className="border-b border-gray-100 px-5 py-5 sm:px-7 dark:border-gray-800">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Property Information
                 </h2>
 
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   Enter the basic details of your land.
                 </p>
               </div>
@@ -985,7 +964,7 @@ const AddLand = () => {
               <div className="space-y-6 p-5 sm:p-7">
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Survey Number
                       <span className="ml-1 text-green-600">*</span>
                     </label>
@@ -998,14 +977,14 @@ const AddLand = () => {
                       className={inputClass("surveyNumber")}
                     />
                     {fieldErrors.surveyNumber && (
-                      <p className="mt-1 text-xs text-red-500">
+                      <p className="mt-1 text-xs text-red-500 dark:text-red-400">
                         Survey number is required.
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Area
                       <span className="ml-1 text-green-600">*</span>
                     </label>
@@ -1030,7 +1009,7 @@ const AddLand = () => {
                       </div>
                     </div>
                     {fieldErrors.area && (
-                      <p className="mt-1 text-xs text-red-500">
+                      <p className="mt-1 text-xs text-red-500 dark:text-red-400">
                         Area is required.
                       </p>
                     )}
@@ -1039,7 +1018,7 @@ const AddLand = () => {
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Village
                       <span className="ml-1 text-green-600">*</span>
                     </label>
@@ -1052,14 +1031,14 @@ const AddLand = () => {
                       className={inputClass("village")}
                     />
                     {fieldErrors.village && (
-                      <p className="mt-1 text-xs text-red-500">
+                      <p className="mt-1 text-xs text-red-500 dark:text-red-400">
                         Village is required.
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                       District
                       <span className="ml-1 text-green-600">*</span>
                     </label>
@@ -1072,7 +1051,7 @@ const AddLand = () => {
                       className={inputClass("district")}
                     />
                     {fieldErrors.district && (
-                      <p className="mt-1 text-xs text-red-500">
+                      <p className="mt-1 text-xs text-red-500 dark:text-red-400">
                         District is required.
                       </p>
                     )}
@@ -1081,7 +1060,7 @@ const AddLand = () => {
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                       State <span className="ml-1 text-green-600">*</span>
                     </label>
                     <input
@@ -1093,7 +1072,7 @@ const AddLand = () => {
                       className={inputClass("state")}
                     />
                     {fieldErrors.state && (
-                      <p className="mt-1 text-xs text-red-500">
+                      <p className="mt-1 text-xs text-red-500 dark:text-red-400">
                         State is required.
                       </p>
                     )}
@@ -1121,18 +1100,18 @@ const AddLand = () => {
                     onChange={handleChange}
                     options={[
                       { value: "For Sale", label: "For Sale" },
-                      { value: "Wanted to Buy", label: "Wanted to Buy" },
+                      { value: "For Rent", label: "For Rent" },
                     ]}
                   />
 
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Price
                       <span className="ml-1 text-green-600">*</span>
                     </label>
 
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-500 dark:text-gray-400">
                         ₹
                       </span>
                       <input
@@ -1140,28 +1119,154 @@ const AddLand = () => {
                         name="price"
                         value={formatPrice(formData.price)}
                         onChange={handleChange}
-                        placeholder="Enter property price"
+                        placeholder={
+                          isRentListing
+                            ? "Enter rent price"
+                            : "Enter property price"
+                        }
                         inputMode="numeric"
                         className={`${inputClass("price")} pl-8`}
                       />
                     </div>
 
                     {fieldErrors.price && (
-                      <p className="mt-1 text-xs text-red-500">
+                      <p className="mt-1 text-xs text-red-500 dark:text-red-400">
                         Price is required.
                       </p>
                     )}
 
                     {formData.price && !fieldErrors.price && (
-                      <p className="mt-1.5 text-xs text-gray-400">
+                      <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
                         {Number(formData.price).toLocaleString("en-IN")} INR
+                        {isRentListing && formData.rentPeriod
+                          ? ` ${formData.rentPeriod.toLowerCase()}`
+                          : ""}
                       </p>
                     )}
                   </div>
                 </div>
 
+                {isRentListing && (
+                  <div className="space-y-6 rounded-2xl border border-green-100 bg-green-50/40 p-4 sm:p-5 dark:border-green-800 dark:bg-green-900/20">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400">
+                        <span className="text-xs font-bold">₹</span>
+                      </div>
+                      <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                        Rental details (optional)
+                      </h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                      <IOSSelect
+                        label="Rent Period"
+                        name="rentPeriod"
+                        value={formData.rentPeriod}
+                        onChange={handleChange}
+                        options={RENT_PERIODS}
+                      />
+
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Minimum Rent Duration
+                        </label>
+                        <input
+                          type="text"
+                          name="minimumRentDuration"
+                          value={formData.minimumRentDuration}
+                          onChange={handleChange}
+                          placeholder="e.g. 6 months"
+                          className={inputClass("minimumRentDuration")}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Security Deposit
+                        </label>
+
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-500 dark:text-gray-400">
+                            ₹
+                          </span>
+                          <input
+                            type="text"
+                            name="securityDeposit"
+                            value={formatPrice(formData.securityDeposit)}
+                            onChange={handleChange}
+                            placeholder="Enter deposit amount"
+                            inputMode="numeric"
+                            className={`${inputClass("securityDeposit")} pl-8`}
+                          />
+                        </div>
+
+                        {fieldErrors.securityDeposit && (
+                          <p className="mt-1 text-xs text-red-500 dark:text-red-400">
+                            Deposit must be a valid non-negative number.
+                          </p>
+                        )}
+
+                        {formData.securityDeposit &&
+                          !fieldErrors.securityDeposit && (
+                            <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
+                              {Number(formData.securityDeposit).toLocaleString(
+                                "en-IN",
+                              )}{" "}
+                              INR (refundable)
+                            </p>
+                          )}
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Negotiable
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleChange({
+                              target: {
+                                name: "isNegotiable",
+                                value: !formData.isNegotiable,
+                              },
+                            })
+                          }
+                          className={`flex h-12 w-full items-center justify-between gap-2 rounded-2xl border px-4 text-sm font-medium transition ${
+                            formData.isNegotiable
+                              ? "border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-400"
+                              : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                          }`}
+                        >
+                          <span>
+                            {formData.isNegotiable
+                              ? "Price is negotiable"
+                              : "Price is fixed"}
+                          </span>
+                          <span
+                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
+                              formData.isNegotiable
+                                ? "bg-green-600"
+                                : "bg-gray-300 dark:bg-gray-600"
+                            }`}
+                          >
+                            <span
+                              className={`absolute h-4 w-4 transform rounded-full bg-white shadow transition ${
+                                formData.isNegotiable
+                                  ? "translate-x-6"
+                                  : "translate-x-1"
+                              }`}
+                            />
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Description
                   </label>
 
@@ -1171,28 +1276,28 @@ const AddLand = () => {
                     onChange={handleChange}
                     rows={5}
                     placeholder="Describe your land property..."
-                    className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-100"
+                    className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900 dark:focus:ring-green-900/40"
                   />
                 </div>
               </div>
             </section>
 
             {/* Location */}
-            <section className="mt-5 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-100 px-5 py-5 sm:px-7">
+            <section className="mt-5 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <div className="border-b border-gray-100 px-5 py-5 sm:px-7 dark:border-gray-800">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-600">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-400">
                       <FiMapPin size={19} />
                     </div>
 
                     <div>
-                      <h2 className="text-lg font-semibold text-gray-900">
+                      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                         Property Location
                         <span className="ml-1 text-green-600">*</span>
                       </h2>
 
-                      <p className="mt-1 text-sm text-gray-500">
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                         Click on the map or search to select the land location.
                       </p>
                     </div>
@@ -1202,7 +1307,7 @@ const AddLand = () => {
                     type="button"
                     onClick={handleUseCurrentLocation}
                     disabled={locationLoading}
-                    className="flex h-10 items-center justify-center gap-2 rounded-xl bg-green-50 px-4 text-sm font-semibold text-green-700 transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-10 items-center justify-center gap-2 rounded-xl bg-green-50 px-4 text-sm font-semibold text-green-700 transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
                   >
                     {locationLoading ? (
                       <>
@@ -1222,7 +1327,9 @@ const AddLand = () => {
               <div className="p-4 sm:p-6">
                 <div
                   className={`relative overflow-hidden rounded-2xl border ${
-                    fieldErrors.latitude ? "border-red-300" : "border-gray-200"
+                    fieldErrors.latitude
+                      ? "border-red-300 dark:border-red-800"
+                      : "border-gray-200 dark:border-gray-700"
                   }`}
                 >
                   <MapContainer
@@ -1266,18 +1373,18 @@ const AddLand = () => {
                 </div>
 
                 {fieldErrors.latitude && (
-                  <p className="mt-2 text-xs text-red-500">
+                  <p className="mt-2 text-xs text-red-500 dark:text-red-400">
                     Please select a location on the map.
                   </p>
                 )}
 
-                <div className="mt-4 flex items-start gap-3 rounded-2xl bg-gray-50 px-4 py-3">
+                <div className="mt-4 flex items-start gap-3 rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-800">
                   <FiMapPin
                     size={17}
-                    className="mt-0.5 shrink-0 text-green-600"
+                    className="mt-0.5 shrink-0 text-green-600 dark:text-green-400"
                   />
 
-                  <p className="text-xs leading-5 text-gray-500">
+                  <p className="text-xs leading-5 text-gray-500 dark:text-gray-400">
                     Click anywhere on the map to place the land marker. You can
                     drag and zoom the map to find the exact location. Use the
                     search bar to find a location directly.
@@ -1287,13 +1394,13 @@ const AddLand = () => {
             </section>
 
             {/* Media */}
-            <section className="mt-5 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-100 px-5 py-5 sm:px-7">
-                <h2 className="text-lg font-semibold text-gray-900">
+            <section className="mt-5 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <div className="border-b border-gray-100 px-5 py-5 sm:px-7 dark:border-gray-800">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Property Media
                 </h2>
 
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   Add photos and videos of your property.
                 </p>
               </div>
@@ -1301,10 +1408,10 @@ const AddLand = () => {
               <div className="space-y-6 p-5 sm:p-7">
                 <div>
                   <div className="mb-3 flex items-center justify-between">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Property Images
                     </label>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-400 dark:text-gray-500">
                       {images.length}/10 images • Max 10MB each
                     </span>
                   </div>
@@ -1312,21 +1419,21 @@ const AddLand = () => {
                   <label
                     className={`flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${
                       images.length >= 10
-                        ? "cursor-not-allowed border-gray-200 bg-gray-100 opacity-60"
-                        : "border-gray-200 bg-gray-50 hover:border-green-300 hover:bg-green-50/40"
+                        ? "cursor-not-allowed border-gray-200 bg-gray-100 opacity-60 dark:border-gray-700 dark:bg-gray-800"
+                        : "border-gray-200 bg-gray-50 hover:border-green-300 hover:bg-green-50/40 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-green-700 dark:hover:bg-green-900/20"
                     }`}
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-green-600 shadow-sm">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-green-600 shadow-sm dark:bg-gray-900 dark:text-green-400">
                       <FiImage size={22} />
                     </div>
 
-                    <p className="mt-3 text-sm font-semibold text-gray-700">
+                    <p className="mt-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
                       {images.length >= 10
                         ? "Maximum 10 images reached"
                         : "Add property images"}
                     </p>
 
-                    <p className="mt-1 text-xs text-gray-400">
+                    <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                       You can add up to 10 images total
                     </p>
 
@@ -1345,7 +1452,7 @@ const AddLand = () => {
                       {images.map((image, index) => (
                         <div
                           key={`${image.name}-${index}-${image.lastModified}`}
-                          className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-100"
+                          className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800"
                         >
                           <button
                             type="button"
@@ -1380,10 +1487,10 @@ const AddLand = () => {
 
                 <div>
                   <div className="mb-3 flex items-center justify-between">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Property Videos
                     </label>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-400 dark:text-gray-500">
                       {videos.length}/5 videos • Max 50MB each
                     </span>
                   </div>
@@ -1391,21 +1498,21 @@ const AddLand = () => {
                   <label
                     className={`flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${
                       videos.length >= 5
-                        ? "cursor-not-allowed border-gray-200 bg-gray-100 opacity-60"
-                        : "border-gray-200 bg-gray-50 hover:border-green-300 hover:bg-green-50/40"
+                        ? "cursor-not-allowed border-gray-200 bg-gray-100 opacity-60 dark:border-gray-700 dark:bg-gray-800"
+                        : "border-gray-200 bg-gray-50 hover:border-green-300 hover:bg-green-50/40 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-green-700 dark:hover:bg-green-900/20"
                     }`}
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-green-600 shadow-sm">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-green-600 shadow-sm dark:bg-gray-900 dark:text-green-400">
                       <FiVideo size={22} />
                     </div>
 
-                    <p className="mt-3 text-sm font-semibold text-gray-700">
+                    <p className="mt-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
                       {videos.length >= 5
                         ? "Maximum 5 videos reached"
                         : "Add property videos"}
                     </p>
 
-                    <p className="mt-1 text-xs text-gray-400">
+                    <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                       You can add up to 5 videos total
                     </p>
 
@@ -1424,7 +1531,7 @@ const AddLand = () => {
                       {videos.map((video, index) => (
                         <div
                           key={`${video.name}-${index}-${video.lastModified}`}
-                          className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-100"
+                          className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800"
                         >
                           <button
                             type="button"
@@ -1467,7 +1574,7 @@ const AddLand = () => {
               <button
                 type="button"
                 onClick={() => navigate("/my-lands")}
-                className="h-12 rounded-2xl border border-gray-200 bg-white px-6 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                className="h-12 rounded-2xl border border-gray-200 bg-white px-6 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
               >
                 Cancel
               </button>
@@ -1514,22 +1621,20 @@ const AddLand = () => {
   );
 };
 
-/*
-|--------------------------------------------------------------------------
-| Coordinate display
-|--------------------------------------------------------------------------
-*/
-
 const CoordinateBox = ({ label, value, error }) => {
   return (
     <div
       className={`rounded-2xl border px-4 py-3 ${
-        error ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50"
+        error
+          ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/30"
+          : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
       }`}
     >
       <p
         className={`text-xs font-medium ${
-          error ? "text-red-500" : "text-gray-400"
+          error
+            ? "text-red-500 dark:text-red-400"
+            : "text-gray-400 dark:text-gray-500"
         }`}
       >
         {label}
@@ -1537,7 +1642,9 @@ const CoordinateBox = ({ label, value, error }) => {
 
       <p
         className={`mt-1 font-mono text-sm font-semibold ${
-          error ? "text-red-600" : "text-gray-800"
+          error
+            ? "text-red-600 dark:text-red-300"
+            : "text-gray-800 dark:text-gray-100"
         }`}
       >
         {value || "Not selected"}

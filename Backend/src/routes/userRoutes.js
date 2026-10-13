@@ -1,38 +1,64 @@
 import express from "express";
 
-import { register, login, getProfile, getAllUsers, deleteUser} from "../controllers/UserController.js";
-import {verifyToken, isAdmin,} from "../middlewares/authMiddleware.js";
+import {
+    register,
+    login,
+    getProfile,
+    updateProfile,
+    changePassword,
+    getAllUsers,
+    deleteUser,
+    matchContacts,
+    requestPasswordReset,
+    resetPassword,
+} from "../controllers/UserController.js";
+
+import { verifyToken, isAdmin } from "../middlewares/authMiddleware.js";
+import upload from "../middlewares/CloudinaryUpload.js";
 
 const router = express.Router();
 
-router.post(
-    "/register",
-    register
-);
+router.post("/register", register);
 
-router.post(
-    "/login",
-    login
-);
+router.post("/login", login);
 
-router.get(
+/*
+| Password reset (OTP-based, no auth required)
+| Body: { phone }
+*/
+router.post("/request-password-reset", requestPasswordReset);
+
+/*
+| Reset password with OTP
+| Body: { phone, otp, newPassword }
+*/
+router.post("/reset-password", resetPassword);
+
+router.get("/profile", verifyToken, getProfile);
+
+router.put(
     "/profile",
     verifyToken,
-    getProfile
+    upload.fields([
+        { name: "avatar", maxCount: 1 },
+        { name: "cover", maxCount: 1 },
+    ]),
+    updateProfile
 );
 
-router.get(
-    "/",
-    verifyToken,
-    isAdmin,
-    getAllUsers
-);
+/*
+| Change the logged-in user's password
+| Body: { currentPassword, newPassword }
+*/
+router.put("/change-password", verifyToken, changePassword);
 
-router.delete(
-    "/:id",
-    verifyToken,
-    isAdmin,
-    deleteUser
-);
+/*
+| Match device contacts against registered users
+*/
+router.post("/match-contacts", verifyToken, matchContacts);
+
+router.get("/", verifyToken, isAdmin, getAllUsers);
+
+router.delete("/:id", verifyToken, isAdmin, deleteUser);
 
 export default router;

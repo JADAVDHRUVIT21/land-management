@@ -2,10 +2,18 @@ import mongoose from "mongoose";
 
 const ChatMessageSchema = new mongoose.Schema(
     {
+
         land: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Land",
-            required: true,
+            required: false,
+            default: null,
+        },
+
+
+        isDirect: {
+            type: Boolean,
+            default: false,
         },
 
         sender: {
@@ -40,6 +48,13 @@ const ChatMessageSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+
+        deletedBy: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User",
+            },
+        ],
     },
     {
         timestamps: true,
