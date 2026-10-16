@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "../context/useAuth";
 import api from "../services/api";
-
+import logo from "./../assets/logo.png";
 /* ------------------------------------------------------------------ */
 /*  iOS-style Logout Confirmation Dialog                               */
 /* ------------------------------------------------------------------ */
@@ -254,10 +254,13 @@ const Sidebar = () => {
     <>
       {/* Mobile Header */}
       <div className="fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 lg:hidden dark:border-gray-800 dark:bg-gray-900">
-        <h1 className="text-lg font-bold text-gray-900 dark:text-white">
-          Land
-          <span className="text-green-600 dark:text-green-500">Manage</span>
-        </h1>
+        <div className="flex items-center gap-2">
+          <img src={logo} className="h-10" alt="" />
+          <h1 className="text-lg font-bold text-gray-900 dark:text-white">
+            Land
+            <span className="text-green-600 dark:text-green-500">Manage</span>
+          </h1>
+        </div>
 
         <button
           type="button"
@@ -283,16 +286,21 @@ const Sidebar = () => {
         }`}
       >
         {/* Logo */}
-        <div className="flex h-20 items-center justify-between border-b border-gray-200 px-6 dark:border-gray-800">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
-              Land
-              <span className="text-green-600 dark:text-green-500">Manage</span>
-            </h1>
+        <div className="flex h-20 items-center justify-between border-b border-gray-200 px-3 dark:border-gray-800">
+          <div className="flex items-center gap-3">
+            <img src={logo} className="h-10" alt="" />
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
+                Land
+                <span className="text-green-600 dark:text-green-500">
+                  Manage
+                </span>
+              </h1>
 
-            <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-              Land Management System
-            </p>
+              <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                Land Management System
+              </p>
+            </div>
           </div>
 
           <button

@@ -74,8 +74,8 @@ const Home = () => {
       <Sidebar />
 
       <div className="w-full lg:pl-64">
-        {/* Top Header */}
-        <header className="sticky top-0 z-30 mt-16 border-b border-gray-200 bg-white lg:mt-0 dark:border-gray-800 dark:bg-gray-900">
+        {/* Top Header — hidden on mobile, visible on lg+ */}
+        <header className="sticky top-0 z-30 hidden border-b border-gray-200 bg-white lg:block dark:border-gray-800 dark:bg-gray-900">
           <div className="flex min-h-16 w-full items-center justify-between gap-4 px-4 sm:px-6 lg:h-20 lg:px-8">
             <div className="min-w-0">
               <h1 className="truncate text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
@@ -119,7 +119,7 @@ const Home = () => {
         </header>
 
         {/* Main Content */}
-        <main className="w-full p-4 sm:p-6 lg:p-8">
+        <main className="mt-16 w-full p-4 sm:p-6 lg:mt-0 lg:p-8">
           {/* Welcome */}
           <div className="mb-6 sm:mb-8">
             <h2 className="text-lg font-semibold text-gray-900 sm:text-xl dark:text-white">

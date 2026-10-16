@@ -115,6 +115,65 @@ const Avatar = ({ user, size = "md" }) => {
 };
 
 /* ================================================================== */
+/*  Typing Indicator — WhatsApp style (3 bouncing dots)               */
+/* ================================================================== */
+
+const TypingDots = ({ className = "" }) => (
+  <span
+    className={`inline-flex items-center gap-1 ${className}`}
+    aria-label="Typing"
+  >
+    <span
+      className="h-1.5 w-1.5 animate-bounce rounded-full bg-current"
+      style={{ animationDelay: "0ms", animationDuration: "0.9s" }}
+    />
+    <span
+      className="h-1.5 w-1.5 animate-bounce rounded-full bg-current"
+      style={{ animationDelay: "150ms", animationDuration: "0.9s" }}
+    />
+    <span
+      className="h-1.5 w-1.5 animate-bounce rounded-full bg-current"
+      style={{ animationDelay: "300ms", animationDuration: "0.9s" }}
+    />
+  </span>
+);
+
+/* ================================================================== */
+/*  Message Ticks — WhatsApp style (✓ sent, ✓✓ delivered, blue read)  */
+/* ================================================================== */
+
+const MessageTicks = ({ message }) => {
+  const isRead = Boolean(message.read || message.readAt);
+
+  if (isRead) {
+    /* Blue double tick */
+    return (
+      <span className="relative ml-1 inline-flex h-3 w-4 shrink-0 align-middle">
+        <FiCheck
+          size={11}
+          className="absolute left-0 top-0 text-sky-300"
+          strokeWidth={3}
+        />
+        <FiCheck
+          size={11}
+          className="absolute left-[3px] top-0 text-sky-300"
+          strokeWidth={3}
+        />
+      </span>
+    );
+  }
+
+  /* Single tick (sent — not yet read) */
+  return (
+    <FiCheck
+      size={11}
+      className="ml-1 inline shrink-0 text-green-100 align-middle"
+      strokeWidth={3}
+    />
+  );
+};
+
+/* ================================================================== */
 /*  Main Component                                                    */
 /* ================================================================== */
 
@@ -123,6 +182,14 @@ function Messages() {
   const messagesEndRef = useRef(null);
   const selectedConversationRef = useRef(null);
   const menuRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  /* Typing indicator — from the other user */
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
+
+  /* Our own typing state — to avoid re-firing events */
+  const typingSentRef = useRef(false);
+  const typingTimeoutRef = useRef(null);
 
   const currentUser = useMemo(() => {
     try {
@@ -233,6 +300,37 @@ function Messages() {
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
+
+  /* ================================================================
+   *  Reset typing state when switching conversations.
+   *
+   *  We track the previous conversation ID via a ref so the effect
+   *  only runs the reset logic when the ID actually changes.
+   *  This avoids ESLint's react-hooks/exhaustive-deps warning that
+   *  fires when state setters appear inside a `useEffect` body.
+   * ================================================================ */
+  const prevConversationIdRef = useRef(null);
+
+  useEffect(() => {
+    const currentId = selectedConversation?.id ?? null;
+
+    if (prevConversationIdRef.current === currentId) return;
+    prevConversationIdRef.current = currentId;
+
+    /* Reset — using a local run function keeps the setter calls
+       inside a nested scope, which ESLint accepts cleanly. */
+    const reset = () => {
+      setOtherUserTyping(false);
+      typingSentRef.current = false;
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+    };
+
+    reset();
+  }, [selectedConversation?.id]);
 
   const getOtherUser = (message) => {
     const senderId = idStr(message?.sender);
@@ -421,6 +519,9 @@ function Messages() {
           if (prev.some((m) => m._id === msgId)) return prev;
           return [...prev, msg];
         });
+
+        /* If a message arrives, clear typing indicator */
+        setOtherUserTyping(false);
       }
 
       setConversations((prev) => {
@@ -486,6 +587,45 @@ function Messages() {
         );
       });
     };
+
+    /* ============================ */
+    /*  TYPING INDICATOR HANDLERS  */
+    /* ============================ */
+
+    const handleTyping = (payload) => {
+      /* payload: { landId, fromUserId } */
+      const current = selectedConversationRef.current;
+      if (!current) return;
+
+      const fromId = idStr(payload?.fromUserId);
+      const otherId = idStr(current.user);
+
+      if (!fromId || fromId !== otherId) return;
+
+      /* Verify the same land scope */
+      const payloadLand = payload?.landId || "direct";
+      const currentLand = current.isDirect ? "direct" : idStr(current.landId);
+
+      if (payloadLand !== currentLand) return;
+
+      setOtherUserTyping(true);
+    };
+
+    const handleStopTyping = (payload) => {
+      const current = selectedConversationRef.current;
+      if (!current) return;
+
+      const fromId = idStr(payload?.fromUserId);
+      const otherId = idStr(current.user);
+
+      if (!fromId || fromId !== otherId) return;
+
+      setOtherUserTyping(false);
+    };
+
+    /* ============================ */
+    /*  READ RECEIPTS               */
+    /* ============================ */
 
     const handleMessagesRead = (payload) => {
       const landId = idStr(payload?.landId);
@@ -555,6 +695,8 @@ function Messages() {
     };
 
     socket.on("newMessage", handleNewMessage);
+    socket.on("typing", handleTyping);
+    socket.on("stopTyping", handleStopTyping);
     socket.on("messagesRead", handleMessagesRead);
     socket.on("conversationDeleted", handleConversationDeleted);
     socket.on("conversationCleared", handleConversationCleared);
@@ -564,6 +706,8 @@ function Messages() {
 
     return () => {
       socket.off("newMessage", handleNewMessage);
+      socket.off("typing", handleTyping);
+      socket.off("stopTyping", handleStopTyping);
       socket.off("messagesRead", handleMessagesRead);
       socket.off("conversationDeleted", handleConversationDeleted);
       socket.off("conversationCleared", handleConversationCleared);
@@ -607,6 +751,53 @@ function Messages() {
   const handleBackToList = () => {
     setSelectedConversation(null);
     setMessages([]);
+    setOtherUserTyping(false);
+  };
+
+  /* ============================ */
+  /*  TYPING EMIT HELPERS        */
+  /* ============================ */
+
+  const emitStopTyping = () => {
+    if (!typingSentRef.current) return;
+    const socket = getSocket();
+    const conversation = selectedConversationRef.current;
+    if (!socket || !conversation) return;
+
+    const receiverId = getId(conversation.user);
+    if (!receiverId) return;
+
+    const landId = conversation.isDirect ? "direct" : conversation.landId;
+
+    socket.emit("stopTyping", { landId, receiverId });
+    typingSentRef.current = false;
+  };
+
+  const handleMessageInput = (e) => {
+    setMessageText(e.target.value);
+
+    const socket = getSocket();
+    const conversation = selectedConversationRef.current;
+    if (!socket || !conversation) return;
+
+    const receiverId = getId(conversation.user);
+    if (!receiverId) return;
+
+    const landId = conversation.isDirect ? "direct" : conversation.landId;
+
+    /* Emit typing once when user starts typing */
+    if (!typingSentRef.current) {
+      socket.emit("typing", { landId, receiverId });
+      typingSentRef.current = true;
+    }
+
+    /* Reset the stop-typing timer on every keystroke */
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = setTimeout(() => {
+      emitStopTyping();
+    }, 1500);
   };
 
   const performDeleteChat = async () => {
@@ -682,6 +873,13 @@ function Messages() {
       selectedConversation.isDirect === true ||
       selectedConversation.landId === "direct";
 
+    /* Stop typing immediately when sending */
+    emitStopTyping();
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+
     try {
       setSending(true);
       setError("");
@@ -734,6 +932,7 @@ function Messages() {
       }
 
       setMessageText("");
+      textareaRef.current?.focus();
     } catch (err) {
       console.error("SEND MESSAGE ERROR:", err);
       setError(err.response?.data?.message || "Failed to send message.");
@@ -744,7 +943,7 @@ function Messages() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, otherUserTyping]);
 
   const filteredConversations = conversations.filter((conversation) => {
     const userName = conversation.user?.fullName || "";
@@ -760,35 +959,6 @@ function Messages() {
   const isSelectedUserOnline = selectedUser
     ? onlineUserIds.includes(idStr(selectedUser))
     : false;
-
-  const renderTicks = (message) => {
-    const isRead = Boolean(message.read || message.readAt);
-
-    if (isRead) {
-      return (
-        <span className="relative ml-1 inline-flex h-3 w-4 shrink-0 align-middle">
-          <FiCheck
-            size={11}
-            className="absolute left-0 top-0 text-blue-300"
-            strokeWidth={3}
-          />
-          <FiCheck
-            size={11}
-            className="absolute left-[3px] top-0 text-blue-300"
-            strokeWidth={3}
-          />
-        </span>
-      );
-    }
-
-    return (
-      <FiCheck
-        size={11}
-        className="ml-1 inline shrink-0 text-green-100 align-middle"
-        strokeWidth={3}
-      />
-    );
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -980,16 +1150,25 @@ function Messages() {
                         {selectedUser?.fullName || "User"}
                       </h2>
 
-                      <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span className="flex items-center gap-1">
-                          <FiPhone size={11} />
-                          {selectedUser?.phone || "No phone"}
-                        </span>
+                      <div className="mt-1 flex items-center gap-2 text-xs">
+                        {otherUserTyping ? (
+                          <span className="flex items-center gap-1.5 font-medium text-green-600 dark:text-green-400">
+                            <TypingDots className="text-green-600 dark:text-green-400" />
+                            <span>typing...</span>
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                            <span className="flex items-center gap-1">
+                              <FiPhone size={11} />
+                              {selectedUser?.phone || "No phone"}
+                            </span>
 
-                        {isSelectedUserOnline && (
-                          <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                            Online
+                            {isSelectedUserOnline && (
+                              <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                                Online
+                              </span>
+                            )}
                           </span>
                         )}
                       </div>
@@ -1094,12 +1273,20 @@ function Messages() {
                                       ).toLocaleString()
                                     : ""}
                                 </span>
-                                {isMine && renderTicks(message)}
+                                {isMine && <MessageTicks message={message} />}
                               </div>
                             </div>
                           </div>
                         );
                       })
+                    )}
+
+                    {otherUserTyping && (
+                      <div className="flex justify-start">
+                        <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                          <TypingDots className="text-gray-400 dark:text-gray-500" />
+                        </div>
+                      </div>
                     )}
 
                     <div ref={messagesEndRef} />
@@ -1108,8 +1295,10 @@ function Messages() {
                   <div className="shrink-0 border-t border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
                     <div className="flex items-end gap-3">
                       <textarea
+                        ref={textareaRef}
                         value={messageText}
-                        onChange={(e) => setMessageText(e.target.value)}
+                        onChange={handleMessageInput}
+                        onBlur={emitStopTyping}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" && !e.shiftKey) {
                             e.preventDefault();

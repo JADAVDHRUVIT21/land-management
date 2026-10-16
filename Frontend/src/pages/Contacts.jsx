@@ -419,8 +419,8 @@ function Contacts() {
       )}
 
       <main className="ml-0 min-h-screen lg:ml-[230px]">
-        <header className="border-b border-gray-200 bg-white px-5 py-5 sm:px-7 dark:border-gray-800 dark:bg-gray-900">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <header className="mt-16 sm:mt-0 border-b border-gray-200 bg-white px-5 py-5 sm:px-7 dark:border-gray-800 dark:bg-gray-900">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between ">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                 Contacts
