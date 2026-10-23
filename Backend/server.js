@@ -6,7 +6,7 @@ import multer from "multer";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import connectDB from "./src/config/db.js";
-import userRoutes from "./src/routes/UserRoutes.js";
+import userRoutes from "./src/routes/userRoutes.js";
 import landRoutes from "./src/routes/LandRoutes.js";
 import dashboardRoutes from "./src/routes/DashboardRoutes.js";
 import chatRoutes from "./src/routes/ChatRoutes.js";
