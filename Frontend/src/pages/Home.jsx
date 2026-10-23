@@ -201,7 +201,7 @@ const Home = () => {
           </section>
 
           {/* Recent Activity */}
-          <section className="mt-6 w-full sm:mt-8">
+          <section className="mt-6 mb-20 sm:mb-0 w-full sm:mt-8">
             <div className="w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
               {/* Section Header */}
               <div className="flex items-center justify-between gap-4 border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-5 dark:border-gray-800">

@@ -602,7 +602,8 @@ const HelpSupport = () => {
           </div>
         </header>
 
-        <main className="w-full p-4 sm:p-6 lg:p-8">
+        {/* 🔥 ADDED pb-32 HERE */}
+        <main className="w-full p-4 pb-32 sm:p-6 sm:pb-32 lg:p-8 lg:pb-32">
           <div className="mx-auto w-full max-w-5xl space-y-6">
             {/* Hero / search */}
             <section className="overflow-hidden rounded-3xl border border-gray-200 bg-gradient-to-br from-green-50 via-white to-blue-50 p-6 shadow-sm sm:p-8 dark:border-gray-800 dark:from-green-900/20 dark:via-gray-900 dark:to-blue-900/20">

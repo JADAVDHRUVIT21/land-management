@@ -419,10 +419,11 @@ function Contacts() {
       )}
 
       <main className="ml-0 min-h-screen lg:ml-[230px]">
-        <header className="mt-16 sm:mt-0 border-b border-gray-200 bg-white px-5 py-5 sm:px-7 dark:border-gray-800 dark:bg-gray-900">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between ">
+        {/* 🔥 FIXED HEADER */}
+        <header className="mt-16  border-gray-200 bg-white px-5 py-4 sm:px-7 lg:mt-0 dark:border-gray-800 dark:bg-gray-950">
+          <div className="flex items-start justify-between gap-4 sm:px-10">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
                 Contacts
               </h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -434,7 +435,7 @@ function Contacts() {
               <button
                 type="button"
                 onClick={clearAll}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
               >
                 <FiX size={16} />
                 Clear
@@ -443,7 +444,8 @@ function Contacts() {
           </div>
         </header>
 
-        <div className="p-5 sm:p-7">
+        {/* 🔥 ADDED pb-32 HERE */}
+        <div className="p-5 pb-32 sm:p-7">
           <div className="mx-auto max-w-3xl space-y-5">
             {error && (
               <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">

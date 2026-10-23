@@ -53,7 +53,6 @@ const rentPeriodSuffix = (period) => {
 
 /* ------------------------------------------------------------------ */
 /*  Reverse geocoding (OpenStreetMap Nominatim — free, no API key)     */
-/*  Forces English responses via `accept-language=en`                  */
 /* ------------------------------------------------------------------ */
 
 const reverseGeocode = async (lat, lng, signal) => {
@@ -360,43 +359,47 @@ function LandDetail() {
       <Sidebar />
 
       <main className="ml-0 min-h-screen lg:ml-[230px]">
-        <header className="border-b border-gray-200 bg-white px-5 py-5 sm:px-7 dark:border-gray-800 dark:bg-gray-900">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
+        {/* 🔥 RESTRUCTURED HEADER */}
+        <header className="sticky top-16 z-30 mt-16 border-b border-gray-200 bg-white px-5 py-4 sm:px-7 lg:top-0 lg:mt-0 dark:border-gray-800 dark:bg-gray-900">
+          <div className="flex items-center justify-between gap-4">
+            {/* Left side: Back button + Title */}
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => navigate(-1)}
-                className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                aria-label="Go back"
               >
-                <FiArrowLeft size={16} />
-                Back
+                <FiArrowLeft size={18} />
               </button>
 
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Land Details
-              </h1>
-
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Survey No. {land.surveyNumber}
-              </p>
+              <div>
+                <h1 className="text-lg font-bold text-gray-900 sm:text-xl dark:text-white">
+                  Land Details
+                </h1>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Survey No. {land.surveyNumber}
+                </p>
+              </div>
             </div>
 
+            {/* Right side: Action Button */}
             <div>
               {isOwner ? (
                 <Link
                   to={`/edit-land/${land._id}`}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-green-600 bg-green-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 hover:shadow-md"
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-green-600 bg-green-600 px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-green-700 sm:px-4 sm:text-sm"
                 >
-                  <FiEdit3 size={17} />
+                  <FiEdit3 size={15} />
                   Edit Land
                 </Link>
               ) : (
                 <button
                   type="button"
                   onClick={handleMessageOwner}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-green-600 bg-green-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 hover:shadow-md"
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-green-600 bg-green-600 px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-green-700 sm:px-4 sm:text-sm"
                 >
-                  <FiMessageCircle size={17} />
+                  <FiMessageCircle size={15} />
                   Message Owner
                 </button>
               )}
@@ -404,7 +407,8 @@ function LandDetail() {
           </div>
         </header>
 
-        <div className="p-5 sm:p-7">
+        {/* 🔥 ADDED pb-32 HERE */}
+        <div className="p-5 pb-32 sm:p-7">
           <div className="mx-auto max-w-7xl">
             <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div className="relative h-[280px] bg-gray-100 sm:h-[380px] lg:h-[450px] dark:bg-gray-800">
@@ -694,26 +698,34 @@ function LandDetail() {
                       </div>
 
                       <div className="mt-4 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                        <MapContainer
-                          center={[lat, lng]}
-                          zoom={15}
-                          scrollWheelZoom={false}
-                          style={{ height: "240px", width: "100%" }}
+                        {/* 🔥 FIXED: Added isolate z-0 and touch-action */}
+                        <div
+                          className="isolate z-0"
+                          style={{ touchAction: "pan-y" }}
                         >
-                          <TileLayer
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                          />
-                          <Marker position={[lat, lng]} icon={markerIcon}>
-                            <Popup>
-                              <div className="text-xs">
-                                <strong>Survey No. {land.surveyNumber}</strong>
-                                <br />
-                                {land.village}, {land.district}
-                              </div>
-                            </Popup>
-                          </Marker>
-                        </MapContainer>
+                          <MapContainer
+                            center={[lat, lng]}
+                            zoom={15}
+                            scrollWheelZoom={false}
+                            style={{ height: "240px", width: "100%" }}
+                          >
+                            <TileLayer
+                              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            />
+                            <Marker position={[lat, lng]} icon={markerIcon}>
+                              <Popup>
+                                <div className="text-xs">
+                                  <strong>
+                                    Survey No. {land.surveyNumber}
+                                  </strong>
+                                  <br />
+                                  {land.village}, {land.district}
+                                </div>
+                              </Popup>
+                            </Marker>
+                          </MapContainer>
+                        </div>
                       </div>
                     </>
                   ) : (

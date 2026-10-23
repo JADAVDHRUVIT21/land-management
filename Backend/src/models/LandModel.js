@@ -45,7 +45,17 @@ const landSchema = new mongoose.Schema(
         landType: {
             type: String,
             required: true,
-            enum: ["Agricultural", "Residential", "Commercial", "Industrial"],
+            // 🔥 FIXED: Added House, Flat, Land, Hostel to the enum
+            enum: [
+                "House",
+                "Flat",
+                "Land",
+                "Hostel",
+                "Agricultural",
+                "Residential",
+                "Commercial",
+                "Industrial"
+            ],
         },
 
         /* ------------------------------------------------------------- */

@@ -32,14 +32,6 @@ const getDashboardStats = async (req, res) => {
     }
 };
 
-/* ================================================================== */
-/*  ADMIN ENDPOINTS                                                   */
-/* ================================================================== */
-
-/* ------------------------------------------------------------------ */
-/*  ADMIN STATS — top-level numbers for the admin dashboard            */
-/* ------------------------------------------------------------------ */
-
 const getAdminStats = async (req, res) => {
     try {
         const now = new Date();
@@ -121,16 +113,13 @@ const getAdminStats = async (req, res) => {
     }
 };
 
-/* ------------------------------------------------------------------ */
-/*  ADMIN RECENT USERS — latest signups                                */
-/* ------------------------------------------------------------------ */
 
 const getAdminRecentUsers = async (req, res) => {
     try {
         const limit = Math.min(Number(req.query.limit) || 8, 50);
 
         const users = await User.find()
-            .select("fullName email phone role avatar createdAt")
+            .select("fullName email phone role avatar createdAt isBlocked")
             .sort({ createdAt: -1 })
             .limit(limit)
             .lean();
@@ -149,9 +138,7 @@ const getAdminRecentUsers = async (req, res) => {
     }
 };
 
-/* ------------------------------------------------------------------ */
-/*  ADMIN RECENT LANDS — latest property listings                      */
-/* ------------------------------------------------------------------ */
+
 
 const getAdminRecentLands = async (req, res) => {
     try {
@@ -188,10 +175,6 @@ const getAdminRecentLands = async (req, res) => {
         });
     }
 };
-
-/* ------------------------------------------------------------------ */
-/*  ADMIN CHARTS — time-series data for dashboard charts               */
-/* ------------------------------------------------------------------ */
 
 const getAdminCharts = async (req, res) => {
     try {
@@ -300,7 +283,7 @@ const getAdminUsers = async (req, res) => {
             User.countDocuments(filter),
             User.find(filter)
                 .select(
-                    "fullName email phone role avatar createdAt coverImage",
+                    "fullName email phone role avatar createdAt coverImage isBlocked",
                 )
                 .sort({ createdAt: -1 })
                 .skip(skip)
@@ -380,10 +363,10 @@ const getAdminUserById = async (req, res) => {
 };
 
 /* ------------------------------------------------------------------ */
-/*  ADMIN — TOGGLE USER ROLE (user ↔ admin)                            */
+/*  ADMIN — TOGGLE USER BLOCK (Block/Unblock)                          */
 /* ------------------------------------------------------------------ */
 
-const toggleUserRole = async (req, res) => {
+const toggleUserBlock = async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -394,12 +377,12 @@ const toggleUserRole = async (req, res) => {
             });
         }
 
-        /* Prevent admin from demoting themselves */
+        /* Prevent admin from blocking themselves */
         const adminId = req.user?.id || req.user?._id;
         if (String(id) === String(adminId)) {
             return res.status(400).json({
                 success: false,
-                message: "You cannot change your own role.",
+                message: "You cannot block your own account.",
             });
         }
 
@@ -411,24 +394,26 @@ const toggleUserRole = async (req, res) => {
             });
         }
 
-        user.role = user.role === "admin" ? "user" : "admin";
+        user.isBlocked = !user.isBlocked;
         await user.save();
 
         return res.status(200).json({
             success: true,
-            message: `User is now ${user.role}.`,
+            message: user.isBlocked
+                ? "User blocked successfully."
+                : "User unblocked successfully.",
             user: {
                 _id: user._id,
                 fullName: user.fullName,
                 email: user.email,
-                role: user.role,
+                isBlocked: user.isBlocked,
             },
         });
     } catch (error) {
-        console.error("Toggle User Role Error:", error);
+        console.error("Toggle User Block Error:", error);
         return res.status(500).json({
             success: false,
-            message: error.message || "Failed to update role.",
+            message: error.message || "Failed to update block status.",
         });
     }
 };
@@ -441,5 +426,5 @@ export {
     getAdminCharts,
     getAdminUsers,
     getAdminUserById,
-    toggleUserRole,
+    toggleUserBlock, 
 };

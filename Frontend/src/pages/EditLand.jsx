@@ -64,6 +64,14 @@ const RENT_PERIODS = [
   { value: "Per Week", label: "Per Week" },
 ];
 
+// 🔥 UPDATED: Only House, Flat, Land, Hostel
+const LAND_TYPES = [
+  { value: "House", label: "House" },
+  { value: "Flat", label: "Flat" },
+  { value: "Land", label: "Land" },
+  { value: "Hostel", label: "Hostel" },
+];
+
 const LocationMarker = ({ position, setPosition, setFormData }) => {
   useMapEvents({
     click(event) {
@@ -522,7 +530,7 @@ const EditLand = () => {
     village: "",
     district: "",
     state: "",
-    landType: "Residential",
+    landType: "House", // 🔥 Default updated to House
     listingType: "For Sale",
     price: "",
     description: "",
@@ -564,7 +572,7 @@ const EditLand = () => {
         village: land.village || "",
         district: land.district || "",
         state: land.state || "",
-        landType: land.landType || "Residential",
+        landType: land.landType || "House",
         listingType: land.listingType || "For Sale",
         price:
           land.price !== undefined && land.price !== null
@@ -981,7 +989,8 @@ const EditLand = () => {
           </div>
         </header>
 
-        <main className="w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        {/* 🔥 ADDED pb-32 HERE */}
+        <main className="w-full px-4 py-6 pb-32 sm:px-6 lg:px-8 lg:py-8">
           <form
             onSubmit={handleSubmit}
             noValidate
@@ -1095,17 +1104,13 @@ const EditLand = () => {
                           className={inputClass("state")}
                         />
                       </div>
+                      {/* 🔥 UPDATED DROPDOWN */}
                       <IOSSelect
                         label="Land Type"
                         name="landType"
                         value={formData.landType}
                         onChange={handleChange}
-                        options={[
-                          { value: "Agricultural", label: "Agricultural" },
-                          { value: "Residential", label: "Residential" },
-                          { value: "Commercial", label: "Commercial" },
-                          { value: "Industrial", label: "Industrial" },
-                        ]}
+                        options={LAND_TYPES}
                       />
                     </div>
 
@@ -1326,26 +1331,32 @@ const EditLand = () => {
                           : "border-gray-200 dark:border-gray-700"
                       }`}
                     >
-                      <MapContainer
-                        center={mapPosition}
-                        zoom={7}
-                        scrollWheelZoom={true}
-                        zoomControl={false}
-                        className="h-[320px] w-full sm:h-[420px]"
+                      {/* 🔥 FIXED: Added isolate z-0 and touch-action */}
+                      <div
+                        className="isolate z-0"
+                        style={{ touchAction: "pan-y" }}
                       >
-                        <TileLayer
-                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        />
-                        <ZoomControl position="topright" />
-                        <LocationMarker
-                          position={mapPosition}
-                          setPosition={setMapPosition}
-                          setFormData={setFormData}
-                        />
-                        <MapController position={mapPosition} />
-                        <MapSearch onSearch={handleLocationSearch} />
-                      </MapContainer>
+                        <MapContainer
+                          center={mapPosition}
+                          zoom={7}
+                          scrollWheelZoom={true}
+                          zoomControl={false}
+                          className="h-[320px] w-full sm:h-[420px]"
+                        >
+                          <TileLayer
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          />
+                          <ZoomControl position="topright" />
+                          <LocationMarker
+                            position={mapPosition}
+                            setPosition={setMapPosition}
+                            setFormData={setFormData}
+                          />
+                          <MapController position={mapPosition} />
+                          <MapSearch onSearch={handleLocationSearch} />
+                        </MapContainer>
+                      </div>
                     </div>
 
                     <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -206,6 +206,14 @@ const login = async (req, res) => {
             });
         }
 
+        // 🔥 NEW: Check if user is blocked
+        if (user.isBlocked) {
+            return res.status(403).json({
+                success: false,
+                message: "Your account has been blocked by the administrator.",
+            });
+        }
+
         const isMatch = await bcrypt.compare(
             password,
             user.password
@@ -893,6 +901,63 @@ const resetPassword = async (req, res) => {
     }
 };
 
+/* ------------------------------------------------------------------ */
+/*  TOGGLE USER ROLE (Promote / Demote)                                */
+/* ------------------------------------------------------------------ */
+
+const toggleUserRole = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!id) {
+            return res.status(400).json({
+                success: false,
+                message: "User ID is required.",
+            });
+        }
+
+        const user = await User.findById(id);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found.",
+            });
+        }
+
+        // Prevent modifying your own role
+        if (user._id.toString() === req.user.id.toString()) {
+            return res.status(400).json({
+                success: false,
+                message: "You cannot change your own role.",
+            });
+        }
+
+        // Toggle the role
+        const newRole = user.role === "admin" ? "user" : "admin";
+        user.role = newRole;
+
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: `User is now ${newRole}.`,
+            user: {
+                _id: user._id,
+                fullName: user.fullName,
+                email: user.email,
+                role: user.role,
+            },
+        });
+    } catch (error) {
+        console.error("Toggle User Role Error:", error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Internal server error.",
+        });
+    }
+};
+
 export {
     register,
     login,
@@ -904,4 +969,5 @@ export {
     matchContacts,
     requestPasswordReset,
     resetPassword,
+    toggleUserRole,
 };

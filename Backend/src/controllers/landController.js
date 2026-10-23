@@ -147,6 +147,7 @@ const createLand = async (req, res) => {
         const {
             surveyNumber,
             area,
+            areaUnit, // 🔥 FIXED: Added areaUnit to destructuring
             village,
             district,
             state,
@@ -377,6 +378,7 @@ const createLand = async (req, res) => {
             surveyNumber: surveyNumber.trim(),
             owner: req.user.id,
             area: parsedArea,
+            areaUnit: areaUnit || "sqft", // 🔥 FIXED: Added areaUnit to save
             village: village.trim(),
             district: district.trim(),
             state: state.trim(),
@@ -616,7 +618,7 @@ const getMyLands = async (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
-| Get Land By ID
+| Get Land By ID  ← ★ FIXED ★
 |--------------------------------------------------------------------------
 */
 
@@ -643,15 +645,29 @@ const getLandById = async (req, res) => {
             });
         }
 
-        const userId = req.user?.id || req.user?._id;
-        const ownerId = land.owner?._id || land.owner;
+        /* ---------------- Permission check ---------------- */
+
+        const userId = req.user?.id || req.user?._id || null;
+        const ownerId = land.owner?._id || land.owner || null;
 
         const isOwner =
-            userId &&
-            ownerId &&
-            ownerId.toString() === userId.toString();
+            userId != null &&
+            ownerId != null &&
+            ownerId.toString().trim() === userId.toString().trim();
 
-        if (!isOwner && !land.isForSale) {
+        // Allow admins to view any land regardless of listing state
+        const isAdmin =
+            req.user?.role === "admin" ||
+            req.user?.role === "Admin" ||
+            req.user?.isAdmin === true;
+
+        console.log("[getLandById] userId:", userId);
+        console.log("[getLandById] ownerId:", ownerId);
+        console.log("[getLandById] isOwner:", isOwner);
+        console.log("[getLandById] isAdmin:", isAdmin);
+        console.log("[getLandById] isForSale:", land.isForSale);
+
+        if (!isOwner && !isAdmin && !land.isForSale) {
             return res.status(403).json({
                 success: false,
                 message: "This land is not available for viewing.",
@@ -720,6 +736,7 @@ const updateLand = async (req, res) => {
         const allowedTextFields = [
             "surveyNumber",
             "area",
+            "areaUnit", // 🔥 FIXED: Added areaUnit for updates
             "village",
             "district",
             "state",
@@ -1208,4 +1225,4 @@ const toggleLandForSale = async (req, res) => {
     }
 };
 
-export { createLand, getAllLands, getMyLands, getLandById, updateLand, deleteLand, toggleLandForSale};
+export { createLand, getAllLands, getMyLands, getLandById, updateLand, deleteLand, toggleLandForSale };

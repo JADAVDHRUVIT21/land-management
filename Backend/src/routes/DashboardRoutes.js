@@ -8,7 +8,7 @@ import {
     getAdminCharts,
     getAdminUsers,
     getAdminUserById,
-    toggleUserRole,
+    toggleUserBlock, // 🔥 Changed from toggleUserRole
 } from "../controllers/dashboardController.js";
 
 import { verifyToken, isAdmin } from "../middlewares/authMiddleware.js";
@@ -58,12 +58,12 @@ router.get(
     getAdminUserById
 );
 
-/* Toggle a user's role (user ↔ admin) */
+/* Toggle a user's block status (Block/Unblock) */
 router.put(
-    "/admin/users/:id/toggle-role",
+    "/admin/users/:id/block", // 🔥 Updated route
     verifyToken,
     isAdmin,
-    toggleUserRole
+    toggleUserBlock // 🔥 Updated controller
 );
 
 export default router;

@@ -326,7 +326,8 @@ const MyLands = () => {
           </div>
         </header>
 
-        <main className="w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        {/* 🔥 ADDED pb-32 HERE */}
+        <main className="w-full px-4 py-6 pb-32 sm:px-6 lg:px-8 lg:py-8">
           <div className="mx-auto mb-6 flex w-full max-w-6xl items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">

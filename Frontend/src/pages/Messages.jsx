@@ -303,11 +303,6 @@ function Messages() {
 
   /* ================================================================
    *  Reset typing state when switching conversations.
-   *
-   *  We track the previous conversation ID via a ref so the effect
-   *  only runs the reset logic when the ID actually changes.
-   *  This avoids ESLint's react-hooks/exhaustive-deps warning that
-   *  fires when state setters appear inside a `useEffect` body.
    * ================================================================ */
   const prevConversationIdRef = useRef(null);
 
@@ -317,8 +312,6 @@ function Messages() {
     if (prevConversationIdRef.current === currentId) return;
     prevConversationIdRef.current = currentId;
 
-    /* Reset — using a local run function keeps the setter calls
-       inside a nested scope, which ESLint accepts cleanly. */
     const reset = () => {
       setOtherUserTyping(false);
       typingSentRef.current = false;
@@ -961,14 +954,35 @@ function Messages() {
     : false;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <Sidebar />
+    // Fixed positioning to lock the screen and prevent double scrolling on mobile
+    <div className="fixed inset-0 bg-gray-50 dark:bg-gray-950 overflow-hidden flex flex-col">
+      
+      {/* 
+        Sidebar receives a dynamic class to hide the bottom nav on mobile 
+        when a chat is selected.
+      */}
+      <div
+        className={`shrink-0 ${selectedConversation ? "hidden lg:block" : "block"}`}
+      >
+        <Sidebar />
+      </div>
 
-      <main className="ml-0 min-h-screen lg:ml-[230px]">
-        <header className="border-b border-gray-200 bg-white px-5 py-5 sm:px-7 dark:border-gray-800 dark:bg-gray-900">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      {/* Main Container */}
+      <main
+        className={`flex-1 flex flex-col min-h-0 lg:ml-[230px] transition-all duration-300 ${
+          selectedConversation ? "mt-0 lg:mt-0" : "mt-16 lg:mt-0"
+        }`}
+      >
+        
+        {/* HEADER (Hidden on mobile only when chat is open) */}
+        <header
+          className={`shrink-0 border-gray-200 bg-white px-5 py-4 sm:px-7 dark:border-gray-800 dark:bg-gray-950 ${
+            selectedConversation ? "hidden lg:block" : "block"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-4 sm:px-10 max-w-full">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
                 Messages
               </h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -980,7 +994,7 @@ function Messages() {
               type="button"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
               <FiRefreshCw
                 size={16}
@@ -991,148 +1005,152 @@ function Messages() {
           </div>
         </header>
 
-        <div className="p-5 sm:p-7">
+        {/* Chat Container Layout */}
+        <div className="flex-1 min-h-0 flex flex-col p-0 sm:p-4">
           {error && (
-            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
+            <div className="mx-2 mb-2 sm:mb-4 shrink-0 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
               {error}
             </div>
           )}
 
-          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:grid lg:h-[calc(100vh-12rem)] lg:min-h-[600px] lg:grid-cols-[320px_1fr] dark:border-gray-800 dark:bg-gray-900">
+          {/* Main Chat Box */}
+          <div className="flex-1 min-h-0 overflow-hidden bg-white shadow-sm sm:rounded-2xl border-t sm:border border-gray-200 dark:border-gray-800 dark:bg-gray-900 flex flex-col lg:grid lg:grid-cols-[320px_1fr]">
+            
+            {/* Sidebar List */}
             <aside
-              className={`border-gray-200 lg:border-b-0 lg:border-r dark:border-gray-800 ${
-                selectedConversation ? "hidden lg:block" : "block"
+              className={`min-h-0 border-gray-200 lg:border-r dark:border-gray-800 flex flex-col ${
+                selectedConversation ? "hidden lg:flex" : "flex"
               }`}
             >
-              <div className="flex h-full flex-col">
-                <div className="border-b border-gray-200 p-4 dark:border-gray-800">
-                  <div className="relative">
-                    <FiSearch
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
-                      size={18}
-                    />
-                    <input
-                      type="text"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search conversations..."
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900 dark:focus:ring-green-900/40"
+              <div className="border-b border-gray-200 p-2 sm:p-4 dark:border-gray-800 shrink-0">
+                <div className="relative">
+                  <FiSearch
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                    size={18}
+                  />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search conversations..."
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-xs sm:py-3 sm:pl-10 sm:pr-4 sm:text-sm outline-none transition focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900 dark:focus:ring-green-900/40"
+                  />
+                </div>
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                {loading ? (
+                  <div className="flex min-h-[250px] items-center justify-center">
+                    <FiLoader
+                      className="animate-spin text-green-600 dark:text-green-400"
+                      size={24}
                     />
                   </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto">
-                  {loading ? (
-                    <div className="flex min-h-[250px] items-center justify-center">
-                      <FiLoader
-                        className="animate-spin text-green-600 dark:text-green-400"
-                        size={24}
-                      />
-                    </div>
-                  ) : filteredConversations.length === 0 ? (
-                    <div className="flex min-h-[300px] items-center justify-center p-6">
-                      <div className="text-center">
-                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-400">
-                          <FiMessageCircle size={25} />
-                        </div>
-                        <h2 className="mt-4 text-sm font-semibold text-gray-900 dark:text-white">
-                          No conversations yet
-                        </h2>
-                        <p className="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                          Your conversations with land owners will appear here.
-                        </p>
+                ) : filteredConversations.length === 0 ? (
+                  <div className="flex min-h-[240px] items-center justify-center p-3 sm:min-h-[300px] sm:p-6">
+                    <div className="text-center">
+                      <div className="mx-auto flex h-11 w-11 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-400">
+                        <FiMessageCircle size={25} />
                       </div>
+                      <h2 className="mt-2 sm:mt-4 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+                        No conversations yet
+                      </h2>
+                      <p className="mt-1 sm:mt-1 sm:mt-2 text-[10px] sm:text-[11px] sm:text-xs leading-4 sm:leading-5 text-gray-500 dark:text-gray-400">
+                        Your conversations with land owners will appear here.
+                      </p>
                     </div>
-                  ) : (
-                    filteredConversations.map((conversation) => {
-                      const user = conversation.user;
-                      const isSelected =
-                        selectedConversation?.id === conversation.id;
-                      const hasUnread = (conversation.unreadCount || 0) > 0;
-                      const isOnline = onlineUserIds.includes(idStr(user));
+                  </div>
+                ) : (
+                  filteredConversations.map((conversation) => {
+                    const user = conversation.user;
+                    const isSelected =
+                      selectedConversation?.id === conversation.id;
+                    const hasUnread = (conversation.unreadCount || 0) > 0;
+                    const isOnline = onlineUserIds.includes(idStr(user));
 
-                      return (
-                        <button
-                          key={conversation.id}
-                          type="button"
-                          onClick={() => handleSelectConversation(conversation)}
-                          className={`flex w-full gap-3 border-b border-gray-100 p-4 text-left transition dark:border-gray-800 ${
-                            isSelected
-                              ? "bg-green-50 dark:bg-green-900/30"
-                              : "bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-800"
-                          }`}
-                        >
-                          <div className="relative shrink-0">
-                            <Avatar user={user} size="sm" />
+                    return (
+                      <button
+                        key={conversation.id}
+                        type="button"
+                        onClick={() => handleSelectConversation(conversation)}
+                        className={`flex w-full gap-2 sm:gap-3 border-b border-gray-100 p-2.5 sm:p-4 text-left transition dark:border-gray-800 ${
+                          isSelected
+                            ? "bg-green-50 dark:bg-green-900/30"
+                            : "bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-800"
+                        }`}
+                      >
+                        <div className="relative shrink-0">
+                          <Avatar user={user} size="sm" />
 
-                            {isOnline && (
-                              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500 dark:border-gray-900" />
+                          {isOnline && (
+                            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500 dark:border-gray-900" />
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3
+                              className={`truncate text-xs sm:text-sm ${
+                                hasUnread
+                                  ? "font-bold text-gray-900 dark:text-white"
+                                  : "font-semibold text-gray-900 dark:text-white"
+                              }`}
+                            >
+                              {user?.fullName || "User"}
+                            </h3>
+
+                            {conversation.updatedAt && (
+                              <span className="shrink-0 text-[10px] text-gray-400 dark:text-gray-500">
+                                {new Date(
+                                  conversation.updatedAt,
+                                ).toLocaleDateString()}
+                              </span>
                             )}
                           </div>
 
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <h3
-                                className={`truncate text-sm ${
-                                  hasUnread
-                                    ? "font-bold text-gray-900 dark:text-white"
-                                    : "font-semibold text-gray-900 dark:text-white"
-                                }`}
-                              >
-                                {user?.fullName || "User"}
-                              </h3>
+                          <p className="mt-0.5 sm:mt-1 flex items-center gap-1 truncate text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
+                            <FiPhone size={11} />
+                            {user?.phone || "No phone"}
+                          </p>
 
-                              {conversation.updatedAt && (
-                                <span className="shrink-0 text-[10px] text-gray-400 dark:text-gray-500">
-                                  {new Date(
-                                    conversation.updatedAt,
-                                  ).toLocaleDateString()}
-                                </span>
-                              )}
-                            </div>
+                          <p
+                            className={`mt-0.5 sm:mt-1 truncate text-[11px] sm:text-xs ${
+                              hasUnread
+                                ? "font-semibold text-gray-700 dark:text-gray-200"
+                                : "text-gray-400 dark:text-gray-500"
+                            }`}
+                          >
+                            {conversation.lastMessage?.message ||
+                              "Start conversation"}
+                          </p>
+                        </div>
 
-                            <p className="mt-1 flex items-center gap-1 truncate text-xs text-gray-500 dark:text-gray-400">
-                              <FiPhone size={11} />
-                              {user?.phone || "No phone"}
-                            </p>
-
-                            <p
-                              className={`mt-1 truncate text-xs ${
-                                hasUnread
-                                  ? "font-semibold text-gray-700 dark:text-gray-200"
-                                  : "text-gray-400 dark:text-gray-500"
-                              }`}
-                            >
-                              {conversation.lastMessage?.message ||
-                                "Start conversation"}
-                            </p>
-                          </div>
-
-                          {hasUnread && (
-                            <span className="ml-1 flex h-5 min-w-[20px] shrink-0 items-center justify-center self-center rounded-full bg-green-600 px-1.5 text-[11px] font-bold text-white">
-                              {conversation.unreadCount}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
+                        {hasUnread && (
+                          <span className="ml-1 flex h-5 min-w-[20px] shrink-0 items-center justify-center self-center rounded-full bg-green-600 px-1.5 text-[11px] font-bold text-white">
+                            {conversation.unreadCount}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </aside>
 
+            {/* Main Chat Area */}
             <section
-              className={`flex h-full min-h-0 flex-col ${
+              className={`min-h-0 h-full flex-col ${
                 selectedConversation ? "flex" : "hidden lg:flex"
               }`}
             >
               {selectedConversation ? (
                 <>
-                  <div className="flex shrink-0 items-center gap-3 border-b border-gray-200 px-5 py-4 dark:border-gray-800">
+                  {/* Chat Header */}
+                  <div className="flex shrink-0 items-center gap-3 border-b border-gray-200 px-2 py-2.5 sm:px-5 sm:py-4 dark:border-gray-800">
                     <button
                       type="button"
                       onClick={handleBackToList}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 lg:hidden dark:text-gray-300 dark:hover:bg-gray-800"
+                      className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 lg:hidden dark:text-gray-300 dark:hover:bg-gray-800"
                       aria-label="Back to conversations"
                     >
                       <FiArrowLeft size={20} />
@@ -1178,21 +1196,21 @@ function Messages() {
                       <button
                         type="button"
                         onClick={() => setMenuOpen((prev) => !prev)}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                        className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                         aria-label="More options"
                       >
                         <FiMoreVertical size={20} />
                       </button>
 
                       {menuOpen && (
-                        <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                        <div className="absolute right-0 top-full z-50 mt-1.5 sm:mt-2 w-52 sm:w-56 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
                           <button
                             type="button"
                             onClick={() => {
                               setMenuOpen(false);
                               setConfirm({ type: "chat", loading: false });
                             }}
-                            className="flex w-full items-center gap-2 border-b border-gray-100 px-4 py-3 text-left text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-gray-700 dark:text-red-400 dark:hover:bg-red-900/30"
+                            className="flex w-full items-center gap-2 border-b border-gray-100 px-3 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-gray-700 dark:text-red-400 dark:hover:bg-red-900/30"
                           >
                             <FiTrash2 size={16} />
                             Delete this chat
@@ -1204,7 +1222,7 @@ function Messages() {
                               setMenuOpen(false);
                               setConfirm({ type: "all", loading: false });
                             }}
-                            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+                            className="flex w-full items-center gap-2 px-3 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
                           >
                             <FiAlertCircle size={16} />
                             Clear all conversations
@@ -1214,86 +1232,90 @@ function Messages() {
                     </div>
                   </div>
 
-                  <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-5 dark:bg-gray-950">
-                    {messagesLoading ? (
-                      <div className="flex h-full items-center justify-center">
-                        <FiLoader
-                          className="animate-spin text-green-600 dark:text-green-400"
-                          size={25}
-                        />
-                      </div>
-                    ) : messages.length === 0 ? (
-                      <div className="flex h-full items-center justify-center">
-                        <div className="max-w-sm text-center">
-                          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-400">
-                            <FiMessageCircle size={28} />
-                          </div>
-                          <h2 className="mt-4 text-base font-semibold text-gray-900 dark:text-white">
-                            Start a conversation
-                          </h2>
-                          <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
-                            Send your first message to{" "}
-                            {selectedUser?.fullName || "this user"}.
-                          </p>
+                  {/* Messages Area */}
+                  <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50 p-2.5 sm:p-5 dark:bg-gray-950">
+                    <div className="space-y-3 sm:space-y-4">
+                      {messagesLoading ? (
+                        <div className="flex h-full items-center justify-center min-h-[200px]">
+                          <FiLoader
+                            className="animate-spin text-green-600 dark:text-green-400"
+                            size={25}
+                          />
                         </div>
-                      </div>
-                    ) : (
-                      messages.map((message) => {
-                        const senderId = idStr(message.sender);
-                        const isMine = senderId === currentUserId;
+                      ) : messages.length === 0 ? (
+                        <div className="flex h-full items-center justify-center min-h-[200px]">
+                          <div className="max-w-sm text-center">
+                            <div className="mx-auto flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-400">
+                              <FiMessageCircle size={28} />
+                            </div>
+                            <h2 className="mt-2 sm:mt-4 text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
+                              Start a conversation
+                            </h2>
+                            <p className="mt-1 sm:mt-2 text-xs sm:text-sm leading-5 sm:leading-6 text-gray-500 dark:text-gray-400">
+                              Send your first message to{" "}
+                              {selectedUser?.fullName || "this user"}.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        messages.map((message) => {
+                          const senderId = idStr(message.sender);
+                          const isMine = senderId === currentUserId;
 
-                        return (
-                          <div
-                            key={message._id}
-                            className={`flex ${
-                              isMine ? "justify-end" : "justify-start"
-                            }`}
-                          >
+                          return (
                             <div
-                              className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-sm ${
-                                isMine
-                                  ? "rounded-br-md bg-green-600 text-white"
-                                  : "rounded-bl-md border border-gray-200 bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                              key={message._id}
+                              className={`flex ${
+                                isMine ? "justify-end" : "justify-start"
                               }`}
                             >
-                              <p className="whitespace-pre-wrap break-words text-sm leading-6">
-                                {message.message}
-                              </p>
                               <div
-                                className={`mt-1 flex items-center gap-1 text-[10px] ${
+                                className={`max-w-[88%] sm:max-w-[80%] rounded-xl sm:rounded-2xl px-3 py-2 sm:px-4 sm:py-3 shadow-sm ${
                                   isMine
-                                    ? "text-green-100"
-                                    : "text-gray-400 dark:text-gray-500"
-                                } ${isMine ? "justify-end" : ""}`}
+                                    ? "rounded-br-md bg-green-600 text-white"
+                                    : "rounded-bl-md border border-gray-200 bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                                }`}
                               >
-                                <span>
-                                  {message.createdAt
-                                    ? new Date(
-                                        message.createdAt,
-                                      ).toLocaleString()
-                                    : ""}
-                                </span>
-                                {isMine && <MessageTicks message={message} />}
+                                <p className="whitespace-pre-wrap break-words text-xs sm:text-sm leading-5 sm:leading-6">
+                                  {message.message}
+                                </p>
+                                <div
+                                  className={`mt-1 flex items-center gap-1 text-[9px] sm:text-[10px] ${
+                                    isMine
+                                      ? "text-green-100"
+                                      : "text-gray-400 dark:text-gray-500"
+                                  } ${isMine ? "justify-end" : ""}`}
+                                >
+                                  <span>
+                                    {message.createdAt
+                                      ? new Date(
+                                          message.createdAt,
+                                        ).toLocaleString()
+                                      : ""}
+                                  </span>
+                                  {isMine && <MessageTicks message={message} />}
+                                </div>
                               </div>
                             </div>
+                          );
+                        })
+                      )}
+
+                      {otherUserTyping && (
+                        <div className="flex justify-start">
+                          <div className="max-w-[88%] sm:max-w-[80%] rounded-xl sm:rounded-2xl rounded-bl-md border border-gray-200 bg-white px-3 py-2 sm:px-4 sm:py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                            <TypingDots className="text-gray-400 dark:text-gray-500" />
                           </div>
-                        );
-                      })
-                    )}
-
-                    {otherUserTyping && (
-                      <div className="flex justify-start">
-                        <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                          <TypingDots className="text-gray-400 dark:text-gray-500" />
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    <div ref={messagesEndRef} />
+                      <div ref={messagesEndRef} />
+                    </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-                    <div className="flex items-end gap-3">
+                  {/* Input Area */}
+                  <div className="shrink-0 border-t border-gray-200 bg-white p-2 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
+                    <div className="flex items-end gap-2 sm:gap-3">
                       <textarea
                         ref={textareaRef}
                         value={messageText}
@@ -1308,13 +1330,13 @@ function Messages() {
                         rows={1}
                         placeholder="Type a message..."
                         disabled={sending}
-                        className="min-h-[48px] flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900 dark:focus:ring-green-900/40"
+                        className="min-h-[48px] flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm outline-none transition focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900 dark:focus:ring-green-900/40"
                       />
                       <button
                         type="button"
                         onClick={handleSendMessage}
                         disabled={sending || !messageText.trim()}
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-600 text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-gray-700"
+                        className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-green-600 text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-gray-700"
                       >
                         {sending ? (
                           <FiLoader className="animate-spin" size={18} />
@@ -1323,41 +1345,25 @@ function Messages() {
                         )}
                       </button>
                     </div>
-                    <p className="mt-2 text-[11px] text-gray-400 dark:text-gray-500">
+                    <p className="mt-1 sm:mt-2 text-[10px] sm:text-[11px] text-gray-400 dark:text-gray-500">
                       Press Enter to send · Shift + Enter for a new line
                     </p>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="flex flex-1 items-center justify-center p-6">
+                  <div className="flex flex-1 items-center justify-center p-3 sm:p-6 h-full">
                     <div className="max-w-sm text-center">
-                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-400">
+                      <div className="mx-auto flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-400">
                         <FiMessageCircle size={28} />
                       </div>
-                      <h2 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
+                      <h2 className="mt-2 sm:mt-4 text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                         Your Messages
                       </h2>
-                      <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                      <p className="mt-1 sm:mt-2 text-xs sm:text-sm leading-5 sm:leading-6 text-gray-500 dark:text-gray-400">
                         Select a conversation from the left to view messages and
                         start chatting.
                       </p>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-                    <div className="flex items-center gap-3">
-                      <input
-                        disabled
-                        placeholder="Select a conversation first..."
-                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-400 outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500"
-                      />
-                      <button
-                        disabled
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500"
-                      >
-                        <FiSend size={18} />
-                      </button>
                     </div>
                   </div>
                 </>

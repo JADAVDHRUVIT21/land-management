@@ -14,8 +14,8 @@ import {
   FiMap,
   FiMessageSquare,
   FiHome,
-  FiUserCheck,
-  FiUserX,
+  FiSlash,
+  FiUnlock,
   FiTrash2,
 } from "react-icons/fi";
 
@@ -68,8 +68,8 @@ const Toast = ({ message, type = "success", onClose }) => {
 
   const styles =
     type === "error"
-      ? "border-red-200 bg-red-50 text-red-700"
-      : "border-green-200 bg-green-50 text-green-700";
+      ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-900/30 dark:text-red-400"
+      : "border-green-200 bg-green-50 text-green-700 dark:border-green-900/50 dark:bg-green-900/30 dark:text-green-400";
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-4 z-[10000] flex justify-center px-4">
@@ -105,12 +105,13 @@ const ConfirmDialog = ({
 
   const variants = {
     green: {
-      circleBg: "bg-green-50 text-green-600",
-      btn: "bg-green-600 hover:bg-green-700",
+      circleBg:
+        "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400",
+      btn: "bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-500",
     },
     red: {
-      circleBg: "bg-red-50 text-red-600",
-      btn: "bg-red-500 hover:bg-red-600",
+      circleBg: "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+      btn: "bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-500",
     },
   };
 
@@ -122,7 +123,7 @@ const ConfirmDialog = ({
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl"
+        className="w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-gray-900 dark:border dark:border-gray-800"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 pt-6 text-center">
@@ -131,16 +132,20 @@ const ConfirmDialog = ({
           >
             <Icon size={26} />
           </div>
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">{title}</h3>
-          <p className="mt-2 text-sm leading-6 text-gray-500">{message}</p>
+          <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
+            {title}
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
+            {message}
+          </p>
         </div>
 
-        <div className="mt-6 flex gap-2 border-t border-gray-100 p-3">
+        <div className="mt-6 flex gap-2 border-t border-gray-100 p-3 dark:border-gray-800">
           <button
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="h-11 flex-1 rounded-2xl bg-gray-100 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 disabled:opacity-60"
+            className="h-11 flex-1 rounded-2xl bg-gray-100 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 disabled:opacity-60 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
           >
             Cancel
           </button>
@@ -215,22 +220,22 @@ function UserDetail() {
     };
   }, [id]);
 
-  /* Toggle role */
-  const performToggleRole = async () => {
+  /* 🔥 Toggle Block/Unblock */
+  const performToggleBlock = async () => {
     try {
       setActionLoading(true);
 
-      const res = await api.put(`/dashboard/admin/users/${id}/toggle-role`);
+      const res = await api.put(`/dashboard/admin/users/${id}/block`);
 
-      const newRole = res.data?.user?.role;
-      setUser((u) => (u ? { ...u, role: newRole } : u));
+      const newStatus = res.data?.user?.isBlocked;
+      setUser((u) => (u ? { ...u, isBlocked: newStatus } : u));
 
-      showToast(`User is now ${newRole}.`, "success");
+      showToast(`User is now ${newStatus ? "Blocked" : "Active"}.`, "success");
       setConfirm(null);
     } catch (err) {
-      console.error("Toggle role error:", err);
+      console.error("Toggle block error:", err);
       showToast(
-        err.response?.data?.message || "Failed to update role.",
+        err.response?.data?.message || "Failed to update user status.",
         "error",
       );
     } finally {
@@ -264,13 +269,13 @@ function UserDetail() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="h-8 w-40 animate-pulse rounded-lg bg-gray-200" />
-        <div className="h-48 animate-pulse rounded-2xl border border-gray-200 bg-white" />
+        <div className="h-8 w-40 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-800" />
+        <div className="h-48 animate-pulse rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900" />
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-28 animate-pulse rounded-2xl border border-gray-200 bg-white"
+              className="h-28 animate-pulse rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
             />
           ))}
         </div>
@@ -285,20 +290,20 @@ function UserDetail() {
         <button
           type="button"
           onClick={() => navigate("/users")}
-          className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-green-600"
+          className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-green-600 dark:text-gray-400 dark:hover:text-green-500"
         >
           <FiArrowLeft size={16} />
           Back to Users
         </button>
 
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-800 dark:bg-red-900/30">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400">
             <FiAlertCircle size={26} />
           </div>
-          <h2 className="mt-4 text-lg font-semibold text-red-900">
+          <h2 className="mt-4 text-lg font-semibold text-red-900 dark:text-red-300">
             Unable to load user
           </h2>
-          <p className="mt-2 text-sm text-red-700">
+          <p className="mt-2 text-sm text-red-700 dark:text-red-400">
             {error || "User details could not be found."}
           </p>
         </div>
@@ -307,6 +312,7 @@ function UserDetail() {
   }
 
   const isAdmin = user.role === "admin";
+  const isBlocked = user.isBlocked;
 
   return (
     <div className="space-y-6">
@@ -314,43 +320,44 @@ function UserDetail() {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <Link
           to="/users"
-          className="inline-flex w-fit items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-green-600"
+          className="inline-flex w-fit items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-green-600 dark:text-gray-400 dark:hover:text-green-500"
         >
           <FiArrowLeft size={16} />
           Back to Users
         </Link>
 
         <div className="flex items-center gap-2">
+          {/* 🔥 BLOCK / UNBLOCK BUTTON */}
           <button
             type="button"
             onClick={() =>
               setConfirm({
-                type: "role",
-                variant: isAdmin ? "red" : "green",
-                icon: isAdmin ? FiUserX : FiUserCheck,
-                title: isAdmin ? "Demote this user?" : "Promote to admin?",
-                message: isAdmin
-                  ? `"${user.fullName}" will lose admin access and become a regular user.`
-                  : `"${user.fullName}" will gain full admin access to the platform.`,
-                confirmLabel: isAdmin ? "Yes, Demote" : "Yes, Promote",
-                onConfirm: performToggleRole,
+                type: "block",
+                variant: isBlocked ? "green" : "red",
+                icon: isBlocked ? FiUnlock : FiSlash,
+                title: isBlocked ? "Unblock this user?" : "Block this user?",
+                message: isBlocked
+                  ? `"${user.fullName}" will be able to log in and use the app again.`
+                  : `"${user.fullName}" will be blocked and unable to log in.`,
+                confirmLabel: isBlocked ? "Yes, Unblock" : "Yes, Block",
+                onConfirm: performToggleBlock,
               })
             }
             className={`inline-flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold shadow-sm transition ${
-              isAdmin
-                ? "border border-red-100 bg-red-50 text-red-600 hover:bg-red-100"
-                : "border border-green-100 bg-green-50 text-green-700 hover:bg-green-100"
+              isBlocked
+                ? "border border-green-100 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-900/30 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40"
+                : "border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
             }`}
           >
-            {isAdmin ? (
+            {isBlocked ? (
               <>
-                <FiUserX size={15} />
-                Demote to User
+                <FiUnlock size={15} />
+                Unblock User
               </>
             ) : (
               <>
-                <FiUserCheck size={15} />
-                Promote to Admin
+                <FiSlash size={15} />
+                Block User
               </>
             )}
           </button>
@@ -368,7 +375,7 @@ function UserDetail() {
                 onConfirm: performDelete,
               })
             }
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600"
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-500"
           >
             <FiTrash2 size={15} />
             Delete User
@@ -377,7 +384,7 @@ function UserDetail() {
       </div>
 
       {/* Profile card */}
-      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <div className="h-28 bg-gradient-to-r from-green-600 via-green-500 to-emerald-500" />
 
         <div className="px-6 pb-6 sm:px-8">
@@ -387,41 +394,52 @@ function UserDetail() {
                 <img
                   src={user.avatar}
                   alt={user.fullName}
-                  className="h-24 w-24 shrink-0 rounded-2xl border-4 border-white object-cover shadow-md sm:h-28 sm:w-28"
+                  className="h-24 w-24 shrink-0 rounded-2xl border-4 border-white object-cover shadow-md sm:h-28 sm:w-28 dark:border-gray-900"
                 />
               ) : (
-                <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl border-4 border-white bg-green-100 text-2xl font-bold text-green-700 shadow-md sm:h-28 sm:w-28 sm:text-3xl">
+                <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl border-4 border-white bg-green-100 text-2xl font-bold text-green-700 shadow-md sm:h-28 sm:w-28 sm:text-3xl dark:border-gray-900 dark:bg-green-900/40 dark:text-green-400">
                   {getInitials(user.fullName)}
                 </div>
               )}
 
               <div className="pb-1">
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                   {user.fullName || "Unnamed User"}
                 </h1>
-                <p className="mt-1 text-sm text-gray-500">{user.email}</p>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {user.email}
+                </p>
               </div>
             </div>
 
-            <span
-              className={`inline-flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${
-                isAdmin
-                  ? "bg-purple-50 text-purple-700"
-                  : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              {isAdmin ? (
-                <>
-                  <FiShield size={16} />
-                  Administrator
-                </>
-              ) : (
-                <>
-                  <FiUser size={16} />
-                  Regular User
-                </>
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${
+                  isAdmin
+                    ? "bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                    : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                }`}
+              >
+                {isAdmin ? (
+                  <>
+                    <FiShield size={16} />
+                    Administrator
+                  </>
+                ) : (
+                  <>
+                    <FiUser size={16} />
+                    Regular User
+                  </>
+                )}
+              </span>
+
+              {isBlocked && (
+                <span className="inline-flex w-fit items-center gap-2 rounded-full bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                  <FiSlash size={16} />
+                  Blocked
+                </span>
               )}
-            </span>
+            </div>
           </div>
         </div>
       </section>
@@ -430,30 +448,30 @@ function UserDetail() {
       <section className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <StatTile
           icon={<FiMap size={20} />}
-          iconClass="bg-green-50 text-green-600"
+          iconClass="bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400"
           label="Total Lands"
           value={stats?.lands ?? 0}
         />
         <StatTile
           icon={<FiHome size={20} />}
-          iconClass="bg-blue-50 text-blue-600"
+          iconClass="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
           label="Listed Lands"
           value={stats?.listed ?? 0}
         />
         <StatTile
           icon={<FiMessageSquare size={20} />}
-          iconClass="bg-purple-50 text-purple-600"
+          iconClass="bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
           label="Messages"
           value={stats?.messages ?? 0}
         />
       </section>
 
       {/* Info grid */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900">
+      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
           Account Information
         </h2>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Full details for this user's account
         </p>
 
@@ -524,15 +542,17 @@ function UserDetail() {
 /* ================================================================== */
 
 const StatTile = ({ icon, iconClass, label, value }) => (
-  <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+  <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
     <div
       className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${iconClass}`}
     >
       {icon}
     </div>
     <div>
-      <p className="text-xs font-medium text-gray-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-gray-900">
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+        {label}
+      </p>
+      <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
         {Number(value).toLocaleString("en-IN")}
       </p>
     </div>
@@ -540,12 +560,12 @@ const StatTile = ({ icon, iconClass, label, value }) => (
 );
 
 const InfoRow = ({ icon, label, value }) => (
-  <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-    <p className="flex items-center gap-1.5 text-xs font-medium text-gray-400">
+  <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
+    <p className="flex items-center gap-1.5 text-xs font-medium text-gray-400 dark:text-gray-500">
       {icon}
       {label}
     </p>
-    <p className="mt-1.5 break-words text-sm font-medium text-gray-900">
+    <p className="mt-1.5 break-words text-sm font-medium text-gray-900 dark:text-white">
       {value}
     </p>
   </div>

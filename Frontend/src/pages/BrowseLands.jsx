@@ -33,6 +33,10 @@ function BrowseLands() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Property Type Filter
+  const [typeFilter, setTypeFilter] = useState("All");
+
+  // Listing Filter
   const [listingFilter, setListingFilter] = useState("all");
 
   /* Fetch lands */
@@ -117,7 +121,14 @@ function BrowseLands() {
     setSearchQuery("");
   };
 
+  /* Filter Logic */
   const filteredLands = lands.filter((land) => {
+    if (typeFilter !== "All") {
+      if (land.landType?.toLowerCase() !== typeFilter.toLowerCase()) {
+        return false;
+      }
+    }
+
     if (listingFilter === "For Sale" && isRentListing(land)) return false;
     if (listingFilter === "For Rent" && !isRentListing(land)) return false;
 
@@ -140,20 +151,11 @@ function BrowseLands() {
   });
 
   const getImage = (land) => {
-    if (!land?.image || !Array.isArray(land.image)) {
-      return null;
-    }
-
-    if (land.image.length === 0) {
-      return null;
-    }
+    if (!land?.image || !Array.isArray(land.image)) return null;
+    if (land.image.length === 0) return null;
 
     const firstImage = land.image[0];
-
-    if (typeof firstImage === "string") {
-      return firstImage;
-    }
-
+    if (typeof firstImage === "string") return firstImage;
     return firstImage?.url || null;
   };
 
@@ -161,25 +163,25 @@ function BrowseLands() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Sidebar />
 
-      <main className="ml-0 min-h-screen lg:ml-[230px]">
-        {/* Header */}
-        <header className="border-b border-gray-200 bg-white px-5 py-5 sm:px-7 dark:border-gray-800 dark:bg-gray-900">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mt-16 sm:mt-0">
+      <main className="ml-0 min-h-screen lg:ml-[230px] ">
+        {/* 🔥 FIXED HEADER: Removed sticky, added flex-row for mobile */}
+        <header className="mt-16  border-gray-200 bg-white  py-4 sm:px-7 lg:mt-0 dark:border-gray-800 dark:bg-gray-950">
+          <div className="flex items-center justify-between gap-4 px-0 sm:px-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
                 Browse Lands
               </h1>
-
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Find lands available for sale or rent
               </p>
             </div>
 
+            {/* Refresh Button aligned to the right */}
             <button
               type="button"
               onClick={handleRefresh}
               disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:border-green-200 hover:bg-green-50 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-green-700 dark:hover:bg-green-900/30 dark:hover:text-green-400"
+              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
               <FiRefreshCw
                 size={16}
@@ -190,7 +192,8 @@ function BrowseLands() {
           </div>
         </header>
 
-        <div className="p-5 sm:p-7">
+        {/* Main Content Wrapper with bottom padding */}
+        <div className="p-5 pb-32 sm:p-12">
           {/* SEARCH BOX */}
           <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -205,9 +208,7 @@ function BrowseLands() {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      handleFind();
-                    }
+                    if (event.key === "Enter") handleFind();
                   }}
                   placeholder="Search survey number, village, district..."
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900 dark:focus:ring-green-900/40"
@@ -236,7 +237,28 @@ function BrowseLands() {
             </div>
           </div>
 
-          {/* FILTER TABS */}
+          {/* PROPERTY TYPE FILTER TABS */}
+          <div className="mb-3 flex flex-wrap gap-2">
+            {["All", "House", "Flat", "Hostel", "Land"].map((type) => {
+              const active = typeFilter === type;
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setTypeFilter(type)}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                    active
+                      ? "bg-green-600 text-white shadow-sm"
+                      : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  {type}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* LISTING TYPE FILTER TABS */}
           <div className="mb-6 flex flex-wrap gap-2">
             {[
               { value: "all", label: "All" },
@@ -266,7 +288,6 @@ function BrowseLands() {
             <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
               <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
                 <FiRefreshCw size={20} className="animate-spin" />
-
                 <span className="text-sm">Loading available lands...</span>
               </div>
             </div>
@@ -278,7 +299,6 @@ function BrowseLands() {
               <p className="text-sm font-medium text-red-700 dark:text-red-300">
                 {error}
               </p>
-
               <button
                 type="button"
                 onClick={handleRefresh}
@@ -298,23 +318,22 @@ function BrowseLands() {
                   className="text-green-500 dark:text-green-400"
                 />
               </div>
-
               <h2 className="mt-5 text-lg font-semibold text-gray-900 dark:text-white">
                 {searchQuery
                   ? "No matching lands found"
-                  : listingFilter === "For Rent"
-                    ? "No lands available for rent"
-                    : listingFilter === "For Sale"
-                      ? "No lands available for sale"
-                      : "No lands available"}
+                  : typeFilter !== "All"
+                    ? `No ${typeFilter.toLowerCase()}s available`
+                    : listingFilter === "For Rent"
+                      ? "No lands available for rent"
+                      : listingFilter === "For Sale"
+                        ? "No lands available for sale"
+                        : "No lands available"}
               </h2>
-
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {searchQuery
                   ? `No available land matches "${searchQuery}".`
                   : "Try a different filter or check back later."}
               </p>
-
               {searchQuery && (
                 <button
                   type="button"
@@ -330,7 +349,6 @@ function BrowseLands() {
           {/* Results */}
           {!loading && !error && filteredLands.length > 0 && (
             <>
-              {/* Result Count */}
               <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   <span className="font-semibold text-gray-900 dark:text-white">
@@ -350,7 +368,6 @@ function BrowseLands() {
                 )}
               </div>
 
-              {/* Land Cards */}
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
                 {filteredLands.map((land) => {
                   const image = getImage(land);
@@ -361,7 +378,6 @@ function BrowseLands() {
                       key={land._id}
                       className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-green-200 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900 dark:hover:border-green-700 dark:hover:shadow-lg"
                     >
-                      {/* Image */}
                       <div className="relative h-52 bg-gray-100 dark:bg-gray-800">
                         {image ? (
                           <img
@@ -374,8 +390,6 @@ function BrowseLands() {
                             <FiMapPin size={38} />
                           </div>
                         )}
-
-                        {/* Dynamic badge */}
                         <span
                           className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold text-white shadow-sm ${
                             rentMode ? "bg-blue-600" : "bg-green-600"
@@ -383,8 +397,6 @@ function BrowseLands() {
                         >
                           {rentMode ? "For Rent" : "For Sale"}
                         </span>
-
-                        {/* Image Count */}
                         {Array.isArray(land.image) && land.image.length > 0 && (
                           <span className="absolute bottom-3 right-3 rounded-lg bg-white/90 px-2.5 py-1 text-xs font-semibold text-gray-700 shadow-sm dark:bg-gray-900/90 dark:text-gray-200">
                             {land.image.length} image
@@ -393,49 +405,40 @@ function BrowseLands() {
                         )}
                       </div>
 
-                      {/* Content */}
                       <div className="p-5">
-                        {/* Title and Type */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <h2 className="truncate text-base font-semibold text-gray-900 dark:text-white">
                               Survey No. {land.surveyNumber}
                             </h2>
-
                             <div className="mt-2 flex items-start gap-1.5 text-sm text-gray-500 dark:text-gray-400">
                               <FiMapPin
                                 size={14}
                                 className="mt-0.5 shrink-0 text-green-600 dark:text-green-400"
                               />
-
                               <span className="line-clamp-2">
                                 {land.village}, {land.district}, {land.state}
                               </span>
                             </div>
                           </div>
-
                           <span className="shrink-0 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
                             {land.landType}
                           </span>
                         </div>
 
-                        {/* Area and Price */}
                         <div className="mt-5 grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3 dark:bg-gray-800">
                           <div>
                             <p className="text-xs text-gray-400 dark:text-gray-500">
                               Area
                             </p>
-
                             <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
                               {land.area} {land.areaUnit || "sqft"}
                             </p>
                           </div>
-
                           <div>
                             <p className="text-xs text-gray-400 dark:text-gray-500">
                               {rentMode ? "Rent" : "Price"}
                             </p>
-
                             <p className="mt-1 text-sm font-semibold text-green-700 dark:text-green-400">
                               ₹{Number(land.price || 0).toLocaleString("en-IN")}
                               {rentMode && rentPeriodSuffix(land.rentPeriod)}
@@ -443,15 +446,12 @@ function BrowseLands() {
                           </div>
                         </div>
 
-                        {/* View Button */}
                         <Link
                           to={`/lands/${land._id}`}
                           className="group mt-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-green-600 bg-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-green-700 hover:shadow-md active:scale-[0.98]"
                         >
                           <FiEye size={17} className="shrink-0" />
-
                           <span>View Details</span>
-
                           <FiArrowRight
                             size={16}
                             className="shrink-0 transition-transform duration-200 group-hover:translate-x-1"

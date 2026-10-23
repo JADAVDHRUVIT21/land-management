@@ -6,7 +6,6 @@ import {
   FiDollarSign,
   FiFileText,
   FiArrowUpRight,
-  FiArrowDownRight,
   FiActivity,
   FiClock,
   FiRefreshCw,
@@ -33,8 +32,8 @@ const Toast = ({ message, type = "success", onClose }) => {
 
   const styles =
     type === "error"
-      ? "border-red-200 bg-red-50 text-red-700"
-      : "border-green-200 bg-green-50 text-green-700";
+      ? "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300"
+      : "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-300";
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-4 z-[10000] flex justify-center px-4">
@@ -100,10 +99,6 @@ function Dashboard() {
 
   /* ================================================================
    *  Initial fetch on mount.
-   *
-   *  Uses an inline async IIFE so ESLint's react-hooks/exhaustive-deps
-   *  rule doesn't flag any missing dependencies. The `cancelled` flag
-   *  prevents state updates after unmount.
    * ================================================================ */
   useEffect(() => {
     let cancelled = false;
@@ -148,8 +143,7 @@ function Dashboard() {
   }, []);
 
   /* ================================================================
-   *  Manual refresh — same fetch, but doesn't touch `loading` state,
-   *  uses `refreshing` instead so we don't blank out the page.
+   *  Manual refresh
    * ================================================================ */
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -556,27 +550,6 @@ function Dashboard() {
           </div>
         </section>
       )}
-
-      {/* ---------------- Info banner ---------------- */}
-      <section className="rounded-2xl border border-green-100 bg-green-50/70 p-5 sm:p-6 dark:border-green-800 dark:bg-green-900/20">
-        <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-green-700 shadow-sm dark:bg-gray-900 dark:text-green-400">
-            <FiArrowDownRight size={22} />
-          </div>
-
-          <div>
-            <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-              Live data is now connected
-            </h2>
-
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">
-              Your admin dashboard is now pulling real data from the backend —
-              users, lands, tickets, and messages. Use the Users page to manage
-              accounts, and refresh anytime to see the latest numbers.
-            </p>
-          </div>
-        </div>
-      </section>
 
       {/* ---------------- Toast ---------------- */}
       {toast && (
