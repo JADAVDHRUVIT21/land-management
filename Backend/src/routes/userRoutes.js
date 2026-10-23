@@ -11,7 +11,7 @@ import {
     matchContacts,
     requestPasswordReset,
     resetPassword,
-} from "../controllers/UserController.js";
+} from "../controllers/userController.js";
 
 import { verifyToken, isAdmin } from "../middlewares/authMiddleware.js";
 import upload from "../middlewares/CloudinaryUpload.js";
