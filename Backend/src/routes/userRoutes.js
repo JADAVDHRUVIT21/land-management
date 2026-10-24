@@ -14,7 +14,7 @@ import {
 } from "../controllers/userController.js";
 
 import { verifyToken, isAdmin } from "../middlewares/authMiddleware.js";
-import upload from "../middlewares/CloudinaryUpload.js";
+import upload from "../middlewares/cloudinaryUpload.js";
 
 const router = express.Router();
 
