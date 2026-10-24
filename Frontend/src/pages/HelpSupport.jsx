@@ -228,11 +228,12 @@ const FaqItem = ({ q, a }) => {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-start justify-between gap-4 py-4 text-left transition hover:bg-gray-50/50 dark:hover:bg-gray-800/50"
+        className="flex w-full items-start justify-between gap-4 rounded-lg px-3 py-4 text-left transition-colors duration-200 hover:bg-gray-50/50 dark:hover:bg-gray-800/50"
       >
         <span className="text-sm font-semibold text-gray-900 dark:text-white">
           {q}
         </span>
+
         {open ? (
           <FiChevronUp
             size={18}
@@ -245,8 +246,9 @@ const FaqItem = ({ q, a }) => {
           />
         )}
       </button>
+
       {open && (
-        <div className="pb-4 pr-8 text-sm leading-6 text-gray-600 dark:text-gray-400">
+        <div className="px-3 pb-4 pr-8 text-sm leading-6 text-gray-600 dark:text-gray-400">
           {a}
         </div>
       )}
@@ -704,7 +706,7 @@ const HelpSupport = () => {
                   <h2 className="text-base font-semibold text-gray-900 sm:text-lg dark:text-white">
                     Frequently Asked Questions
                   </h2>
-                  <p className="text-xs text-gray-500 sm:text-sm dark:text-gray-400">
+                  <p className="text-xs text-gray-500 sm:text-sm dark:text-gray-400 ">
                     {faqSearch
                       ? `${filteredFaqs.reduce((sum, c) => sum + c.items.length, 0)} result(s) for "${faqSearch}"`
                       : "Browse answers by category"}
@@ -726,7 +728,7 @@ const HelpSupport = () => {
                       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                         {cat.category}
                       </h3>
-                      <div className="rounded-2xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+                      <div className="rounded-2xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900 ">
                         {cat.items.map((item, i) => (
                           <FaqItem key={i} q={item.q} a={item.a} />
                         ))}

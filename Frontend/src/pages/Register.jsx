@@ -1,20 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  FiUser,
-  FiMail,
-  FiPhone,
-  FiLock,
   FiEye,
   FiEyeOff,
   FiLoader,
   FiAlertCircle,
-  FiArrowRight,
-  FiMapPin,
   FiCheckCircle,
   FiCheck,
   FiX,
-  FiShield,
   FiChevronDown,
 } from "react-icons/fi";
 
@@ -90,31 +83,26 @@ const getPasswordStrength = (password) => {
   if (/[^A-Za-z0-9]/.test(password)) score++;
 
   if (score <= 2)
-    return {
-      score,
-      label: "Weak",
-      color: "bg-red-500",
-      text: "text-red-600 dark:text-red-400",
-    };
+    return { score, label: "Weak", color: "bg-red-500", text: "text-red-400" };
   if (score === 3)
     return {
       score,
       label: "Fair",
       color: "bg-yellow-500",
-      text: "text-yellow-600 dark:text-yellow-400",
+      text: "text-yellow-400",
     };
   if (score === 4)
     return {
       score,
       label: "Good",
       color: "bg-blue-500",
-      text: "text-blue-600 dark:text-blue-400",
+      text: "text-blue-400",
     };
   return {
     score,
     label: "Strong",
-    color: "bg-green-500",
-    text: "text-green-600 dark:text-green-400",
+    color: "bg-emerald-500",
+    text: "text-emerald-400",
   };
 };
 
@@ -142,22 +130,22 @@ const CountryDropdown = ({ selected, onSelect, disabled }) => {
         type="button"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        className="flex h-12 items-center gap-1.5 rounded-l-2xl border border-r-0 border-gray-200 bg-gray-100 px-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+        className="flex h-11 items-center gap-1.5 rounded-l-lg border border-r-0 border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
         aria-haspopup="listbox"
         aria-expanded={open}
       >
         <span className="text-base leading-none">{selected.flag}</span>
-        <span className="text-sm">{selected.dial}</span>
+        <span>{selected.dial}</span>
         <FiChevronDown
           size={14}
-          className={`text-gray-400 transition-transform dark:text-gray-500 ${
+          className={`text-slate-400 transition-transform ${
             open ? "rotate-180" : ""
           }`}
         />
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-2 max-h-64 w-64 overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900">
+        <div className="absolute left-0 top-full z-50 mt-2 max-h-64 w-64 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl">
           {COUNTRIES.map((c) => (
             <button
               key={c.code}
@@ -168,13 +156,13 @@ const CountryDropdown = ({ selected, onSelect, disabled }) => {
               }}
               className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition ${
                 c.code === selected.code
-                  ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                  : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "text-slate-700 hover:bg-slate-50"
               }`}
             >
               <span className="text-lg leading-none">{c.flag}</span>
               <span className="flex-1 truncate">{c.name}</span>
-              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+              <span className="text-xs font-medium text-slate-500">
                 {c.dial}
               </span>
             </button>
@@ -186,7 +174,7 @@ const CountryDropdown = ({ selected, onSelect, disabled }) => {
 };
 
 /* ------------------------------------------------------------------ */
-/*  OTP input — 6 individual boxes                                     */
+/*  OTP input: 6 individual boxes                                      */
 /* ------------------------------------------------------------------ */
 
 const OtpInput = ({ value, onChange, disabled, error }) => {
@@ -198,16 +186,13 @@ const OtpInput = ({ value, onChange, disabled, error }) => {
     const clean = char.replace(/\D/g, "");
     if (!clean) return;
 
-    // Handle paste of multiple digits
     const next = digits.slice();
     const chars = clean.split("");
     for (let i = 0; i < chars.length && index + i < 6; i++) {
       next[index + i] = chars[i];
     }
-    const merged = next.join("");
-    onChange(merged.slice(0, 6));
+    onChange(next.join("").slice(0, 6));
 
-    // Move focus to next empty box
     const focusIndex = Math.min(index + chars.length, 5);
     inputsRef.current[focusIndex]?.focus();
   };
@@ -261,10 +246,10 @@ const OtpInput = ({ value, onChange, disabled, error }) => {
           onPaste={(e) => handlePaste(i, e)}
           disabled={disabled}
           autoComplete="one-time-code"
-          className={`h-14 w-full rounded-2xl border text-center text-lg font-bold text-gray-900 outline-none transition focus:bg-white focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60 dark:text-white dark:focus:bg-gray-900 ${
+          className={`h-12 w-full rounded-lg border bg-white text-center text-lg font-semibold text-slate-800 outline-none transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60 ${
             error
-              ? "border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-100 dark:border-red-800 dark:bg-red-900/30 dark:focus:ring-red-900/40"
-              : "border-gray-200 bg-gray-50 focus:border-green-500 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-800 dark:focus:ring-green-900/40"
+              ? "border-red-300 focus:border-red-400 focus:ring-red-100"
+              : "border-slate-200 focus:border-emerald-400 focus:ring-emerald-100"
           }`}
         />
       ))}
@@ -424,7 +409,6 @@ const Register = () => {
     setOtpError("");
     setStep("password");
 
-    // Focus password field after transition
     setTimeout(() => {
       document.getElementById("password")?.focus();
     }, 100);
@@ -475,146 +459,55 @@ const Register = () => {
     }
   };
 
-  const inputClass = (name) => {
-    const hasError = fieldErrors[name];
-    return `h-12 w-full rounded-2xl border bg-gray-50 pl-11 pr-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:bg-white focus:ring-4 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900 ${
-      hasError
-        ? "border-red-300 focus:border-red-500 focus:ring-red-100 dark:border-red-800 dark:bg-red-900/20 dark:focus:ring-red-900/40"
-        : "border-gray-200 focus:border-green-500 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-800 dark:focus:ring-green-900/40"
+  const inputClass = (name) =>
+    `h-11 w-full rounded-lg border bg-white px-3.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:ring-4 ${
+      fieldErrors[name]
+        ? "border-red-300 focus:border-red-400 focus:ring-red-100"
+        : "border-slate-200 focus:border-emerald-400 focus:ring-emerald-100"
     }`;
-  };
+
+  const labelClass = "mb-1.5 block text-sm font-medium text-slate-300";
+  const fieldErrorClass = "mt-1 text-xs text-red-400";
+  const primaryButtonClass =
+    "flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* ─────────── LEFT: Branding panel ─────────── */}
-      <div className="relative hidden w-1/2 overflow-hidden bg-gradient-to-br from-green-600 via-green-700 to-emerald-800 lg:flex lg:w-[45%] xl:w-1/2">
-        <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-emerald-400/20 blur-3xl" />
+    <div className="bg-[url(./assets/image.png)] bg-cover bg-center bg-no-repeat">
+      <div className="flex min-h-screen items-center justify-center bg-black/70 px-4 py-0">
+        <main className="w-full max-w-sm">
+          <div className="rounded-2xl border border-gray-700 bg-black/50 px-7 py-8 shadow-sm">
+            {/* Brand */}
+            <Link
+              to="/login"
+              className="mb-8 block text-center text-xl font-semibold tracking-tight text-white"
+            >
+              <span>Land </span>
+              <span className="text-emerald-600">Manage</span>
+            </Link>
 
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
-            backgroundSize: "32px 32px",
-          }}
-        />
-
-        <div className="relative z-10 flex w-full flex-col justify-between p-10 xl:p-14">
-          <Link to="/login" className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm ring-1 ring-white/20">
-              <FiMapPin size={20} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight text-white">
-                Land
-                <span className="text-emerald-300">Manage</span>
-              </h1>
-              <p className="text-[11px] text-white/70">
-                Land Management System
-              </p>
-            </div>
-          </Link>
-
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-3xl font-bold leading-tight text-white xl:text-4xl">
-                Start managing
-                <br />
-                your land today.
-              </h2>
-              <p className="mt-3 max-w-md text-sm leading-6 text-white/80 xl:text-base">
-                Create a free account and list, browse, or rent land properties
-                in minutes.
-              </p>
-            </div>
-
-            <ul className="space-y-3">
-              {[
-                "Free to get started",
-                "No credit card required",
-                "Your data stays private",
-              ].map((feature) => (
-                <li
-                  key={feature}
-                  className="flex items-center gap-3 text-sm text-white/90"
-                >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20">
-                    <FiCheckCircle size={13} className="text-white" />
-                  </span>
-                  {feature}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <p className="text-xs text-white/60">
-            © {new Date().getFullYear()} LandManage. All rights reserved.
-          </p>
-        </div>
-      </div>
-
-      {/* ─────────── RIGHT: Form ─────────── */}
-      <div className="flex w-full flex-1 items-center justify-center px-4 py-10 sm:px-8 lg:w-1/2 lg:px-12 xl:px-20">
-        <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="mb-8 flex justify-center lg:hidden">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-600 text-white shadow-sm">
-                <FiMapPin size={20} />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
-                  Land
-                  <span className="text-green-600 dark:text-green-500">
-                    Manage
-                  </span>
-                </h1>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                  Land Management System
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Heading */}
-          <div className="text-center lg:text-left">
-            <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
-              Create your account
-            </h2>
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            <h1 className="text-center text-xl font-semibold text-white">
+              Create account
+            </h1>
+            <p className="mt-1 text-center text-sm text-slate-500">
               {step === "form"
-                ? "Get started with LandManage in less than a minute"
+                ? "Get started in less than a minute."
                 : step === "otp"
                   ? `Enter the 6-digit code sent to ${country.dial}${formData.phone}`
-                  : "Almost there — set a password to finish"}
+                  : "Almost there. Set a password to finish."}
             </p>
-          </div>
 
-          {/* Error */}
-          {error && (
-            <div className="mt-6 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
-              <FiAlertCircle size={16} className="mt-0.5 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* ───────── STEP 1: FORM ───────── */}
-          {step === "form" && (
-            <form onSubmit={handleGetOtp} className="mt-8 space-y-5">
-              {/* Full Name */}
-              <div>
-                <label
-                  htmlFor="fullName"
-                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Full name
-                </label>
-                <div className="relative">
-                  <FiUser
-                    size={17}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
-                  />
+            {/* ───────── STEP 1: FORM ───────── */}
+            {step === "form" && (
+              <form
+                onSubmit={handleGetOtp}
+                className="mt-6 space-y-4"
+                noValidate
+              >
+                {/* Full name */}
+                <div>
+                  <label htmlFor="fullName" className={labelClass}>
+                    Full name
+                  </label>
                   <input
                     id="fullName"
                     name="fullName"
@@ -627,27 +520,16 @@ const Register = () => {
                     autoComplete="name"
                     className={inputClass("fullName")}
                   />
+                  {fieldErrors.fullName && (
+                    <p className={fieldErrorClass}>{fieldErrors.fullName}</p>
+                  )}
                 </div>
-                {fieldErrors.fullName && (
-                  <p className="mt-1 text-xs text-red-500 dark:text-red-400">
-                    {fieldErrors.fullName}
-                  </p>
-                )}
-              </div>
 
-              {/* Email */}
-              <div>
-                <label
-                  htmlFor="email"
-                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Email address
-                </label>
-                <div className="relative">
-                  <FiMail
-                    size={17}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
-                  />
+                {/* Email */}
+                <div>
+                  <label htmlFor="email" className={labelClass}>
+                    Email
+                  </label>
                   <input
                     id="email"
                     name="email"
@@ -659,32 +541,21 @@ const Register = () => {
                     autoComplete="email"
                     className={inputClass("email")}
                   />
+                  {fieldErrors.email && (
+                    <p className={fieldErrorClass}>{fieldErrors.email}</p>
+                  )}
                 </div>
-                {fieldErrors.email && (
-                  <p className="mt-1 text-xs text-red-500 dark:text-red-400">
-                    {fieldErrors.email}
-                  </p>
-                )}
-              </div>
 
-              {/* Phone (with country dropdown) */}
-              <div>
-                <label
-                  htmlFor="phone"
-                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Phone number
-                </label>
-                <div className="flex">
-                  <CountryDropdown
-                    selected={country}
-                    onSelect={setCountry}
-                    disabled={sendingOtp}
-                  />
-                  <div className="relative flex-1">
-                    <FiPhone
-                      size={17}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                {/* Phone */}
+                <div>
+                  <label htmlFor="phone" className={labelClass}>
+                    Phone number
+                  </label>
+                  <div className="flex">
+                    <CountryDropdown
+                      selected={country}
+                      onSelect={setCountry}
+                      disabled={sendingOtp}
                     />
                     <input
                       id="phone"
@@ -697,288 +568,252 @@ const Register = () => {
                       maxLength={15}
                       required
                       autoComplete="tel"
-                      className={`${inputClass("phone")} rounded-l-none border-l-0`}
+                      className={`${inputClass("phone")} min-w-0 flex-1 rounded-l-none`}
                     />
                   </div>
+                  {fieldErrors.phone && (
+                    <p className={fieldErrorClass}>{fieldErrors.phone}</p>
+                  )}
                 </div>
-                {fieldErrors.phone && (
-                  <p className="mt-1 text-xs text-red-500 dark:text-red-400">
-                    {fieldErrors.phone}
-                  </p>
-                )}
-              </div>
-
-              {/* Get OTP button */}
-              <button
-                type="submit"
-                disabled={sendingOtp}
-                className="group flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-green-600 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {sendingOtp ? (
-                  <>
-                    <FiLoader size={17} className="animate-spin" />
-                    Sending OTP...
-                  </>
-                ) : (
-                  <>
-                    <FiShield size={16} />
-                    Get OTP
-                    <FiArrowRight
-                      size={16}
-                      className="transition-transform group-hover:translate-x-0.5"
-                    />
-                  </>
-                )}
-              </button>
-            </form>
-          )}
-
-          {/* ───────── STEP 2: OTP ───────── */}
-          {step === "otp" && (
-            <div className="mt-8 space-y-5">
-              {/* OTP boxes */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Enter OTP
-                </label>
-                <OtpInput
-                  value={otp}
-                  onChange={(v) => {
-                    setOtp(v);
-                    setOtpError("");
-                  }}
-                  disabled={false}
-                  error={!!otpError}
-                />
-                {otpError && (
-                  <p className="mt-2 text-xs text-red-500 dark:text-red-400">
-                    {otpError}
-                  </p>
-                )}
-              </div>
-
-              {/* Resend + change number */}
-              <div className="flex items-center justify-between text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep("form");
-                    setOtp("");
-                    setOtpError("");
-                  }}
-                  className="font-medium text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  ← Change number
-                </button>
 
                 <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  disabled={resendCountdown > 0}
-                  className={`font-semibold transition ${
-                    resendCountdown > 0
-                      ? "cursor-not-allowed text-gray-400 dark:text-gray-500"
-                      : "text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
-                  }`}
+                  type="submit"
+                  disabled={sendingOtp}
+                  className={primaryButtonClass}
                 >
-                  {resendCountdown > 0
-                    ? `Resend in ${resendCountdown}s`
-                    : "Resend OTP"}
+                  {sendingOtp ? (
+                    <>
+                      <FiLoader size={16} className="animate-spin" />
+                      Sending OTP...
+                    </>
+                  ) : (
+                    "Get OTP"
+                  )}
                 </button>
-              </div>
 
-              {/* Verify button */}
-              <button
-                type="button"
-                onClick={handleVerifyOtp}
-                disabled={otp.length !== 6}
-                className="group flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-green-600 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <FiCheck size={16} />
-                Verify OTP
-              </button>
-            </div>
-          )}
+                {error && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2 rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-600"
+                  >
+                    <FiAlertCircle size={16} className="mt-0.5 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+              </form>
+            )}
 
-          {/* ───────── STEP 3: PASSWORD ───────── */}
-          {step === "password" && (
-            <form onSubmit={handleCreateAccount} className="mt-8 space-y-5">
-              {/* Verified badge */}
-              <div className="flex items-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-300">
-                <FiCheckCircle size={16} className="shrink-0" />
-                <span>
-                  Phone verified: {country.dial}
-                  {normalizePhone(formData.phone, country.dial)}
-                </span>
-              </div>
-
-              {/* Password */}
-              <div>
-                <label
-                  htmlFor="password"
-                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Create password
-                </label>
-                <div className="relative">
-                  <FiLock
-                    size={17}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+            {/* ───────── STEP 2: OTP ───────── */}
+            {step === "otp" && (
+              <div className="mt-6 space-y-4">
+                <div>
+                  <label className={labelClass}>Enter OTP</label>
+                  <OtpInput
+                    value={otp}
+                    onChange={(v) => {
+                      setOtp(v);
+                      setOtpError("");
+                    }}
+                    disabled={false}
+                    error={!!otpError}
                   />
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="At least 8 characters"
-                    required
-                    minLength={8}
-                    autoComplete="new-password"
-                    className={`${inputClass("password")} pr-12`}
-                  />
+                  {otpError && (
+                    <p className={`${fieldErrorClass} mt-2`}>{otpError}</p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
                   <button
                     type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-                    aria-label={
-                      showPassword ? "Hide password" : "Show password"
-                    }
+                    onClick={() => {
+                      setStep("form");
+                      setOtp("");
+                      setOtpError("");
+                    }}
+                    className="text-slate-500 transition hover:text-emerald-600"
                   >
-                    {showPassword ? (
-                      <FiEyeOff size={16} />
-                    ) : (
-                      <FiEye size={16} />
-                    )}
+                    Change number
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={resendCountdown > 0}
+                    className={`transition ${
+                      resendCountdown > 0
+                        ? "cursor-not-allowed text-slate-500"
+                        : "font-medium text-emerald-500 hover:text-emerald-400"
+                    }`}
+                  >
+                    {resendCountdown > 0
+                      ? `Resend in ${resendCountdown}s`
+                      : "Resend OTP"}
                   </button>
                 </div>
 
-                {/* Strength meter */}
-                {formData.password && (
-                  <div className="mt-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex flex-1 gap-1">
-                        {[1, 2, 3, 4, 5].map((level) => (
-                          <div
-                            key={level}
-                            className={`h-1 flex-1 rounded-full transition ${
-                              level <= passwordStrength.score
-                                ? passwordStrength.color
-                                : "bg-gray-200 dark:bg-gray-700"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span
-                        className={`text-xs font-semibold ${passwordStrength.text}`}
-                      >
-                        {passwordStrength.label}
-                      </span>
-                    </div>
-
-                    <ul className="mt-2 space-y-0.5">
-                      {[
-                        {
-                          ok: formData.password.length >= 8,
-                          label: "8+ chars",
-                        },
-                        {
-                          ok: /[A-Z]/.test(formData.password),
-                          label: "Uppercase",
-                        },
-                        {
-                          ok: /[0-9]/.test(formData.password),
-                          label: "Number",
-                        },
-                      ].map((rule) => (
-                        <li
-                          key={rule.label}
-                          className={`flex items-center gap-1 text-[11px] ${
-                            rule.ok
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-gray-400 dark:text-gray-500"
-                          }`}
-                        >
-                          {rule.ok ? <FiCheck size={11} /> : <FiX size={11} />}
-                          {rule.label}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {fieldErrors.password && (
-                  <p className="mt-1 text-xs text-red-500 dark:text-red-400">
-                    {fieldErrors.password}
-                  </p>
-                )}
+                <button
+                  type="button"
+                  onClick={handleVerifyOtp}
+                  disabled={otp.length !== 6}
+                  className={primaryButtonClass}
+                >
+                  Verify OTP
+                </button>
               </div>
+            )}
 
-              {/* Create account button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="group flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-green-600 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+            {/* ───────── STEP 3: PASSWORD ───────── */}
+            {step === "password" && (
+              <form
+                onSubmit={handleCreateAccount}
+                className="mt-6 space-y-4"
+                noValidate
               >
-                {loading ? (
-                  <>
-                    <FiLoader size={17} className="animate-spin" />
-                    Creating account...
-                  </>
-                ) : (
-                  <>
-                    Create account
-                    <FiArrowRight
-                      size={16}
-                      className="transition-transform group-hover:translate-x-0.5"
-                    />
-                  </>
-                )}
-              </button>
-            </form>
-          )}
-
-          {/* Divider + Login link (only on step 1) */}
-          {step === "form" && (
-            <>
-              <div className="relative my-7">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200 dark:border-gray-800" />
-                </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="bg-gray-50 px-3 text-gray-400 dark:bg-gray-950 dark:text-gray-500">
-                    Already have an account?
+                {/* Verified badge */}
+                <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5 text-sm text-emerald-300">
+                  <FiCheckCircle size={16} className="shrink-0" />
+                  <span>
+                    Phone verified: {country.dial}
+                    {normalizePhone(formData.phone, country.dial)}
                   </span>
                 </div>
-              </div>
 
+                {/* Password */}
+                <div>
+                  <label htmlFor="password" className={labelClass}>
+                    Create password
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="At least 8 characters"
+                      required
+                      minLength={8}
+                      autoComplete="new-password"
+                      className={`${inputClass("password")} pr-11`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 transition hover:text-slate-600"
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {showPassword ? (
+                        <FiEyeOff size={16} />
+                      ) : (
+                        <FiEye size={16} />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Strength meter */}
+                  {formData.password && (
+                    <div className="mt-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex flex-1 gap-1">
+                          {[1, 2, 3, 4, 5].map((level) => (
+                            <div
+                              key={level}
+                              className={`h-1 flex-1 rounded-full transition ${
+                                level <= passwordStrength.score
+                                  ? passwordStrength.color
+                                  : "bg-white/15"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span
+                          className={`text-xs font-medium ${passwordStrength.text}`}
+                        >
+                          {passwordStrength.label}
+                        </span>
+                      </div>
+
+                      <ul className="mt-2 space-y-0.5">
+                        {[
+                          {
+                            ok: formData.password.length >= 8,
+                            label: "8+ characters",
+                          },
+                          {
+                            ok: /[A-Z]/.test(formData.password),
+                            label: "Uppercase letter",
+                          },
+                          {
+                            ok: /[0-9]/.test(formData.password),
+                            label: "Number",
+                          },
+                        ].map((rule) => (
+                          <li
+                            key={rule.label}
+                            className={`flex items-center gap-1 text-[11px] ${
+                              rule.ok ? "text-emerald-400" : "text-slate-500"
+                            }`}
+                          >
+                            {rule.ok ? (
+                              <FiCheck size={11} />
+                            ) : (
+                              <FiX size={11} />
+                            )}
+                            {rule.label}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {fieldErrors.password && (
+                    <p className={fieldErrorClass}>{fieldErrors.password}</p>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={primaryButtonClass}
+                >
+                  {loading ? (
+                    <>
+                      <FiLoader size={16} className="animate-spin" />
+                      Creating account...
+                    </>
+                  ) : (
+                    "Create account"
+                  )}
+                </button>
+
+                {error && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2 rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-600"
+                  >
+                    <FiAlertCircle size={16} className="mt-0.5 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+              </form>
+            )}
+
+            {/* Sign in link */}
+            <p className="mt-6 text-center text-sm">
+              <span className="text-white/50">Already have an account? </span>
               <Link
                 to="/login"
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 transition hover:border-green-300 hover:bg-green-50 hover:text-green-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-green-700 dark:hover:bg-green-900/20 dark:hover:text-green-400"
+                className="font-medium text-white hover:text-emerald-400"
               >
-                Sign in to existing account
+                Sign in
               </Link>
-            </>
-          )}
+            </p>
+          </div>
 
-          <p className="mt-8 text-center text-xs text-gray-400 dark:text-gray-500">
-            By continuing, you agree to our{" "}
-            <Link
-              to="/terms"
-              className="font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-            >
-              Terms
-            </Link>{" "}
-            &{" "}
-            <Link
-              to="/privacy"
-              className="font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-            >
-              Privacy Policy
-            </Link>
-            .
-          </p>
-        </div>
+       
+        </main>
       </div>
     </div>
   );

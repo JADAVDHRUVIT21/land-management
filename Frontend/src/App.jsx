@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { AnimatePresence } from "motion/react";
 import { FiLock, FiDelete } from "react-icons/fi";
 
@@ -20,13 +20,34 @@ import HelpSupport from "./pages/HelpSupport";
 import ForgotPassword from "./pages/ForgotPassword";
 
 /* ================================================================== */
+/*  Authentication Check                                              */
+/* ================================================================== */
+
+// Change "token" below if your login component uses another localStorage key.
+const isAuthenticated = () => {
+  return Boolean(localStorage.getItem("token"));
+};
+
+/* ================================================================== */
+/*  Protected Route                                                   */
+/* ================================================================== */
+
+const ProtectedRoute = ({ children }) => {
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
+/* ================================================================== */
 /*  PIN Lock Screen Component                                         */
 /* ================================================================== */
+
 const LockScreen = ({ onUnlock }) => {
   const [enteredPin, setEnteredPin] = useState("");
   const [error, setError] = useState("");
 
-  // ✅ FIX: Read directly from localStorage on initial render. No useEffect needed!
   const [savedPin] = useState(() => {
     return typeof window !== "undefined"
       ? localStorage.getItem("app_pin") || ""
@@ -34,19 +55,22 @@ const LockScreen = ({ onUnlock }) => {
   });
 
   const handleKeyPress = (num) => {
-    if (enteredPin.length < savedPin.length) {
-      const newPin = enteredPin + num;
-      setEnteredPin(newPin);
-      setError("");
+    if (enteredPin.length >= savedPin.length) return;
 
-      // Auto-submit when length matches
-      if (newPin.length === savedPin.length) {
-        if (newPin === savedPin) {
-          onUnlock(); // Unlock the app
-        } else {
-          setError("Incorrect PIN. Try again.");
-          setTimeout(() => setEnteredPin(""), 500); // Clear after error
-        }
+    const newPin = enteredPin + num;
+
+    setEnteredPin(newPin);
+    setError("");
+
+    if (newPin.length === savedPin.length) {
+      if (newPin === savedPin) {
+        onUnlock();
+      } else {
+        setError("Incorrect PIN. Try again.");
+
+        setTimeout(() => {
+          setEnteredPin("");
+        }, 500);
       }
     }
   };
@@ -56,9 +80,9 @@ const LockScreen = ({ onUnlock }) => {
     setError("");
   };
 
-  // Generate dots for the PIN display
   const renderDots = () => {
     const length = savedPin.length || 4;
+
     return Array.from({ length }).map((_, i) => (
       <div
         key={i}
@@ -77,9 +101,11 @@ const LockScreen = ({ onUnlock }) => {
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400">
           <FiLock size={32} />
         </div>
+
         <h1 className="mt-6 text-2xl font-bold text-gray-900 dark:text-white">
           Enter App PIN
         </h1>
+
         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
           Please enter your PIN to continue
         </p>
@@ -98,20 +124,26 @@ const LockScreen = ({ onUnlock }) => {
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
           <button
             key={num}
+            type="button"
             onClick={() => handleKeyPress(num.toString())}
             className="flex h-16 items-center justify-center rounded-full text-2xl font-semibold text-gray-900 transition hover:bg-gray-100 active:bg-gray-200 dark:text-white dark:hover:bg-gray-800 dark:active:bg-gray-700"
           >
             {num}
           </button>
         ))}
-        <div /> {/* Empty space for bottom left */}
+
+        <div />
+
         <button
+          type="button"
           onClick={() => handleKeyPress("0")}
           className="flex h-16 items-center justify-center rounded-full text-2xl font-semibold text-gray-900 transition hover:bg-gray-100 active:bg-gray-200 dark:text-white dark:hover:bg-gray-800 dark:active:bg-gray-700"
         >
           0
         </button>
+
         <button
+          type="button"
           onClick={handleDelete}
           className="flex h-16 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 active:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-800 dark:active:bg-gray-700"
         >
@@ -133,8 +165,8 @@ function App() {
   const handleSplashComplete = useCallback(() => {
     setShowSplash(false);
 
-    // Check if a PIN is set. If not, don't lock the app.
     const pin = localStorage.getItem("app_pin");
+
     if (!pin) {
       setIsLocked(false);
     }
@@ -146,33 +178,136 @@ function App() {
 
   return (
     <>
-      {/* Show the App Routes ONLY if NOT locked */}
+      {/* Application Routes */}
       {!isLocked && (
         <Routes>
+          {/* ======================================================== */}
+          {/* Public Routes - No Login Required                       */}
+          {/* ======================================================== */}
+
           <Route path="/login" element={<Login />} />
+
           <Route path="/register" element={<Register />} />
-          <Route path="/" element={<Home />} />
-          <Route path="/my-lands" element={<MyLands />} />
-
-          <Route path="/add-land" element={<AddLand />} />
-          <Route path="/lands/create" element={<AddLand />} />
-          <Route path="/lands" element={<BrowseLands />} />
-
-          <Route path="/edit-land/:id" element={<EditLand />} />
-          <Route path="/lands/:id" element={<LandDetail />} />
-
-          <Route path="/messages" element={<Messages />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/contacts" element={<Contacts />} />
-          <Route path="/help-support" element={<HelpSupport />} />
 
           <Route path="/forgot-password" element={<ForgotPassword />} />
 
-          <Route path="*" element={<Home />} />
+          {/* ======================================================== */}
+          {/* Protected Routes - Login Required                       */}
+          {/* ======================================================== */}
+
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/my-lands"
+            element={
+              <ProtectedRoute>
+                <MyLands />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/add-land"
+            element={
+              <ProtectedRoute>
+                <AddLand />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/lands/create"
+            element={
+              <ProtectedRoute>
+                <AddLand />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/lands"
+            element={
+              <ProtectedRoute>
+                <BrowseLands />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/edit-land/:id"
+            element={
+              <ProtectedRoute>
+                <EditLand />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/lands/:id"
+            element={
+              <ProtectedRoute>
+                <LandDetail />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/messages"
+            element={
+              <ProtectedRoute>
+                <Messages />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/contacts"
+            element={
+              <ProtectedRoute>
+                <Contacts />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/help-support"
+            element={
+              <ProtectedRoute>
+                <HelpSupport />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ======================================================== */}
+          {/* Unknown Routes                                           */}
+          {/* ======================================================== */}
+
+          <Route
+            path="*"
+            element={
+              <Navigate to={isAuthenticated() ? "/" : "/login"} replace />
+            }
+          />
         </Routes>
       )}
 
-      {/* Lock Screen overlay */}
+      {/* PIN Lock Screen */}
       {isLocked && !showSplash && <LockScreen onUnlock={handleUnlock} />}
 
       {/* Splash Screen */}
