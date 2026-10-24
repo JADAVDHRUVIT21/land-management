@@ -7,9 +7,9 @@ import {
     updateLand,
     deleteLand,
     toggleLandForSale,
-} from "../controllers/LandController.js";
+} from "../controllers/landController.js";
 import { verifyToken } from "../middlewares/authMiddleware.js";
-import upload from "../middlewares/CloudinaryUpload.js";
+import upload from "../middlewares/cloudinaryUpload.js";
 
 const router = express.Router();
 
