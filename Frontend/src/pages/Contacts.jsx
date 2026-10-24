@@ -11,6 +11,7 @@ import {
   FiLoader,
   FiSend,
   FiChevronDown,
+  FiDownloadCloud,
 } from "react-icons/fi";
 
 import Sidebar from "../components/Sidebar";
@@ -79,6 +80,23 @@ const getInitials = (name = "") => {
   if (words.length === 0) return "U";
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
   return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+};
+
+/* Try to detect a dial code from an E.164-like string, defaulting to +91 */
+const guessDialFromE164 = (raw) => {
+  if (!raw) return "+91";
+  const s = String(raw);
+  if (!s.startsWith("+")) return "+91";
+  // Prefer longest matching dial code from our list
+  let best = "+91";
+  let bestLen = 0;
+  for (const c of COUNTRIES) {
+    if (s.startsWith(c.dial) && c.dial.length > bestLen) {
+      best = c.dial;
+      bestLen = c.dial.length;
+    }
+  }
+  return best;
 };
 
 /* ---------------- Country dropdown ---------------- */
@@ -187,6 +205,15 @@ function CountryDropdown({ selected, onSelect, disabled }) {
   );
 }
 
+/* ---------------- Contact Picker API helpers ---------------- */
+const isContactPickerSupported = () => {
+  return (
+    typeof navigator !== "undefined" &&
+    "contacts" in navigator &&
+    typeof navigator.contacts?.select === "function"
+  );
+};
+
 function Contacts() {
   const navigate = useNavigate();
 
@@ -205,6 +232,11 @@ function Contacts() {
 
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
+
+  const [importing, setImporting] = useState(false);
+
+  // Directly check support on initial render, no useEffect needed
+  const [pickerSupported] = useState(isContactPickerSupported());
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -327,24 +359,143 @@ function Contacts() {
     setAppliedSearch("");
   };
 
+  /* ---------------- Import contacts from the device ---------------- */
+  const importContacts = async () => {
+    if (!isContactPickerSupported()) {
+      showToast(
+        "Contact import isn't supported on this browser. Try Chrome on Android.",
+        "error",
+      );
+      return;
+    }
+
+    try {
+      setImporting(true);
+      setError("");
+
+      // This triggers the browser permission prompt automatically.
+      const rawContacts = await navigator.contacts.select(["name", "tel"], {
+        multiple: true,
+      });
+
+      if (!Array.isArray(rawContacts) || rawContacts.length === 0) {
+        showToast("No contacts selected.", "success");
+        return;
+      }
+
+      // Build new entries, dedupe against existing numbers
+      const existingNumbers = new Set(
+        picked.flatMap((c) =>
+          (c.phones || []).map((p) => p.e164).filter(Boolean),
+        ),
+      );
+
+      const newEntries = [];
+      const numbersToMatch = [];
+
+      rawContacts.forEach((rc) => {
+        const name = Array.isArray(rc.name) ? rc.name[0] || "" : rc.name || "";
+        const tels = Array.isArray(rc.tel) ? rc.tel : [];
+
+        const phoneEntries = [];
+        tels.forEach((tel) => {
+          const raw = String(tel || "").trim();
+          if (!raw) return;
+
+          const dial = guessDialFromE164(raw);
+          const digits = raw.replace(/\D/g, "");
+          if (digits.length < 6) return;
+
+          const e164 = raw.startsWith("+")
+            ? `+${digits}`
+            : toE164(digits, dial);
+
+          if (existingNumbers.has(e164)) return;
+          existingNumbers.add(e164);
+
+          const countryMeta =
+            COUNTRIES.find((c) => c.dial === dial) ||
+            COUNTRIES.find((c) => c.code === "IN") ||
+            COUNTRIES[0];
+
+          phoneEntries.push({
+            e164,
+            dial,
+            local: normalizePhone(digits, dial),
+            country: countryMeta.code,
+            flag: countryMeta.flag,
+          });
+          numbersToMatch.push(e164);
+        });
+
+        if (phoneEntries.length > 0) {
+          newEntries.push({ name, phones: phoneEntries });
+        }
+      });
+
+      if (newEntries.length === 0) {
+        showToast("Those contacts are already in your list.", "success");
+        return;
+      }
+
+      setPicked((current) => [...current, ...newEntries]);
+      showToast(
+        `Imported ${newEntries.length} contact${newEntries.length > 1 ? "s" : ""}.`,
+        "success",
+      );
+
+      // Match all newly imported numbers in one request
+      await runMatchFor(numbersToMatch);
+    } catch (err) {
+      // The Contact Picker API throws "AbortError" if the user cancels.
+      if (err?.name === "AbortError" || /abort/i.test(err?.message || "")) {
+        return;
+      }
+      console.error("IMPORT CONTACTS ERROR:", err);
+      setError(
+        err?.message ||
+          "Failed to import contacts. Please try again or grant contact permission.",
+      );
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const filteredNumbers = useMemo(() => {
     const q = appliedSearch.toLowerCase();
     const qDigits = appliedSearch.replace(/\D/g, "");
 
-    if (!q) return allNumbers;
+    let list = allNumbers;
 
-    return allNumbers.filter((e164) => {
-      const matchedUser = matchedUsers[e164];
-      const displayName = (
-        matchedUser?.fullName ||
-        nameForNumber(e164) ||
-        ""
+    if (q) {
+      list = list.filter((e164) => {
+        const matchedUser = matchedUsers[e164];
+        const displayName = (
+          matchedUser?.fullName ||
+          nameForNumber(e164) ||
+          ""
+        ).toLowerCase();
+
+        return (
+          displayName.includes(q) ||
+          (qDigits.length > 0 && e164.replace(/\D/g, "").includes(qDigits))
+        );
+      });
+    }
+
+    // Alphabetical sort by display name (fallback to number)
+    return [...list].sort((a, b) => {
+      const nameA = (
+        matchedUsers[a]?.fullName ||
+        nameForNumber(a) ||
+        a
       ).toLowerCase();
-
-      return (
-        displayName.includes(q) ||
-        (qDigits.length > 0 && e164.replace(/\D/g, "").includes(qDigits))
-      );
+      const nameB = (
+        matchedUsers[b]?.fullName ||
+        nameForNumber(b) ||
+        b
+      ).toLowerCase();
+      return nameA.localeCompare(nameB);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allNumbers, appliedSearch, matchedUsers, picked]);
@@ -390,7 +541,7 @@ function Contacts() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 dark:bg-gray-950">
       <Sidebar />
 
       {toast && (
@@ -418,34 +569,57 @@ function Contacts() {
         </div>
       )}
 
-      <main className="ml-0 min-h-screen lg:ml-[230px]">
-        {/* 🔥 FIXED HEADER */}
-        <header className="mt-16  border-gray-200 bg-white px-5 py-4 sm:px-7 lg:mt-0 dark:border-gray-800 dark:bg-gray-950">
-          <div className="flex items-start justify-between gap-4 sm:px-10">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
+      <div className="w-full lg:pl-64">
+        {/* Header — Matched perfectly with Home.jsx */}
+        <header className="sticky top-0 z-30 border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+          <div className="flex min-h-16 w-full items-center justify-between gap-4 px-4 sm:px-6 lg:h-20 lg:px-8 mt-16 lg:mt-0">
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
                 Contacts
               </h1>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              <p className="mt-1 hidden text-sm text-gray-500 sm:block dark:text-gray-400">
                 Find friends on LandManage or invite them to join.
               </p>
             </div>
 
-            {allNumbers.length > 0 && (
+            <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
-                onClick={clearAll}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                onClick={importContacts}
+                disabled={importing || matching}
+                className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl bg-green-600 px-3 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:px-4"
+                title={
+                  pickerSupported
+                    ? "Import contacts from your phone"
+                    : "Contact import is not supported on this browser"
+                }
               >
-                <FiX size={16} />
-                Clear
+                {importing ? (
+                  <FiLoader size={16} className="animate-spin" />
+                ) : (
+                  <FiDownloadCloud size={16} />
+                )}
+                <span className="hidden sm:inline">
+                  {importing ? "Importing..." : "Import Contacts"}
+                </span>
               </button>
-            )}
+
+              {allNumbers.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 sm:h-10 sm:px-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <FiX size={16} />
+                  <span className="hidden sm:inline">Clear</span>
+                </button>
+              )}
+            </div>
           </div>
         </header>
 
-        {/* 🔥 ADDED pb-32 HERE */}
-        <div className="p-5 pb-32 sm:p-7">
+        {/* Main Content */}
+        <main className="mt-16 w-full p-4 sm:p-6 lg:mt-0 lg:p-8 pb-32">
           <div className="mx-auto max-w-3xl space-y-5">
             {error && (
               <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
@@ -524,8 +698,9 @@ function Contacts() {
             </div>
 
             <p className="text-xs text-gray-400 dark:text-gray-500">
-              Search a name or phone number — if it's not on LandManage yet,
-              you'll get an Invite button.
+              Tap <span className="font-semibold">Import Contacts</span> to load
+              saved phone contacts, or search a name or phone number — if it's
+              not on LandManage yet, you'll get an Invite button.
             </p>
 
             {allNumbers.length > 0 && (
@@ -641,14 +816,37 @@ function Contacts() {
                 </h2>
 
                 <p className="mx-auto mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400">
-                  Search by name or phone number above to find someone on
-                  LandManage, or invite them to join.
+                  Tap <span className="font-semibold">Import Contacts</span> to
+                  load contacts saved on your phone, or search a name or phone
+                  number above to find someone on LandManage.
                 </p>
+
+                {!pickerSupported && (
+                  <p className="mx-auto mt-3 max-w-md text-xs text-amber-600 dark:text-amber-400">
+                    Note: Bulk contact import is only supported in Chrome on
+                    Android. You can still search numbers manually on this
+                    browser.
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={importContacts}
+                  disabled={importing || matching}
+                  className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-green-600 px-5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {importing ? (
+                    <FiLoader size={16} className="animate-spin" />
+                  ) : (
+                    <FiDownloadCloud size={16} />
+                  )}
+                  {importing ? "Importing..." : "Import Contacts"}
+                </button>
               </section>
             )}
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

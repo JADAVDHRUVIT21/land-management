@@ -955,8 +955,7 @@ function Messages() {
 
   return (
     // Fixed positioning to lock the screen and prevent double scrolling on mobile
-    <div className="fixed inset-0 bg-gray-50 dark:bg-gray-950 overflow-hidden flex flex-col">
-      
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
       {/* 
         Sidebar receives a dynamic class to hide the bottom nav on mobile 
         when a chat is selected.
@@ -968,24 +967,19 @@ function Messages() {
       </div>
 
       {/* Main Container */}
-      <main
-        className={`flex-1 flex flex-col min-h-0 lg:ml-[230px] transition-all duration-300 ${
-          selectedConversation ? "mt-0 lg:mt-0" : "mt-16 lg:mt-0"
-        }`}
-      >
-        
-        {/* HEADER (Hidden on mobile only when chat is open) */}
+      <main className="flex flex-1 flex-col min-h-0 lg:ml-[230px]">
+        {/* Header — Matched perfectly with Home.jsx layout */}
         <header
-          className={`shrink-0 border-gray-200 bg-white px-5 py-4 sm:px-7 dark:border-gray-800 dark:bg-gray-950 ${
+          className={`shrink-0 border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 ${
             selectedConversation ? "hidden lg:block" : "block"
           }`}
         >
-          <div className="flex items-center justify-between gap-4 sm:px-10 max-w-full">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
+          <div className="flex min-h-16 w-full items-center justify-between gap-4 px-4 sm:px-6 lg:h-20 lg:px-8 mt-16 lg:mt-0">
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
                 Messages
               </h1>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              <p className="mt-1 hidden text-sm text-gray-500 sm:block dark:text-gray-400">
                 Chat with land owners and interested buyers
               </p>
             </div>
@@ -994,19 +988,21 @@ function Messages() {
               type="button"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+              className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 sm:h-10 sm:px-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
               <FiRefreshCw
                 size={16}
                 className={refreshing ? "animate-spin" : ""}
               />
-              Refresh
+              <span className="hidden sm:inline">
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </span>
             </button>
           </div>
         </header>
 
         {/* Chat Container Layout */}
-        <div className="flex-1 min-h-0 flex flex-col p-0 sm:p-4">
+        <div className="flex-1 min-h-0 flex flex-col p-0 sm:p-4 lg:p-8 pt-16 lg:pt-8">
           {error && (
             <div className="mx-2 mb-2 sm:mb-4 shrink-0 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
               {error}
@@ -1015,7 +1011,6 @@ function Messages() {
 
           {/* Main Chat Box */}
           <div className="flex-1 min-h-0 overflow-hidden bg-white shadow-sm sm:rounded-2xl border-t sm:border border-gray-200 dark:border-gray-800 dark:bg-gray-900 flex flex-col lg:grid lg:grid-cols-[320px_1fr]">
-            
             {/* Sidebar List */}
             <aside
               className={`min-h-0 border-gray-200 lg:border-r dark:border-gray-800 flex flex-col ${

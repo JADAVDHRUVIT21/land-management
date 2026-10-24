@@ -160,18 +160,18 @@ function BrowseLands() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 dark:bg-gray-950">
       <Sidebar />
 
-      <main className="ml-0 min-h-screen lg:ml-[230px] ">
-        {/* 🔥 FIXED HEADER: Removed sticky, added flex-row for mobile */}
-        <header className="mt-16  border-gray-200 bg-white  py-4 sm:px-7 lg:mt-0 dark:border-gray-800 dark:bg-gray-950">
-          <div className="flex items-center justify-between gap-4 px-0 sm:px-6">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
+      <div className="w-full lg:pl-64">
+        {/* Header — Matched perfectly with Home.jsx but without Profile */}
+        <header className="sticky top-0 z-30 border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+          <div className="flex min-h-16 w-full items-center justify-between gap-4 px-4 sm:px-6 lg:h-20 lg:px-8 mt-16 lg:mt-0">
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
                 Browse Lands
               </h1>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              <p className="mt-1 hidden text-sm text-gray-500 sm:block dark:text-gray-400">
                 Find lands available for sale or rent
               </p>
             </div>
@@ -181,19 +181,19 @@ function BrowseLands() {
               type="button"
               onClick={handleRefresh}
               disabled={loading}
-              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+              className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 sm:h-10 sm:px-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
               <FiRefreshCw
                 size={16}
                 className={loading ? "animate-spin" : ""}
               />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
         </header>
 
-        {/* Main Content Wrapper with bottom padding */}
-        <div className="p-5 pb-32 sm:p-12">
+        {/* Main Content */}
+        <main className="mt-16 w-full p-4 sm:p-6 lg:mt-0 lg:p-8 pb-32">
           {/* SEARCH BOX */}
           <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -464,8 +464,8 @@ function BrowseLands() {
               </div>
             </>
           )}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
   FiSun,
   FiMoon,
   FiMonitor,
+  FiKey,
 } from "react-icons/fi";
 
 import Sidebar from "../components/Sidebar";
@@ -73,7 +74,11 @@ const ConfirmDialog = ({
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-green-600 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
+            className={`flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl text-sm font-semibold text-white transition disabled:opacity-60 ${
+              confirmLabel.toLowerCase().includes("remove")
+                ? "bg-red-600 hover:bg-red-700"
+                : "bg-green-600 hover:bg-green-700"
+            }`}
           >
             {loading ? (
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -224,6 +229,190 @@ const ThemeToggle = () => {
 };
 
 /* ================================================================== */
+/*  App Lock (PIN) Setup Section                                      */
+/* ================================================================== */
+
+const AppLockSection = ({ showToast }) => {
+  // ✅ FIX: Initialize state directly from localStorage. No useEffect needed!
+  const [hasPin, setHasPin] = useState(() => {
+    return typeof window !== "undefined" && !!localStorage.getItem("app_pin");
+  });
+
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [pinError, setPinError] = useState("");
+
+  // State for remove PIN confirmation dialog
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+
+  const handleSavePin = () => {
+    setPinError("");
+
+    if (newPin.length !== 4 && newPin.length !== 6) {
+      setPinError("PIN must be exactly 4 or 6 digits.");
+      return;
+    }
+    if (newPin !== confirmPin) {
+      setPinError("PINs do not match.");
+      return;
+    }
+
+    localStorage.setItem("app_pin", newPin);
+    setHasPin(true);
+    setPinModalOpen(false);
+    setNewPin("");
+    setConfirmPin("");
+    showToast("App PIN set successfully.", "success");
+  };
+
+  const handleRemovePinClick = () => {
+    setRemoveConfirmOpen(true);
+  };
+
+  const confirmRemovePin = () => {
+    localStorage.removeItem("app_pin");
+    setHasPin(false);
+    setRemoveConfirmOpen(false);
+    showToast("App PIN removed.", "success");
+  };
+
+  return (
+    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-gray-900">
+      <div className="mb-6 flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400">
+          <FiKey size={20} />
+        </div>
+        <div>
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">
+            App Lock (PIN)
+          </h2>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+            Secure your app with a 4 or 6-digit PIN
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-900 dark:text-white">
+            {hasPin ? "PIN is currently enabled" : "PIN is not set"}
+          </p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {hasPin
+              ? "You will be asked to enter your PIN when you open the app."
+              : "Set a PIN to prevent unauthorized access."}
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          {hasPin && (
+            <button
+              type="button"
+              onClick={handleRemovePinClick}
+              className="inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-600 transition hover:bg-red-100 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400"
+            >
+              Remove PIN
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setNewPin("");
+              setConfirmPin("");
+              setPinError("");
+              setPinModalOpen(true);
+            }}
+            className="inline-flex h-10 items-center justify-center rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white transition hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100"
+          >
+            {hasPin ? "Change PIN" : "Set PIN"}
+          </button>
+        </div>
+      </div>
+
+      {/* Set PIN Modal */}
+      {pinModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-gray-800">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                Set App PIN
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPinModalOpen(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+            <div className="p-6">
+              {pinError && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
+                  {pinError}
+                </div>
+              )}
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                    New PIN (4 or 6 digits)
+                  </label>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={newPin}
+                    onChange={(e) =>
+                      setNewPin(e.target.value.replace(/\D/g, ""))
+                    }
+                    placeholder="Enter PIN"
+                    className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-center text-lg tracking-widest text-gray-900 outline-none transition focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:bg-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                    Confirm PIN
+                  </label>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={confirmPin}
+                    onChange={(e) =>
+                      setConfirmPin(e.target.value.replace(/\D/g, ""))
+                    }
+                    placeholder="Confirm PIN"
+                    className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-center text-lg tracking-widest text-gray-900 outline-none transition focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:bg-gray-900"
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleSavePin}
+                className="mt-6 flex h-11 w-full items-center justify-center rounded-2xl bg-green-600 text-sm font-semibold text-white transition hover:bg-green-700"
+              >
+                Save PIN
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog for Removing PIN */}
+      <ConfirmDialog
+        open={removeConfirmOpen}
+        title="Remove App PIN?"
+        message="Are you sure you want to remove your PIN? This will allow anyone with access to your device to open the app without entering a PIN."
+        confirmLabel="Yes, Remove"
+        cancelLabel="Cancel"
+        onConfirm={confirmRemovePin}
+        onCancel={() => setRemoveConfirmOpen(false)}
+      />
+    </section>
+  );
+};
+
+/* ================================================================== */
 /*  Main Component                                                    */
 /* ================================================================== */
 
@@ -256,6 +445,10 @@ function Profile() {
 
   const avatarInputRef = useRef(null);
   const coverInputRef = useRef(null);
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+  };
 
   /* -------------------------------------------------------------- */
   /*  Load profile                                                   */
@@ -428,10 +621,7 @@ function Profile() {
         setPwOld("");
         setPwNew("");
         setPwConfirm("");
-        setToast({
-          message: "Password updated successfully.",
-          type: "success",
-        });
+        showToast("Password updated successfully.", "success");
       } else {
         setPwError(response.data?.message || "Failed to update password.");
         setPwConfirmOpen(false);
@@ -468,18 +658,18 @@ function Profile() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 dark:bg-gray-950">
       <Sidebar />
 
-      <main className="ml-0 min-h-screen lg:ml-[230px]">
-        {/* 🔥 FIXED HEADER */}
-        <header className="mt-16  border-gray-200 bg-white px-5 py-4 sm:px-7 lg:mt-0 dark:border-gray-800 dark:bg-gray-950">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:px-10">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
+      <div className="w-full lg:pl-64">
+        {/* Header — Matched perfectly with Home.jsx */}
+        <header className="sticky top-0 z-30 border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+          <div className="flex min-h-16 w-full items-center justify-between gap-4 px-4 sm:px-6 lg:h-20 lg:px-8 mt-16 lg:mt-0">
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
                 My Profile
               </h1>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              <p className="mt-1 hidden text-sm text-gray-500 sm:block dark:text-gray-400">
                 View and manage your account information
               </p>
             </div>
@@ -489,10 +679,10 @@ function Profile() {
                 <button
                   type="button"
                   onClick={openEdit}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-green-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700"
+                  className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl bg-green-600 px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 sm:h-10 sm:px-4"
                 >
                   <FiEdit3 size={16} />
-                  Edit Profile
+                  <span className="hidden sm:inline">Edit Profile</span>
                 </button>
               )}
 
@@ -500,7 +690,7 @@ function Profile() {
                 type="button"
                 onClick={() => loadProfile(true)}
                 disabled={refreshing}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 sm:h-10 sm:px-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
               >
                 <FiRefreshCw
                   size={16}
@@ -514,8 +704,8 @@ function Profile() {
           </div>
         </header>
 
-        {/* 🔥 ADDED pb-32 HERE */}
-        <div className="p-5 pb-32 sm:p-7">
+        {/* Main Content */}
+        <main className="mt-16 w-full p-4 sm:p-6 lg:mt-0 lg:p-8 pb-32">
           {error && (
             <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
               {error}
@@ -523,7 +713,7 @@ function Profile() {
           )}
 
           {loading ? (
-            <div className="space-y-6">
+            <div className="mx-auto max-w-5xl space-y-6">
               <div className="h-52 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" />
               <div className="grid gap-6 lg:grid-cols-2">
                 <div className="h-72 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" />
@@ -601,8 +791,11 @@ function Profile() {
                 </div>
               </section>
 
-              {/* THEME TOGGLE — new section */}
+              {/* THEME TOGGLE */}
               <ThemeToggle />
+
+              {/* APP LOCK (PIN) SECTION */}
+              <AppLockSection showToast={showToast} />
 
               {/* INFORMATION */}
               <div className="grid gap-6 lg:grid-cols-2">
@@ -798,7 +991,7 @@ function Profile() {
               </section>
             </div>
           ) : (
-            <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div className="mx-auto max-w-5xl rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                 <FiUser size={24} />
               </div>
@@ -810,8 +1003,8 @@ function Profile() {
               </p>
             </div>
           )}
-        </div>
-      </main>
+        </main>
+      </div>
 
       {/* Edit profile modal */}
       {editOpen && (
