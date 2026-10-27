@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "http://localhost:5000/api",
+    baseURL: "https://land-management-zj14.onrender.com/",
     //  NO Content-Type header here!
 });
 
