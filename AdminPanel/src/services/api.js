@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "https://land-management-zj14.onrender.com/",
+    baseURL: "https://land-management-zj14.onrender.com/api",
     headers: {
         "Content-Type": "application/json",
     },
