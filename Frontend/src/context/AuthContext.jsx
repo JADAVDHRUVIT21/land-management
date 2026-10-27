@@ -1,5 +1,4 @@
 import { createContext, useState } from "react";
-
 import api from "../services/api";
 
 const AuthContext = createContext(null);
@@ -7,7 +6,6 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     const token = localStorage.getItem("token");
-
     const storedUser = localStorage.getItem("user");
 
     if (!token || !storedUser) {
@@ -19,13 +17,13 @@ export const AuthProvider = ({ children }) => {
     } catch {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-
       return null;
     }
   });
 
   const [loading] = useState(false);
 
+  // Login user
   const login = async (email, password) => {
     const response = await api.post("/users/login", {
       email,
@@ -35,7 +33,6 @@ export const AuthProvider = ({ children }) => {
     const { token, user: loggedInUser } = response.data;
 
     localStorage.setItem("token", token);
-
     localStorage.setItem("user", JSON.stringify(loggedInUser));
 
     setUser(loggedInUser);
@@ -43,15 +40,18 @@ export const AuthProvider = ({ children }) => {
     return response.data;
   };
 
+  // Register user
   const register = async (userData) => {
     const response = await api.post("/users/register", userData);
 
     return response.data;
   };
 
+  // Logout user
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    sessionStorage.removeItem("token");
 
     setUser(null);
   };

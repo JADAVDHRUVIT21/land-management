@@ -1,8 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "https://land-management-zj14.onrender.com/",
-    //  NO Content-Type header here!
+    baseURL: "https://land-management-zj14.onrender.com/api",
 });
 
 api.interceptors.request.use(
@@ -15,7 +14,7 @@ api.interceptors.request.use(
             config.headers.Authorization = `Bearer ${token}`;
         }
 
-        // If body is FormData, remove any hardcoded Content-Type
+        // Let the browser set the correct Content-Type for FormData
         if (config.data instanceof FormData) {
             delete config.headers["Content-Type"];
             delete config.headers["content-type"];
