@@ -268,7 +268,7 @@ const Login = () => {
             </div>
 
             <a
-              href="http://localhost:5173/login"
+              href="https://land-management-zj14.onrender.com/"
               className="text-xs font-medium text-green-600 transition hover:text-green-700"
             >
               Not an admin? Go to main site →
