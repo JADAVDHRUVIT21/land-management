@@ -473,7 +473,7 @@ const Register = () => {
 
   return (
     <div className="bg-[url(./assets/image.png)] bg-cover bg-center bg-no-repeat">
-      <div className="flex min-h-screen items-center justify-center bg-black/70 px-4 py-0">
+      <div className="flex min-h-screen items-center justify-center bg-black/40 px-4 py-0">
         <main className="w-full max-w-sm">
           <div className="rounded-2xl border border-gray-700 bg-black/50 px-7 py-8 shadow-sm">
             {/* Brand */}
