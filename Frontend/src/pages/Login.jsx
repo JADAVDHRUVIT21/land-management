@@ -48,7 +48,7 @@ const Login = () => {
 
   return (
     <div className=" bg-[url(./assets/image.png)] bg-cover bg-center bg-no-repeat">
-      <div className="flex min-h-screen items-center justify-center  px-4 py-10 bg-black/70">
+      <div className="flex min-h-screen items-center justify-center  px-4 py-10 bg-black/40">
         <main className="w-full max-w-sm">
           {/* Brand */}
 

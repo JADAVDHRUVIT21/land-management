@@ -619,7 +619,7 @@ function Contacts() {
         </header>
 
         {/* Main Content */}
-        <main className="mt-16 w-full p-4 sm:p-6 lg:mt-0 lg:p-8 pb-32">
+        <main className="mt-1 w-full p-4 sm:p-6 lg:mt-0 lg:p-8 pb-32">
           <div className="mx-auto max-w-3xl space-y-5">
             {error && (
               <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">

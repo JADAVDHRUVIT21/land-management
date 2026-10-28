@@ -193,7 +193,7 @@ function BrowseLands() {
         </header>
 
         {/* Main Content */}
-        <main className="mt-16 w-full p-4 sm:p-6 lg:mt-0 lg:p-8 pb-32">
+        <main className="mt-1 w-full p-4 sm:p-6 lg:mt-0 lg:p-8 pb-32">
           {/* SEARCH BOX */}
           <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <div className="flex flex-col gap-3 sm:flex-row">

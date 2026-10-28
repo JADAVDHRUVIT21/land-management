@@ -1002,7 +1002,7 @@ function Messages() {
         </header>
 
         {/* Chat Container Layout */}
-        <div className="flex-1 min-h-0 flex flex-col p-0 sm:p-4 lg:p-8 pt-16 lg:pt-8">
+        <div className="flex-1 min-h-0 flex flex-col p-0 sm:p-4 lg:p-8 pt-1 lg:pt-8">
           {error && (
             <div className="mx-2 mb-2 sm:mb-4 shrink-0 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
               {error}
