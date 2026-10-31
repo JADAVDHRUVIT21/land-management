@@ -1,5 +1,7 @@
-# Logs
-logs
+# ==========================================
+# LOGS
+# ==========================================
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,18 +9,128 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# ==========================================
+# NODE.JS
+# ==========================================
+node_modules/
+**/node_modules/
+
+# ==========================================
+# FRONTEND BUILD FILES
+# ==========================================
+dist/
+dist-ssr/
 *.local
 
-# Editor directories and files
+# ==========================================
+# ENVIRONMENT VARIABLES
+# ==========================================
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# BACKEND
+# ==========================================
+Backend/logs/
+Backend/uploads/
+Backend/coverage/
+
+# ==========================================
+# FRONTEND
+# ==========================================
+Frontend/coverage/
+
+# ==========================================
+# CAPACITOR GENERATED WEB ASSETS
+# ==========================================
+Frontend/android/app/src/main/assets/public/
+
+# Generated Capacitor configuration
+Frontend/android/app/src/main/assets/capacitor.config.json
+Frontend/android/app/src/main/assets/capacitor.plugins.json
+Frontend/android/app/src/main/res/xml/config.xml
+
+# ==========================================
+# ANDROID BUILD FILES
+# ==========================================
+*.apk
+*.aar
+*.ap_
+*.aab
+*.dex
+*.class
+
+.gradle/
+**/build/
+bin/
+gen/
+out/
+local.properties
+proguard/
+.externalNativeBuild/
+.cxx/
+
+# ==========================================
+# ANDROID STUDIO
+# ==========================================
+.idea/
+.navigation/
+captures/
+*.iml
+*.hprof
+
+# ==========================================
+# ANDROID SIGNING KEYS
+# ==========================================
+*.jks
+*.keystore
+key.properties
+
+# ==========================================
+# FIREBASE
+# ==========================================
+google-services.json
+
+# ==========================================
+# CAPACITOR PLUGINS
+# ==========================================
+capacitor-cordova-android-plugins/
+
+# ==========================================
+# FASTLANE
+# ==========================================
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+fastlane/readme.md
+
+# ==========================================
+# EDITOR FILES
+# ==========================================
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# ==========================================
+# SYSTEM FILES
+# ==========================================
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# PYTHON (IF USED)
+# ==========================================
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+Frontend/.gitignore
+/android/app/src/main/assets/public/

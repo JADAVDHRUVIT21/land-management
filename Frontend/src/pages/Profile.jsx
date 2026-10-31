@@ -705,7 +705,7 @@ function Profile() {
         </header>
 
         {/* Main Content */}
-        <main className="mt-16 w-full p-4 sm:p-6 lg:mt-0 lg:p-8 pb-32">
+        <main className="mt-0 w-full p-4 sm:p-6 lg:mt-0 lg:p-8 pb-32">
           {error && (
             <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
               {error}

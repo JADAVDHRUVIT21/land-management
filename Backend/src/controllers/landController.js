@@ -117,7 +117,6 @@ const createLand = async (req, res) => {
 
         /* ---- 1. Auth check ---- */
         if (!req.user?.id) {
-            console.log("[createLand] ✗ No req.user.id — auth failed");
             return res.status(401).json({
                 success: false,
                 message: "Authentication required.",
@@ -144,10 +143,11 @@ const createLand = async (req, res) => {
         }
 
         /* ---- 3. Destructure + validate text fields ---- */
+        /* ---- 3. Destructure + validate text fields ---- */
         const {
             surveyNumber,
             area,
-            areaUnit, // 🔥 FIXED: Added areaUnit to destructuring
+            areaUnit,
             village,
             district,
             state,
@@ -156,30 +156,57 @@ const createLand = async (req, res) => {
             location,
             price,
             description,
-            // ← RENT: new optional fields
             rentPeriod,
             minimumRentDuration,
             securityDeposit,
             isNegotiable,
         } = req.body;
 
-        if (
-            !surveyNumber ||
-            area === undefined ||
-            area === "" ||
-            !village ||
-            !district ||
-            !state ||
-            !landType ||
-            !listingType ||
-            !location ||
-            price === undefined ||
-            price === ""
-        ) {
-            console.log("[createLand] ✗ Missing required text field");
+        console.log("[DEBUG] Received createLand fields:", {
+            surveyNumber,
+            area,
+            areaUnit,
+            village,
+            district,
+            state,
+            landType,
+            listingType,
+            location,
+            price,
+        });
+
+        const missingFields = [];
+
+        if (area === undefined || area === null || area === "") {
+            missingFields.push("area");
+        }
+
+        if (!village?.trim()) missingFields.push("village");
+        if (!district?.trim()) missingFields.push("district");
+        if (!state?.trim()) missingFields.push("state");
+        if (!landType?.trim()) missingFields.push("landType");
+        if (!listingType?.trim()) missingFields.push("listingType");
+        if (!location) missingFields.push("location");
+
+        if (price === undefined || price === null || price === "") {
+            missingFields.push("price");
+        }
+
+        if (missingFields.length > 0) {
+            console.log("[createLand] Missing required fields:", missingFields);
+
             return res.status(400).json({
                 success: false,
-                message: "Please fill all required fields.",
+                message: `Please fill all required fields. Missing: ${missingFields.join(", ")}`,
+                missingFields,
+            });
+        }
+
+        // Continue with listingType validation
+        if (!VALID_LISTING_TYPES.includes(listingType)) {
+            return res.status(400).json({
+                success: false,
+                message: "listingType must be For Sale or For Rent.",
             });
         }
 
@@ -246,18 +273,20 @@ const createLand = async (req, res) => {
         }
 
         /* ---- 4. Scoped duplicate check (surveyNumber + village + district) ---- */
-        const existingLand = await findDuplicateLand({
-            surveyNumber,
-            village,
-            district,
-        });
-
-        if (existingLand) {
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Survey Number already exists in this village and district.",
+        if (surveyNumber && String(surveyNumber).trim()) {
+            const existingLand = await findDuplicateLand({
+                surveyNumber,
+                village,
+                district,
             });
+
+            if (existingLand) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Survey Number already exists in this village and district.",
+                });
+            }
         }
 
         /* ---- 5. Location parsing ---- */
@@ -375,7 +404,7 @@ const createLand = async (req, res) => {
         console.log("  videos being saved:", videos);
 
         const land = await Land.create({
-            surveyNumber: surveyNumber.trim(),
+            surveyNumber: surveyNumber?.trim() || undefined,
             owner: req.user.id,
             area: parsedArea,
             areaUnit: areaUnit || "sqft", // 🔥 FIXED: Added areaUnit to save
@@ -834,9 +863,13 @@ const updateLand = async (req, res) => {
                 : land.district;
 
         if (
-            updateData.surveyNumber !== undefined ||
-            updateData.village !== undefined ||
-            updateData.district !== undefined
+            finalSurveyNumber &&
+            String(finalSurveyNumber).trim() &&
+            (
+                updateData.surveyNumber !== undefined ||
+                updateData.village !== undefined ||
+                updateData.district !== undefined
+            )
         ) {
             const duplicate = await findDuplicateLand({
                 surveyNumber: finalSurveyNumber,

@@ -2,10 +2,12 @@ import mongoose from "mongoose";
 
 const landSchema = new mongoose.Schema(
     {
+        // Optional survey number
         surveyNumber: {
             type: String,
-            required: true,
+            required: false,
             trim: true,
+            default: undefined,
         },
 
         owner: {
@@ -45,7 +47,6 @@ const landSchema = new mongoose.Schema(
         landType: {
             type: String,
             required: true,
-            // 🔥 FIXED: Added House, Flat, Land, Hostel to the enum
             enum: [
                 "House",
                 "Flat",
@@ -54,15 +55,10 @@ const landSchema = new mongoose.Schema(
                 "Agricultural",
                 "Residential",
                 "Commercial",
-                "Industrial"
+                "Industrial",
             ],
         },
 
-        /* ------------------------------------------------------------- */
-        /*  LISTING TYPE                                                 */
-        /*  - "For Sale"  → selling the land                             */
-        /*  - "For Rent"  → renting out the land                         */
-        /* ------------------------------------------------------------- */
         listingType: {
             type: String,
             required: true,
@@ -74,42 +70,34 @@ const landSchema = new mongoose.Schema(
             default: false,
         },
 
-        /* ------------------------------------------------------------- */
-        /*  PRICE                                                        */
-        /*  - For Sale listings: total price                             */
-        /*  - For Rent listings: price per rentPeriod                    */
-        /* ------------------------------------------------------------- */
         price: {
             type: Number,
             required: true,
         },
 
-        /* ------------------------------------------------------------- */
-        /*  RENT-SPECIFIC FIELDS (optional)                              */
-        /*  Only meaningful when listingType = "For Rent".               */
-        /* ------------------------------------------------------------- */
-
-        /* How the rent price is quoted */
         rentPeriod: {
             type: String,
+            set: (value) => {
+                if (value === "" || value === undefined) {
+                    return null;
+                }
+                return value;
+            },
             enum: ["Per Month", "Per Year", "Per Day", "Per Week", null],
             default: null,
         },
 
-        /* Minimum rental duration (free text, e.g. "6 months") */
         minimumRentDuration: {
             type: String,
             default: "",
             trim: true,
         },
 
-        /* Refundable deposit, if any */
         securityDeposit: {
             type: Number,
             default: null,
         },
 
-        /* Whether the price is negotiable */
         isNegotiable: {
             type: Boolean,
             default: false,
@@ -166,9 +154,24 @@ const landSchema = new mongoose.Schema(
     }
 );
 
+// Survey number must be unique within the same village and district,
+// but only when a non-empty survey number is provided.
 landSchema.index(
-    { surveyNumber: 1, village: 1, district: 1 },
-    { unique: true, name: "unique_survey_per_village_district" }
+    {
+        surveyNumber: 1,
+        village: 1,
+        district: 1,
+    },
+    {
+        unique: true,
+        name: "unique_survey_per_village_district",
+        partialFilterExpression: {
+            surveyNumber: {
+                $type: "string",
+                $gt: "",
+            },
+        },
+    }
 );
 
 const Land = mongoose.model("Land", landSchema);

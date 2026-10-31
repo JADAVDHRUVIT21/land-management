@@ -26,6 +26,8 @@ import {
   FiZoomIn,
   FiZoomOut,
   FiAlertCircle,
+  FiCamera,
+  FiFolder,
 } from "react-icons/fi";
 
 import Sidebar from "../components/Sidebar";
@@ -464,9 +466,8 @@ const IOSSelect = ({ label, name, value, onChange, options, error }) => {
         </span>
         <FiChevronDown
           size={16}
-          className={`shrink-0 text-gray-400 transition-transform dark:text-gray-500 ${
-            isOpen ? "rotate-180" : ""
-          }`}
+          className={`shrink-0 text-gray-400 transition-transform dark:text-gray-500 ${isOpen ? "rotate-180" : ""
+            }`}
         />
       </button>
 
@@ -477,11 +478,10 @@ const IOSSelect = ({ label, name, value, onChange, options, error }) => {
               key={option.value}
               type="button"
               onClick={() => handleSelect(option.value)}
-              className={`flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm transition ${
-                option.value === value
-                  ? "bg-green-50 font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                  : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
-              }`}
+              className={`flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm transition ${option.value === value
+                ? "bg-green-50 font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                }`}
             >
               <span className="truncate">{option.label}</span>
               {option.value === value && (
@@ -561,6 +561,13 @@ const AddLand = () => {
   const [previewMedia, setPreviewMedia] = useState(null);
   const [previewType, setPreviewType] = useState("image");
   const [previewKey, setPreviewKey] = useState(0);
+
+  // Camera/gallery source picker for images and videos.
+  const [mediaSourceModal, setMediaSourceModal] = useState(null);
+  const cameraImageInputRef = useRef(null);
+  const galleryImageInputRef = useRef(null);
+  const cameraVideoInputRef = useRef(null);
+  const galleryVideoInputRef = useRef(null);
 
   const isRentListing = formData.listingType === "For Rent";
 
@@ -662,6 +669,35 @@ const AddLand = () => {
       }
       return [...current, ...toAdd];
     });
+  };
+
+  const openMediaSource = (type) => {
+    const currentCount = type === "image" ? images.length : videos.length;
+    const maxCount = type === "image" ? 10 : 5;
+
+    if (currentCount >= maxCount) {
+      setToast({
+        message: `Maximum ${maxCount} ${type}s reached. Remove some to add more.`,
+        type: "error",
+      });
+      return;
+    }
+
+    setMediaSourceModal(type);
+  };
+
+  const openMediaPicker = (source) => {
+    const inputRefs = {
+      cameraImage: cameraImageInputRef,
+      galleryImage: galleryImageInputRef,
+      cameraVideo: cameraVideoInputRef,
+      galleryVideo: galleryVideoInputRef,
+    };
+    const inputRef = inputRefs[source];
+    setMediaSourceModal(null);
+
+    // Let the modal close before opening the native picker/camera.
+    window.setTimeout(() => inputRef?.current?.click(), 150);
   };
 
   const handleVideoChange = (event) => {
@@ -772,12 +808,13 @@ const AddLand = () => {
   const validate = () => {
     const errors = {};
 
-    if (!formData.surveyNumber.trim()) errors.surveyNumber = true;
+    // Survey Number is OPTIONAL
     if (!formData.area.trim()) errors.area = true;
     if (!formData.village.trim()) errors.village = true;
     if (!formData.district.trim()) errors.district = true;
     if (!formData.state.trim()) errors.state = true;
     if (!formData.price || Number(formData.price) <= 0) errors.price = true;
+
     if (!formData.latitude || !formData.longitude) {
       errors.latitude = true;
       errors.longitude = true;
@@ -821,7 +858,9 @@ const AddLand = () => {
 
       const data = new FormData();
 
-      data.append("surveyNumber", formData.surveyNumber.trim());
+      if (formData.surveyNumber.trim()) {
+        data.append("surveyNumber", formData.surveyNumber.trim());
+      }
       data.append("area", String(Number(formData.area)));
       data.append("areaUnit", formData.areaUnit);
       data.append("village", formData.village.trim());
@@ -865,6 +904,12 @@ const AddLand = () => {
       images.forEach((image) => data.append("image", image));
       videos.forEach((video) => data.append("video", video));
 
+      for (const [key, value] of data.entries()) {
+        console.log(
+          key,
+          value instanceof File ? value.name : value
+        );
+      }
       const response = await api.post("/lands", data);
       console.log("Create Land response:", response.data);
 
@@ -878,7 +923,13 @@ const AddLand = () => {
       }, 900);
     } catch (err) {
       console.error("Add Land Error:", err);
+
       const serverData = err.response?.data;
+
+      // Log exact backend response for debugging
+      console.log("Backend Error Message:", serverData);
+      console.log("Backend Status:", err.response?.status);
+
       let message = "Failed to add the land. Please try again.";
 
       if (typeof serverData === "string") {
@@ -889,10 +940,20 @@ const AddLand = () => {
         message = serverData.error;
       } else if (serverData?.errors) {
         const firstKey = Object.keys(serverData.errors)[0];
-        message = serverData.errors[firstKey];
+        const firstError = serverData.errors[firstKey];
+
+        message =
+          typeof firstError === "string"
+            ? firstError
+            : firstError?.message || message;
+      } else if (err.message) {
+        message = err.message;
       }
 
-      setToast({ message, type: "error" });
+      setToast({
+        message,
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -900,15 +961,52 @@ const AddLand = () => {
 
   const inputClass = (name) => {
     const hasError = fieldErrors[name];
-    return `h-12 w-full rounded-2xl border px-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:bg-white focus:ring-4 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900 ${
-      hasError
-        ? "border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-100 dark:border-red-800 dark:bg-red-900/30 dark:focus:ring-red-900/40"
-        : "border-gray-200 bg-gray-50 focus:border-green-500 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-800 dark:focus:ring-green-900/40"
-    }`;
+    return `h-12 w-full rounded-2xl border px-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:bg-white focus:ring-4 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900 ${hasError
+      ? "border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-100 dark:border-red-800 dark:bg-red-900/30 dark:focus:ring-red-900/40"
+      : "border-gray-200 bg-gray-50 focus:border-green-500 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-800 dark:focus:ring-green-900/40"
+      }`;
   };
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 dark:bg-gray-950">
+      {/* Separate hidden inputs allow camera capture and gallery selection. */}
+      <input
+        ref={cameraImageInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleImageChange}
+        className="hidden"
+        aria-label="Take property photo"
+      />
+      <input
+        ref={galleryImageInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleImageChange}
+        className="hidden"
+        aria-label="Choose property images from gallery"
+      />
+      <input
+        ref={cameraVideoInputRef}
+        type="file"
+        accept="video/*"
+        capture="environment"
+        onChange={handleVideoChange}
+        className="hidden"
+        aria-label="Record property video"
+      />
+      <input
+        ref={galleryVideoInputRef}
+        type="file"
+        accept="video/*"
+        multiple
+        onChange={handleVideoChange}
+        className="hidden"
+        aria-label="Choose property videos from gallery"
+      />
+
       <Sidebar />
 
       <div className="w-full lg:pl-64">
@@ -958,7 +1056,7 @@ const AddLand = () => {
                   <div>
                     <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Survey Number
-                      <span className="ml-1 text-green-600">*</span>
+                      <span className="ml-1 text-gray-400 text-xs">(Optional)</span>
                     </label>
                     <input
                       type="text"
@@ -968,11 +1066,6 @@ const AddLand = () => {
                       placeholder="Enter survey number"
                       className={inputClass("surveyNumber")}
                     />
-                    {fieldErrors.surveyNumber && (
-                      <p className="mt-1 text-xs text-red-500 dark:text-red-400">
-                        Survey number is required.
-                      </p>
-                    )}
                   </div>
 
                   <div>
@@ -1221,11 +1314,10 @@ const AddLand = () => {
                               },
                             })
                           }
-                          className={`flex h-12 w-full items-center justify-between gap-2 rounded-2xl border px-4 text-sm font-medium transition ${
-                            formData.isNegotiable
-                              ? "border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-400"
-                              : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                          }`}
+                          className={`flex h-12 w-full items-center justify-between gap-2 rounded-2xl border px-4 text-sm font-medium transition ${formData.isNegotiable
+                            ? "border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-400"
+                            : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                            }`}
                         >
                           <span>
                             {formData.isNegotiable
@@ -1233,18 +1325,16 @@ const AddLand = () => {
                               : "Price is fixed"}
                           </span>
                           <span
-                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
-                              formData.isNegotiable
-                                ? "bg-green-600"
-                                : "bg-gray-300 dark:bg-gray-600"
-                            }`}
+                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${formData.isNegotiable
+                              ? "bg-green-600"
+                              : "bg-gray-300 dark:bg-gray-600"
+                              }`}
                           >
                             <span
-                              className={`absolute h-4 w-4 transform rounded-full bg-white shadow transition ${
-                                formData.isNegotiable
-                                  ? "translate-x-6"
-                                  : "translate-x-1"
-                              }`}
+                              className={`absolute h-4 w-4 transform rounded-full bg-white shadow transition ${formData.isNegotiable
+                                ? "translate-x-6"
+                                : "translate-x-1"
+                                }`}
                             />
                           </span>
                         </button>
@@ -1314,11 +1404,10 @@ const AddLand = () => {
 
               <div className="p-4 sm:p-6">
                 <div
-                  className={`relative overflow-hidden rounded-2xl border ${
-                    fieldErrors.latitude
-                      ? "border-red-300 dark:border-red-800"
-                      : "border-gray-200 dark:border-gray-700"
-                  }`}
+                  className={`relative overflow-hidden rounded-2xl border ${fieldErrors.latitude
+                    ? "border-red-300 dark:border-red-800"
+                    : "border-gray-200 dark:border-gray-700"
+                    }`}
                 >
                   {/* 🔥 FIXED: Added isolate z-0 and touch-action to prevent overlap */}
                   <div className="isolate z-0" style={{ touchAction: "pan-y" }}>
@@ -1407,36 +1496,25 @@ const AddLand = () => {
                     </span>
                   </div>
 
-                  <label
-                    className={`flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${
-                      images.length >= 10
-                        ? "cursor-not-allowed border-gray-200 bg-gray-100 opacity-60 dark:border-gray-700 dark:bg-gray-800"
-                        : "border-gray-200 bg-gray-50 hover:border-green-300 hover:bg-green-50/40 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-green-700 dark:hover:bg-green-900/20"
-                    }`}
+                  <button
+                    type="button"
+                    onClick={() => openMediaSource("image")}
+                    disabled={images.length >= 10}
+                    className={`flex min-h-36 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-6 text-center transition disabled:cursor-not-allowed disabled:opacity-60 ${images.length >= 10
+                      ? "border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800"
+                      : "border-gray-200 bg-gray-50 hover:border-green-300 hover:bg-green-50/40 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-green-700 dark:hover:bg-green-900/20"
+                      }`}
                   >
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-green-600 shadow-sm dark:bg-gray-900 dark:text-green-400">
                       <FiImage size={22} />
                     </div>
-
                     <p className="mt-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      {images.length >= 10
-                        ? "Maximum 10 images reached"
-                        : "Add property images"}
+                      {images.length >= 10 ? "Maximum 10 images reached" : "Add property images"}
                     </p>
-
                     <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                      You can add up to 10 images total
+                      Choose camera or device gallery
                     </p>
-
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleImageChange}
-                      disabled={images.length >= 10}
-                      className="hidden"
-                    />
-                  </label>
+                  </button>
 
                   {images.length > 0 && (
                     <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -1486,36 +1564,25 @@ const AddLand = () => {
                     </span>
                   </div>
 
-                  <label
-                    className={`flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${
-                      videos.length >= 5
-                        ? "cursor-not-allowed border-gray-200 bg-gray-100 opacity-60 dark:border-gray-700 dark:bg-gray-800"
-                        : "border-gray-200 bg-gray-50 hover:border-green-300 hover:bg-green-50/40 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-green-700 dark:hover:bg-green-900/20"
-                    }`}
+                  <button
+                    type="button"
+                    onClick={() => openMediaSource("video")}
+                    disabled={videos.length >= 5}
+                    className={`flex min-h-32 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-6 text-center transition disabled:cursor-not-allowed disabled:opacity-60 ${videos.length >= 5
+                      ? "border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800"
+                      : "border-gray-200 bg-gray-50 hover:border-green-300 hover:bg-green-50/40 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-green-700 dark:hover:bg-green-900/20"
+                      }`}
                   >
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-green-600 shadow-sm dark:bg-gray-900 dark:text-green-400">
                       <FiVideo size={22} />
                     </div>
-
                     <p className="mt-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      {videos.length >= 5
-                        ? "Maximum 5 videos reached"
-                        : "Add property videos"}
+                      {videos.length >= 5 ? "Maximum 5 videos reached" : "Add property videos"}
                     </p>
-
                     <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                      You can add up to 5 videos total
+                      Record a video or choose from device
                     </p>
-
-                    <input
-                      type="file"
-                      accept="video/*"
-                      multiple
-                      onChange={handleVideoChange}
-                      disabled={videos.length >= 5}
-                      className="hidden"
-                    />
-                  </label>
+                  </button>
 
                   {videos.length > 0 && (
                     <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -1592,6 +1659,79 @@ const AddLand = () => {
         </main>
       </div>
 
+      {mediaSourceModal && (
+        <div
+          className="fixed inset-0 z-[9998] flex items-end justify-center bg-black/50 p-4 sm:items-center"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setMediaSourceModal(null);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="media-source-title"
+            className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-5 shadow-2xl dark:border-gray-700 dark:bg-gray-900 sm:p-6"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="media-source-title" className="text-lg font-bold text-gray-900 dark:text-white">
+                  {mediaSourceModal === "image" ? "Add property images" : "Add property videos"}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Choose how you want to add your {mediaSourceModal === "image" ? "photos" : "videos"}.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMediaSourceModal(null)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-gray-500 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                aria-label="Close media source picker"
+              >
+                <FiX size={19} />
+              </button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => openMediaPicker(mediaSourceModal === "image" ? "cameraImage" : "cameraVideo")}
+                className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-5 text-center transition hover:border-green-400 hover:bg-green-100 dark:border-green-900 dark:bg-green-900/20 dark:hover:bg-green-900/40"
+              >
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-600 text-white">
+                  <FiCamera size={21} />
+                </span>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  {mediaSourceModal === "image" ? "Open Camera" : "Record Video"}
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Use your device camera
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => openMediaPicker(mediaSourceModal === "image" ? "galleryImage" : "galleryVideo")}
+                className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-5 text-center transition hover:border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
+              >
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-green-600 shadow-sm dark:bg-gray-900 dark:text-green-400">
+                  <FiFolder size={21} />
+                </span>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  Device Gallery
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Choose existing {mediaSourceModal === "image" ? "photos" : "videos"}
+                </span>
+              </button>
+            </div>
+            <p className="mt-4 text-xs leading-5 text-gray-400 dark:text-gray-500">
+              If prompted, allow camera or media access in your device settings. Camera availability depends on your browser or installed app.
+            </p>
+          </div>
+        </div>
+      )}
+
       {previewMedia && (
         <MediaPreviewModal
           key={previewKey}
@@ -1615,28 +1755,25 @@ const AddLand = () => {
 const CoordinateBox = ({ label, value, error }) => {
   return (
     <div
-      className={`rounded-2xl border px-4 py-3 ${
-        error
-          ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/30"
-          : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
-      }`}
+      className={`rounded-2xl border px-4 py-3 ${error
+        ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/30"
+        : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
+        }`}
     >
       <p
-        className={`text-xs font-medium ${
-          error
-            ? "text-red-500 dark:text-red-400"
-            : "text-gray-400 dark:text-gray-500"
-        }`}
+        className={`text-xs font-medium ${error
+          ? "text-red-500 dark:text-red-400"
+          : "text-gray-400 dark:text-gray-500"
+          }`}
       >
         {label}
       </p>
 
       <p
-        className={`mt-1 font-mono text-sm font-semibold ${
-          error
-            ? "text-red-600 dark:text-red-300"
-            : "text-gray-800 dark:text-gray-100"
-        }`}
+        className={`mt-1 font-mono text-sm font-semibold ${error
+          ? "text-red-600 dark:text-red-300"
+          : "text-gray-800 dark:text-gray-100"
+          }`}
       >
         {value || "Not selected"}
       </p>

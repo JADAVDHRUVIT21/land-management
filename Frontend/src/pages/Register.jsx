@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -14,7 +15,7 @@ import {
 import { useAuth } from "../context/useAuth";
 
 /* ------------------------------------------------------------------ */
-/*  Countries list (dial codes)                                        */
+/* Countries list (dial codes)                                         */
 /* ------------------------------------------------------------------ */
 
 const COUNTRIES = [
@@ -47,7 +48,7 @@ const COUNTRIES = [
 ];
 
 /* ------------------------------------------------------------------ */
-/*  Validation helpers                                                 */
+/* Validation helpers                                                  */
 /* ------------------------------------------------------------------ */
 
 const validateEmail = (email) =>
@@ -57,12 +58,15 @@ const normalizePhone = (raw, dialCode = "+91") => {
   if (!raw) return "";
   let digits = String(raw).replace(/\D/g, "");
   const dialDigits = String(dialCode).replace(/\D/g, "");
+
   if (digits.startsWith(dialDigits) && digits.length > dialDigits.length + 4) {
     digits = digits.slice(dialDigits.length);
   }
+
   if (dialCode === "+91") {
     return digits.length > 10 ? digits.slice(-10) : digits;
   }
+
   return digits;
 };
 
@@ -84,6 +88,7 @@ const getPasswordStrength = (password) => {
 
   if (score <= 2)
     return { score, label: "Weak", color: "bg-red-500", text: "text-red-400" };
+
   if (score === 3)
     return {
       score,
@@ -91,6 +96,7 @@ const getPasswordStrength = (password) => {
       color: "bg-yellow-500",
       text: "text-yellow-400",
     };
+
   if (score === 4)
     return {
       score,
@@ -98,6 +104,7 @@ const getPasswordStrength = (password) => {
       color: "bg-blue-500",
       text: "text-blue-400",
     };
+
   return {
     score,
     label: "Strong",
@@ -107,7 +114,7 @@ const getPasswordStrength = (password) => {
 };
 
 /* ------------------------------------------------------------------ */
-/*  Country dropdown                                                   */
+/* Country dropdown                                                    */
 /* ------------------------------------------------------------------ */
 
 const CountryDropdown = ({ selected, onSelect, disabled }) => {
@@ -120,6 +127,7 @@ const CountryDropdown = ({ selected, onSelect, disabled }) => {
         setOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -174,12 +182,11 @@ const CountryDropdown = ({ selected, onSelect, disabled }) => {
 };
 
 /* ------------------------------------------------------------------ */
-/*  OTP input: 6 individual boxes                                      */
+/* OTP input: 6 individual boxes                                       */
 /* ------------------------------------------------------------------ */
 
 const OtpInput = ({ value, onChange, disabled, error }) => {
   const inputsRef = useRef([]);
-
   const digits = Array.from({ length: 6 }, (_, i) => value[i] || "");
 
   const handleChange = (index, char) => {
@@ -188,9 +195,11 @@ const OtpInput = ({ value, onChange, disabled, error }) => {
 
     const next = digits.slice();
     const chars = clean.split("");
+
     for (let i = 0; i < chars.length && index + i < 6; i++) {
       next[index + i] = chars[i];
     }
+
     onChange(next.join("").slice(0, 6));
 
     const focusIndex = Math.min(index + chars.length, 5);
@@ -201,17 +210,21 @@ const OtpInput = ({ value, onChange, disabled, error }) => {
     if (e.key === "Backspace") {
       e.preventDefault();
       const next = digits.slice();
+
       if (next[index]) {
         next[index] = "";
       } else if (index > 0) {
         next[index - 1] = "";
         inputsRef.current[index - 1]?.focus();
       }
+
       onChange(next.join(""));
     }
+
     if (e.key === "ArrowLeft" && index > 0) {
       inputsRef.current[index - 1]?.focus();
     }
+
     if (e.key === "ArrowRight" && index < 5) {
       inputsRef.current[index + 1]?.focus();
     }
@@ -220,13 +233,18 @@ const OtpInput = ({ value, onChange, disabled, error }) => {
   const handlePaste = (index, e) => {
     const text = (e.clipboardData || window.clipboardData).getData("text");
     const clean = text.replace(/\D/g, "").slice(0, 6 - index);
+
     if (!clean) return;
+
     e.preventDefault();
     const next = digits.slice();
+
     for (let i = 0; i < clean.length; i++) {
       next[index + i] = clean[i];
     }
+
     onChange(next.join("").slice(0, 6));
+
     const focusIndex = Math.min(index + clean.length, 5);
     inputsRef.current[focusIndex]?.focus();
   };
@@ -258,7 +276,7 @@ const OtpInput = ({ value, onChange, disabled, error }) => {
 };
 
 /* ------------------------------------------------------------------ */
-/*  Main                                                               */
+/* Main                                                                */
 /* ------------------------------------------------------------------ */
 
 const Register = () => {
@@ -273,10 +291,10 @@ const Register = () => {
   });
 
   const [country, setCountry] = useState(
-    COUNTRIES.find((c) => c.code === "IN") || COUNTRIES[0],
+    COUNTRIES.find((c) => c.code === "IN") || COUNTRIES[0]
   );
 
-  const [step, setStep] = useState("form"); // "form" | "otp" | "password"
+  const [step, setStep] = useState("form");
   const [otp, setOtp] = useState("");
   const [otpError, setOtpError] = useState("");
 
@@ -286,13 +304,12 @@ const Register = () => {
   const [sendingOtp, setSendingOtp] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
 
-  /* Resend timer */
   const [resendCountdown, setResendCountdown] = useState(0);
   const timerRef = useRef(null);
 
   const passwordStrength = useMemo(
     () => getPasswordStrength(formData.password),
-    [formData.password],
+    [formData.password]
   );
 
   useEffect(() => {
@@ -303,13 +320,16 @@ const Register = () => {
 
   const startResendTimer = () => {
     setResendCountdown(10);
+
     if (timerRef.current) clearInterval(timerRef.current);
+
     timerRef.current = setInterval(() => {
       setResendCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timerRef.current);
           return 0;
         }
+
         return prev - 1;
       });
     }, 1000);
@@ -318,6 +338,7 @@ const Register = () => {
   const clearFieldError = (name) => {
     setFieldErrors((prev) => {
       if (!prev[name]) return prev;
+
       const next = { ...prev };
       delete next[name];
       return next;
@@ -326,6 +347,7 @@ const Register = () => {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+
     setError("");
     clearFieldError(name);
 
@@ -338,7 +360,7 @@ const Register = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  /* -------- Step 1: validate form + request OTP -------- */
+  /* Step 1: validate form + request OTP */
   const handleGetOtp = async (e) => {
     e?.preventDefault();
 
@@ -385,7 +407,7 @@ const Register = () => {
     }, 800);
   };
 
-  /* -------- Resend OTP -------- */
+  /* Resend OTP */
   const handleResendOtp = () => {
     if (resendCountdown > 0) return;
 
@@ -399,7 +421,7 @@ const Register = () => {
     }, 500);
   };
 
-  /* -------- Step 2: verify OTP -> show password -------- */
+  /* Step 2: verify OTP -> show password */
   const handleVerifyOtp = () => {
     if (otp.length !== 6) {
       setOtpError("Please enter the 6-digit code.");
@@ -414,7 +436,7 @@ const Register = () => {
     }, 100);
   };
 
-  /* -------- Step 3: create account -------- */
+  /* Step 3: create account */
   const handleCreateAccount = async (e) => {
     e.preventDefault();
 
@@ -422,6 +444,7 @@ const Register = () => {
       setFieldErrors({ password: "Password is required." });
       return;
     }
+
     if (formData.password.length < 8) {
       setFieldErrors({ password: "Password must be at least 8 characters." });
       return;
@@ -434,7 +457,7 @@ const Register = () => {
     try {
       const fullPhone = `${country.dial}${normalizePhone(
         formData.phone,
-        country.dial,
+        country.dial
       )}`;
 
       await register({
@@ -452,7 +475,7 @@ const Register = () => {
       });
     } catch (err) {
       setError(
-        err.response?.data?.message || "Registration failed. Please try again.",
+        err.response?.data?.message || "Registration failed. Please try again."
       );
     } finally {
       setLoading(false);
@@ -468,6 +491,7 @@ const Register = () => {
 
   const labelClass = "mb-1.5 block text-sm font-medium text-slate-300";
   const fieldErrorClass = "mt-1 text-xs text-red-400";
+
   const primaryButtonClass =
     "flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60";
 
@@ -481,13 +505,14 @@ const Register = () => {
               to="/login"
               className="mb-8 block text-center text-xl font-semibold tracking-tight text-white"
             >
-              <span>Land </span>
+              <span className="text-white">Land </span>
               <span className="text-emerald-600">Manage</span>
             </Link>
 
             <h1 className="text-center text-xl font-semibold text-white">
               Create account
             </h1>
+
             <p className="mt-1 text-center text-sm text-slate-500">
               {step === "form"
                 ? "Get started in less than a minute."
@@ -496,18 +521,18 @@ const Register = () => {
                   : "Almost there. Set a password to finish."}
             </p>
 
-            {/* ───────── STEP 1: FORM ───────── */}
+            {/* STEP 1: FORM */}
             {step === "form" && (
               <form
                 onSubmit={handleGetOtp}
                 className="mt-6 space-y-4"
                 noValidate
               >
-                {/* Full name */}
                 <div>
                   <label htmlFor="fullName" className={labelClass}>
                     Full name
                   </label>
+
                   <input
                     id="fullName"
                     name="fullName"
@@ -520,16 +545,17 @@ const Register = () => {
                     autoComplete="name"
                     className={inputClass("fullName")}
                   />
+
                   {fieldErrors.fullName && (
                     <p className={fieldErrorClass}>{fieldErrors.fullName}</p>
                   )}
                 </div>
 
-                {/* Email */}
                 <div>
                   <label htmlFor="email" className={labelClass}>
                     Email
                   </label>
+
                   <input
                     id="email"
                     name="email"
@@ -541,22 +567,24 @@ const Register = () => {
                     autoComplete="email"
                     className={inputClass("email")}
                   />
+
                   {fieldErrors.email && (
                     <p className={fieldErrorClass}>{fieldErrors.email}</p>
                   )}
                 </div>
 
-                {/* Phone */}
                 <div>
                   <label htmlFor="phone" className={labelClass}>
                     Phone number
                   </label>
+
                   <div className="flex">
                     <CountryDropdown
                       selected={country}
                       onSelect={setCountry}
                       disabled={sendingOtp}
                     />
+
                     <input
                       id="phone"
                       name="phone"
@@ -571,6 +599,7 @@ const Register = () => {
                       className={`${inputClass("phone")} min-w-0 flex-1 rounded-l-none`}
                     />
                   </div>
+
                   {fieldErrors.phone && (
                     <p className={fieldErrorClass}>{fieldErrors.phone}</p>
                   )}
@@ -603,11 +632,12 @@ const Register = () => {
               </form>
             )}
 
-            {/* ───────── STEP 2: OTP ───────── */}
+            {/* STEP 2: OTP */}
             {step === "otp" && (
               <div className="mt-6 space-y-4">
                 <div>
                   <label className={labelClass}>Enter OTP</label>
+
                   <OtpInput
                     value={otp}
                     onChange={(v) => {
@@ -617,6 +647,7 @@ const Register = () => {
                     disabled={false}
                     error={!!otpError}
                   />
+
                   {otpError && (
                     <p className={`${fieldErrorClass} mt-2`}>{otpError}</p>
                   )}
@@ -662,14 +693,13 @@ const Register = () => {
               </div>
             )}
 
-            {/* ───────── STEP 3: PASSWORD ───────── */}
+            {/* STEP 3: PASSWORD */}
             {step === "password" && (
               <form
                 onSubmit={handleCreateAccount}
                 className="mt-6 space-y-4"
                 noValidate
               >
-                {/* Verified badge */}
                 <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5 text-sm text-emerald-300">
                   <FiCheckCircle size={16} className="shrink-0" />
                   <span>
@@ -678,11 +708,11 @@ const Register = () => {
                   </span>
                 </div>
 
-                {/* Password */}
                 <div>
                   <label htmlFor="password" className={labelClass}>
                     Create password
                   </label>
+
                   <div className="relative">
                     <input
                       id="password"
@@ -696,6 +726,7 @@ const Register = () => {
                       autoComplete="new-password"
                       className={`${inputClass("password")} pr-11`}
                     />
+
                     <button
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
@@ -712,7 +743,6 @@ const Register = () => {
                     </button>
                   </div>
 
-                  {/* Strength meter */}
                   {formData.password && (
                     <div className="mt-2.5">
                       <div className="flex items-center justify-between gap-2">
@@ -728,6 +758,7 @@ const Register = () => {
                             />
                           ))}
                         </div>
+
                         <span
                           className={`text-xs font-medium ${passwordStrength.text}`}
                         >
@@ -805,14 +836,12 @@ const Register = () => {
               <span className="text-white/50">Already have an account? </span>
               <Link
                 to="/login"
-                className="font-medium text-white hover:text-emerald-400"
+                className="font-semibold text-white hover:text-white"
               >
                 Sign in
               </Link>
             </p>
           </div>
-
-       
         </main>
       </div>
     </div>

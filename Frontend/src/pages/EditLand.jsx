@@ -26,6 +26,8 @@ import {
   FiVideo,
   FiZoomIn,
   FiZoomOut,
+  FiCamera,
+  FiFolder,
 } from "react-icons/fi";
 
 import Sidebar from "../components/Sidebar";
@@ -64,7 +66,6 @@ const RENT_PERIODS = [
   { value: "Per Week", label: "Per Week" },
 ];
 
-// 🔥 UPDATED: Only House, Flat, Land, Hostel
 const LAND_TYPES = [
   { value: "House", label: "House" },
   { value: "Flat", label: "Flat" },
@@ -290,7 +291,6 @@ const MediaPreviewModal = ({ media, onClose, type = "image" }) => {
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemsLength, onClose]);
 
   if (!media?.items?.length) return null;
@@ -512,6 +512,106 @@ const Toast = ({ message, type = "success", onClose }) => {
   );
 };
 
+const MediaSourceModal = ({ type, onClose, onChoose }) => {
+  if (!type) return null;
+
+  const isImage = type === "image";
+  const title = isImage ? "Add Property Photos" : "Add Property Videos";
+  const cameraLabel = isImage ? "Take Photo" : "Record Video";
+  const galleryLabel = isImage ? "Choose Images" : "Choose Videos";
+  const Icon = isImage ? FiImage : FiVideo;
+
+  return (
+    <div
+      className="fixed inset-0 z-[9998] flex items-end justify-center bg-black/50 p-3 backdrop-blur-sm sm:items-center"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+      role="presentation"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="media-source-title"
+        className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-5 shadow-2xl dark:border-gray-700 dark:bg-gray-900 sm:p-6"
+      >
+        <div className="mb-5 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400">
+              <Icon size={23} />
+            </div>
+            <div>
+              <h2
+                id="media-source-title"
+                className="text-lg font-bold text-gray-900 dark:text-white"
+              >
+                {title}
+              </h2>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Select where to get your {isImage ? "photos" : "videos"}.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close media source dialog"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-gray-500 transition hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+          >
+            <FiX size={19} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => onChoose("camera")}
+            className="flex min-h-24 items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-left transition hover:border-green-400 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:hover:bg-green-900/40"
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-600 text-white">
+              <FiCamera size={21} />
+            </span>
+            <span>
+              <span className="block text-sm font-semibold text-gray-900 dark:text-white">
+                {cameraLabel}
+              </span>
+              <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                Use your device camera
+              </span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChoose("gallery")}
+            className="flex min-h-24 items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-left transition hover:border-green-300 hover:bg-green-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-green-700 dark:hover:bg-green-900/20"
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-green-600 shadow-sm dark:bg-gray-900 dark:text-green-400">
+              <FiFolder size={21} />
+            </span>
+            <span>
+              <span className="block text-sm font-semibold text-gray-900 dark:text-white">
+                {galleryLabel}
+              </span>
+              <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                Browse your device
+              </span>
+            </span>
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-4 h-11 w-full rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const EditLand = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -522,6 +622,12 @@ const EditLand = () => {
 
   const [toast, setToast] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [mediaSourceModal, setMediaSourceModal] = useState(null);
+
+  const cameraImageInputRef = useRef(null);
+  const galleryImageInputRef = useRef(null);
+  const cameraVideoInputRef = useRef(null);
+  const galleryVideoInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     surveyNumber: "",
@@ -530,7 +636,7 @@ const EditLand = () => {
     village: "",
     district: "",
     state: "",
-    landType: "House", // 🔥 Default updated to House
+    landType: "House",
     listingType: "For Sale",
     price: "",
     description: "",
@@ -636,10 +742,8 @@ const EditLand = () => {
 
   useEffect(() => {
     if (!id) return;
-    const run = () => loadLand();
-    run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+    loadLand();
+  }, [id, loadLand]);
 
   const clearFieldError = (name) => {
     setFieldErrors((prev) => {
@@ -813,6 +917,48 @@ const EditLand = () => {
     });
   };
 
+  const openMediaSource = (type) => {
+    const currentCount =
+      type === "image"
+        ? existingImages.length + newImages.length
+        : existingVideos.length + newVideos.length;
+    const maxCount = type === "image" ? 10 : 5;
+
+    if (currentCount >= maxCount) {
+      setToast({
+        message: `Maximum ${maxCount} ${type}s reached. Remove some to add more.`,
+        type: "error",
+      });
+      return;
+    }
+
+    setMediaSourceModal(type);
+  };
+
+  const openMediaPicker = (source) => {
+    const inputRefs = {
+      cameraImage: cameraImageInputRef,
+      galleryImage: galleryImageInputRef,
+      cameraVideo: cameraVideoInputRef,
+      galleryVideo: galleryVideoInputRef,
+    };
+
+    const inputRef = inputRefs[source];
+    setMediaSourceModal(null);
+
+    window.setTimeout(() => {
+      inputRef?.current?.click();
+    }, 150);
+  };
+
+  const handleMediaSourceChoose = (source) => {
+    if (mediaSourceModal === "image") {
+      openMediaPicker(source === "camera" ? "cameraImage" : "galleryImage");
+    } else if (mediaSourceModal === "video") {
+      openMediaPicker(source === "camera" ? "cameraVideo" : "galleryVideo");
+    }
+  };
+
   const removeExistingImage = (index) =>
     setExistingImages((current) => current.filter((_, i) => i !== index));
   const removeExistingVideo = (index) =>
@@ -890,7 +1036,9 @@ const EditLand = () => {
       data.append("description", formData.description.trim());
 
       if (isRentListing) {
-        data.append("rentPeriod", formData.rentPeriod || "");
+        if (formData.listingType === "For Rent") {
+          data.append("rentPeriod", formData.rentPeriod || "Per Month");
+        }
         data.append(
           "minimumRentDuration",
           formData.minimumRentDuration.trim() || "",
@@ -903,7 +1051,7 @@ const EditLand = () => {
         );
         data.append("isNegotiable", String(formData.isNegotiable));
       } else {
-        data.append("rentPeriod", "");
+        // "For Sale" માટે rentPeriod મોકલવામાં નહીં આવે અથવા ખાલી નહીં મોકલાય
         data.append("minimumRentDuration", "");
         data.append("securityDeposit", "");
         data.append("isNegotiable", "false");
@@ -965,6 +1113,43 @@ const EditLand = () => {
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 dark:bg-gray-950">
+      <input
+        ref={cameraImageInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleNewImageChange}
+        className="hidden"
+        aria-label="Take property photo"
+      />
+      <input
+        ref={galleryImageInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleNewImageChange}
+        className="hidden"
+        aria-label="Choose property images from gallery"
+      />
+      <input
+        ref={cameraVideoInputRef}
+        type="file"
+        accept="video/*"
+        capture="environment"
+        onChange={handleNewVideoChange}
+        className="hidden"
+        aria-label="Record property video"
+      />
+      <input
+        ref={galleryVideoInputRef}
+        type="file"
+        accept="video/*"
+        multiple
+        onChange={handleNewVideoChange}
+        className="hidden"
+        aria-label="Choose property videos from gallery"
+      />
+
       <Sidebar />
 
       <div className="w-full lg:pl-64">
@@ -989,7 +1174,6 @@ const EditLand = () => {
           </div>
         </header>
 
-        {/* 🔥 ADDED pb-32 HERE */}
         <main className="w-full px-4 py-6 pb-32 sm:px-6 lg:px-8 lg:py-8">
           <form
             onSubmit={handleSubmit}
@@ -1007,7 +1191,6 @@ const EditLand = () => {
               </div>
             ) : (
               <>
-                {/* Property Information */}
                 <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                   <div className="border-b border-gray-100 px-5 py-5 sm:px-7 dark:border-gray-800">
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -1104,7 +1287,6 @@ const EditLand = () => {
                           className={inputClass("state")}
                         />
                       </div>
-                      {/* 🔥 UPDATED DROPDOWN */}
                       <IOSSelect
                         label="Land Type"
                         name="landType"
@@ -1170,7 +1352,6 @@ const EditLand = () => {
                             onChange={handleChange}
                             options={RENT_PERIODS}
                           />
-
                           <div>
                             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                               Minimum Rent Duration
@@ -1284,7 +1465,6 @@ const EditLand = () => {
                   </div>
                 </section>
 
-                {/* Location */}
                 <section className="mt-5 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                   <div className="border-b border-gray-100 px-5 py-5 sm:px-7 dark:border-gray-800">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1331,7 +1511,6 @@ const EditLand = () => {
                           : "border-gray-200 dark:border-gray-700"
                       }`}
                     >
-                      {/* 🔥 FIXED: Added isolate z-0 and touch-action */}
                       <div
                         className="isolate z-0"
                         style={{ touchAction: "pan-y" }}
@@ -1374,7 +1553,6 @@ const EditLand = () => {
                   </div>
                 </section>
 
-                {/* Media */}
                 <section className="mt-5 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                   <div className="border-b border-gray-100 px-5 py-5 sm:px-7 dark:border-gray-800">
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -1387,7 +1565,7 @@ const EditLand = () => {
 
                   <div className="space-y-6 p-5 sm:p-7">
                     <div>
-                      <div className="mb-3 flex items-center justify-between">
+                      <div className="mb-3 flex items-center justify-between gap-3">
                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                           Property Images
                         </label>
@@ -1396,8 +1574,11 @@ const EditLand = () => {
                         </span>
                       </div>
 
-                      <label
-                        className={`flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${
+                      <button
+                        type="button"
+                        onClick={() => openMediaSource("image")}
+                        disabled={totalImages >= 10}
+                        className={`flex min-h-32 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${
                           totalImages >= 10
                             ? "cursor-not-allowed border-gray-200 bg-gray-100 opacity-60 dark:border-gray-700 dark:bg-gray-800"
                             : "border-gray-200 bg-gray-50 hover:border-green-300 hover:bg-green-50/40 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-green-700 dark:hover:bg-green-900/20"
@@ -1412,17 +1593,9 @@ const EditLand = () => {
                             : "Add more images"}
                         </p>
                         <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                          You can add up to 10 images total
+                          Take a photo or choose images from your gallery
                         </p>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handleNewImageChange}
-                          disabled={totalImages >= 10}
-                          className="hidden"
-                        />
-                      </label>
+                      </button>
 
                       {existingImages.length > 0 && (
                         <>
@@ -1480,7 +1653,13 @@ const EditLand = () => {
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    openPreview(newImages, index, "image")
+                                    openPreview(
+                                      newImages.map((file) => ({
+                                        url: URL.createObjectURL(file),
+                                      })),
+                                      index,
+                                      "image",
+                                    )
                                   }
                                   className="block h-28 w-full"
                                 >
@@ -1499,8 +1678,7 @@ const EditLand = () => {
                                 </button>
                                 <div className="pointer-events-none absolute bottom-0 left-0 right-0 bg-gradient-to-t from-green-600/80 to-transparent px-2 py-1.5">
                                   <p className="truncate text-[10px] font-medium text-white">
-                                    New •{" "}
-                                    {(img.size / (1024 * 1024)).toFixed(1)} MB
+                                    New • {(img.size / (1024 * 1024)).toFixed(1)} MB
                                   </p>
                                 </div>
                               </div>
@@ -1511,7 +1689,7 @@ const EditLand = () => {
                     </div>
 
                     <div>
-                      <div className="mb-3 flex items-center justify-between">
+                      <div className="mb-3 flex items-center justify-between gap-3">
                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                           Property Videos
                         </label>
@@ -1520,8 +1698,11 @@ const EditLand = () => {
                         </span>
                       </div>
 
-                      <label
-                        className={`flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${
+                      <button
+                        type="button"
+                        onClick={() => openMediaSource("video")}
+                        disabled={totalVideos >= 5}
+                        className={`flex min-h-32 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${
                           totalVideos >= 5
                             ? "cursor-not-allowed border-gray-200 bg-gray-100 opacity-60 dark:border-gray-700 dark:bg-gray-800"
                             : "border-gray-200 bg-gray-50 hover:border-green-300 hover:bg-green-50/40 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-green-700 dark:hover:bg-green-900/20"
@@ -1536,17 +1717,9 @@ const EditLand = () => {
                             : "Add more videos"}
                         </p>
                         <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                          You can add up to 5 videos total
+                          Record a video or choose videos from your gallery
                         </p>
-                        <input
-                          type="file"
-                          accept="video/*"
-                          multiple
-                          onChange={handleNewVideoChange}
-                          disabled={totalVideos >= 5}
-                          className="hidden"
-                        />
-                      </label>
+                      </button>
 
                       {existingVideos.length > 0 && (
                         <>
@@ -1605,15 +1778,18 @@ const EditLand = () => {
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    openPreview(newVideos, index, "video")
+                                    openPreview(
+                                      newVideos.map((file) => ({
+                                        url: URL.createObjectURL(file),
+                                      })),
+                                      index,
+                                      "video",
+                                    )
                                   }
                                   className="block h-32 w-full"
                                 >
                                   <div className="flex h-32 w-full items-center justify-center bg-gray-900">
-                                    <FiVideo
-                                      size={32}
-                                      className="text-white/70"
-                                    />
+                                    <FiVideo size={32} className="text-white/70" />
                                   </div>
                                 </button>
                                 <button
@@ -1625,8 +1801,7 @@ const EditLand = () => {
                                 </button>
                                 <div className="pointer-events-none absolute bottom-0 left-0 right-0 bg-gradient-to-t from-green-600/80 to-transparent px-2 py-1.5">
                                   <p className="truncate text-[10px] font-medium text-white">
-                                    New •{" "}
-                                    {(vid.size / (1024 * 1024)).toFixed(1)} MB
+                                    New • {(vid.size / (1024 * 1024)).toFixed(1)} MB
                                   </p>
                                 </div>
                               </div>
@@ -1670,6 +1845,14 @@ const EditLand = () => {
           </form>
         </main>
       </div>
+
+      {mediaSourceModal && (
+        <MediaSourceModal
+          type={mediaSourceModal}
+          onClose={() => setMediaSourceModal(null)}
+          onChoose={handleMediaSourceChoose}
+        />
+      )}
 
       {previewMedia && (
         <MediaPreviewModal

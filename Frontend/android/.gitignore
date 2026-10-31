@@ -1,0 +1,119 @@
+
+# ==========================================
+# GENERAL
+# ==========================================
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ==========================================
+# NODE.JS
+# ==========================================
+node_modules/
+**/node_modules/
+
+# ==========================================
+# BACKEND
+# ==========================================
+Backend/.env
+Backend/.env.*
+!Backend/.env.example
+Backend/logs/
+Backend/uploads/
+Backend/coverage/
+
+# ==========================================
+# FRONTEND
+# ==========================================
+Frontend/.env
+Frontend/.env.*
+!Frontend/.env.example
+Frontend/dist/
+Frontend/coverage/
+
+# ==========================================
+# ANDROID BUILD FILES
+# ==========================================
+*.apk
+*.aar
+*.ap_
+*.aab
+*.dex
+*.class
+
+# Generated directories
+bin/
+gen/
+out/
+.gradle/
+build/
+android/.gradle/
+android/**/build/
+
+# Local Android SDK configuration
+local.properties
+
+# ProGuard
+proguard/
+
+# Android Studio
+.navigation/
+captures/
+.idea/
+*.iml
+.externalNativeBuild/
+.cxx/
+android/.externalNativeBuild/
+android/.cxx/
+
+# Android profiling
+*.hprof
+
+# ==========================================
+# ANDROID SIGNING - NEVER COMMIT PRIVATE KEYS
+# ==========================================
+*.jks
+*.keystore
+key.properties
+
+# ==========================================
+# FIREBASE CONFIGURATION
+# ==========================================
+google-services.json
+
+# ==========================================
+# CAPACITOR GENERATED FILES
+# ==========================================
+capacitor-cordova-android-plugins/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/app/src/main/res/xml/config.xml
+
+# ==========================================
+# FASTLANE
+# ==========================================
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+fastlane/readme.md
+
+# ==========================================
+# ANDROID LINT
+# ==========================================
+lint/intermediates/
+lint/generated/
+lint/outputs/
+lint/tmp/
+
+# ==========================================
+# PYTHON (IF USED)
+# ==========================================
+__pycache__/
+*.py[cod]
+venv/
+.venv/

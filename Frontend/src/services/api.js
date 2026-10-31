@@ -1,7 +1,8 @@
 import axios from "axios";
+    // baseURL: "https://land-management-zj14.onrender.com/api",
 
 const api = axios.create({
-    baseURL: "https://land-management-zj14.onrender.com/api",
+    baseURL: "http://localhost:5000/api",
 });
 
 api.interceptors.request.use(

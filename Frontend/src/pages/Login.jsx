@@ -57,11 +57,11 @@ const Login = () => {
               to="/login"
               className="mb-8 block text-center text-xl  font-semibold tracking-tight "
             >
-              <span className="">Land </span>
+              <span className="text-white">Land </span>
               <span className="text-emerald-600">Manage</span>
             </Link>
 
-            <h1 className="text-xl font-semibold text-center">Sign in</h1>
+            <h1 className="text-xl font-semibold text-center text-white">Sign in</h1>
             <p className="mt-1 text-sm text-slate-500 text-center">
               Welcome back. Enter your details to continue.
             </p>
@@ -161,7 +161,7 @@ const Login = () => {
               </span>
               <Link
                 to="/register"
-                className="font-medium text-emerald-600 text-white hover:text-emerald-700"
+                className="font-medium text-white hover:text-white"
               >
                 Create one
               </Link>

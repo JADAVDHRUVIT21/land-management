@@ -310,7 +310,7 @@ function App() {
       {/* PIN Lock Screen */}
       {isLocked && !showSplash && <LockScreen onUnlock={handleUnlock} />}
 
-      {/* Splash Screen */}
+      Splash Screen
       <AnimatePresence>
         {showSplash && (
           <CurtainTransition
