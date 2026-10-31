@@ -1,952 +1,1154 @@
-  import { useMemo, useState, useRef, useEffect } from "react";
-  import { useNavigate } from "react-router-dom";
-  import { Capacitor } from "@capacitor/core";
-  import { Preferences } from "@capacitor/preferences";
-  import { Contacts as NativeContacts } from "@capacitor-community/contacts";
-  import {
-    FiUsers,
-    FiSearch,
-    FiMail,
-    FiMessageCircle,
-    FiPhone,
-    FiX,
-    FiAlertCircle,
-    FiLoader,
-    FiSend,
-    FiChevronDown,
-    FiDownloadCloud,
-  } from "react-icons/fi";
+import { useMemo, useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
+import { Contacts as NativeContacts } from "@capacitor-community/contacts";
+import {
+  FiUsers,
+  FiSearch,
+  FiMail,
+  FiMessageCircle,
+  FiPhone,
+  FiX,
+  FiAlertCircle,
+  FiLoader,
+  FiSend,
+  FiChevronDown,
+  FiDownloadCloud,
+  FiTrash2,
+  FiCheck,
+} from "react-icons/fi";
 
-  import Sidebar from "../components/Sidebar";
-  import api from "../services/api";
+import Sidebar from "../components/Sidebar";
+import api from "../services/api";
 
-  /* ---------------- Countries ---------------- */
-  const COUNTRIES = [
-    { code: "IN", name: "India", dial: "+91", flag: "🇮🇳" },
-    { code: "US", name: "United States", dial: "+1", flag: "🇺🇸" },
-    { code: "GB", name: "United Kingdom", dial: "+44", flag: "🇬🇧" },
-    { code: "AE", name: "United Arab Emirates", dial: "+971", flag: "🇦🇪" },
-    { code: "AU", name: "Australia", dial: "+61", flag: "🇦🇺" },
-    { code: "CA", name: "Canada", dial: "+1", flag: "🇨🇦" },
-    { code: "SG", name: "Singapore", dial: "+65", flag: "🇸🇬" },
-    { code: "MY", name: "Malaysia", dial: "+60", flag: "🇲🇾" },
-    { code: "NZ", name: "New Zealand", dial: "+64", flag: "🇳🇿" },
-    { code: "ZA", name: "South Africa", dial: "+27", flag: "🇿🇦" },
-    { code: "SA", name: "Saudi Arabia", dial: "+966", flag: "🇸🇦" },
-    { code: "QA", name: "Qatar", dial: "+974", flag: "🇶🇦" },
-    { code: "KW", name: "Kuwait", dial: "+965", flag: "🇰🇼" },
-    { code: "OM", name: "Oman", dial: "+968", flag: "🇴🇲" },
-    { code: "BH", name: "Bahrain", dial: "+973", flag: "🇧🇭" },
-    { code: "NP", name: "Nepal", dial: "+977", flag: "🇳🇵" },
-    { code: "BD", name: "Bangladesh", dial: "+880", flag: "🇧🇩" },
-    { code: "LK", name: "Sri Lanka", dial: "+94", flag: "🇱🇰" },
-    { code: "PK", name: "Pakistan", dial: "+92", flag: "🇵🇰" },
-    { code: "CN", name: "China", dial: "+86", flag: "🇨🇳" },
-    { code: "JP", name: "Japan", dial: "+81", flag: "🇯🇵" },
-    { code: "KR", name: "South Korea", dial: "+82", flag: "🇰🇷" },
-    { code: "DE", name: "Germany", dial: "+49", flag: "🇩🇪" },
-    { code: "FR", name: "France", dial: "+33", flag: "🇫🇷" },
-    { code: "IT", name: "Italy", dial: "+39", flag: "🇮🇹" },
-    { code: "ES", name: "Spain", dial: "+34", flag: "🇪🇸" },
-    { code: "NL", name: "Netherlands", dial: "+31", flag: "🇳🇱" },
-    { code: "BR", name: "Brazil", dial: "+55", flag: "🇧🇷" },
-    { code: "MX", name: "Mexico", dial: "+52", flag: "🇲🇽" },
-    { code: "RU", name: "Russia", dial: "+7", flag: "🇷🇺" },
-  ];
+/* ---------------- Countries ---------------- */
+const COUNTRIES = [
+  { code: "IN", name: "India", dial: "+91", flag: "🇮🇳" },
+  { code: "US", name: "United States", dial: "+1", flag: "🇺🇸" },
+  { code: "GB", name: "United Kingdom", dial: "+44", flag: "🇬🇧" },
+  { code: "AE", name: "United Arab Emirates", dial: "+971", flag: "🇦🇪" },
+  { code: "AU", name: "Australia", dial: "+61", flag: "🇦🇺" },
+  { code: "CA", name: "Canada", dial: "+1", flag: "🇨🇦" },
+  { code: "SG", name: "Singapore", dial: "+65", flag: "🇸🇬" },
+  { code: "MY", name: "Malaysia", dial: "+60", flag: "🇲🇾" },
+  { code: "NZ", name: "New Zealand", dial: "+64", flag: "🇳🇿" },
+  { code: "ZA", name: "South Africa", dial: "+27", flag: "🇿🇦" },
+  { code: "SA", name: "Saudi Arabia", dial: "+966", flag: "🇸🇦" },
+  { code: "QA", name: "Qatar", dial: "+974", flag: "🇶🇦" },
+  { code: "KW", name: "Kuwait", dial: "+965", flag: "🇰🇼" },
+  { code: "OM", name: "Oman", dial: "+968", flag: "🇴🇲" },
+  { code: "BH", name: "Bahrain", dial: "+973", flag: "🇧🇭" },
+  { code: "NP", name: "Nepal", dial: "+977", flag: "🇳🇵" },
+  { code: "BD", name: "Bangladesh", dial: "+880", flag: "🇧🇩" },
+  { code: "LK", name: "Sri Lanka", dial: "+94", flag: "🇱🇰" },
+  { code: "PK", name: "Pakistan", dial: "+92", flag: "🇵🇰" },
+  { code: "CN", name: "China", dial: "+86", flag: "🇨🇳" },
+  { code: "JP", name: "Japan", dial: "+81", flag: "🇯🇵" },
+  { code: "KR", name: "South Korea", dial: "+82", flag: "🇰🇷" },
+  { code: "DE", name: "Germany", dial: "+49", flag: "🇩🇪" },
+  { code: "FR", name: "France", dial: "+33", flag: "🇫🇷" },
+  { code: "IT", name: "Italy", dial: "+39", flag: "🇮🇹" },
+  { code: "ES", name: "Spain", dial: "+34", flag: "🇪🇸" },
+  { code: "NL", name: "Netherlands", dial: "+31", flag: "🇳🇱" },
+  { code: "BR", name: "Brazil", dial: "+55", flag: "🇧🇷" },
+  { code: "MX", name: "Mexico", dial: "+52", flag: "🇲🇽" },
+  { code: "RU", name: "Russia", dial: "+7", flag: "🇷🇺" },
+];
 
-  const normalizePhone = (raw, dialCode = "+91") => {
-    if (!raw) return "";
-    let digits = String(raw).replace(/\D/g, "");
-    const dialDigits = String(dialCode).replace(/\D/g, "");
-    if (digits.startsWith(dialDigits) && digits.length > dialDigits.length + 4) {
-      digits = digits.slice(dialDigits.length);
+const normalizePhone = (raw, dialCode = "+91") => {
+  if (!raw) return "";
+  let digits = String(raw).replace(/\D/g, "");
+  const dialDigits = String(dialCode).replace(/\D/g, "");
+  if (digits.startsWith(dialDigits) && digits.length > dialDigits.length + 4) {
+    digits = digits.slice(dialDigits.length);
+  }
+  if (dialCode === "+91") {
+    return digits.length > 10 ? digits.slice(-10) : digits;
+  }
+  return digits;
+};
+
+const isValidPhone = (raw, dialCode = "+91") => {
+  const digits = normalizePhone(raw, dialCode);
+  if (dialCode === "+91") return digits.length === 10;
+  return digits.length >= 6 && digits.length <= 15;
+};
+
+const toE164 = (raw, dialCode = "+91") => {
+  const digits = normalizePhone(raw, dialCode);
+  return `${dialCode}${digits}`;
+};
+
+const getInitials = (name = "") => {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "U";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+};
+
+/* Try to detect a dial code from an E.164-like string, defaulting to +91 */
+const guessDialFromE164 = (raw) => {
+  if (!raw) return "+91";
+  const s = String(raw);
+  if (!s.startsWith("+")) return "+91";
+  // Prefer longest matching dial code from our list
+  let best = "+91";
+  let bestLen = 0;
+  for (const c of COUNTRIES) {
+    if (s.startsWith(c.dial) && c.dial.length > bestLen) {
+      best = c.dial;
+      bestLen = c.dial.length;
     }
-    if (dialCode === "+91") {
-      return digits.length > 10 ? digits.slice(-10) : digits;
-    }
-    return digits;
-  };
+  }
+  return best;
+};
 
-  const isValidPhone = (raw, dialCode = "+91") => {
-    const digits = normalizePhone(raw, dialCode);
-    if (dialCode === "+91") return digits.length === 10;
-    return digits.length >= 6 && digits.length <= 15;
-  };
+/* ---------------- Country dropdown ---------------- */
+function CountryDropdown({ selected, onSelect, disabled }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const wrapperRef = useRef(null);
 
-  const toE164 = (raw, dialCode = "+91") => {
-    const digits = normalizePhone(raw, dialCode);
-    return `${dialCode}${digits}`;
-  };
-
-  const getInitials = (name = "") => {
-    const words = name.trim().split(/\s+/).filter(Boolean);
-    if (words.length === 0) return "U";
-    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-    return (words[0][0] + words[words.length - 1][0]).toUpperCase();
-  };
-
-  /* Try to detect a dial code from an E.164-like string, defaulting to +91 */
-  const guessDialFromE164 = (raw) => {
-    if (!raw) return "+91";
-    const s = String(raw);
-    if (!s.startsWith("+")) return "+91";
-    // Prefer longest matching dial code from our list
-    let best = "+91";
-    let bestLen = 0;
-    for (const c of COUNTRIES) {
-      if (s.startsWith(c.dial) && c.dial.length > bestLen) {
-        best = c.dial;
-        bestLen = c.dial.length;
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false);
       }
-    }
-    return best;
-  };
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  /* ---------------- Country dropdown ---------------- */
-  function CountryDropdown({ selected, onSelect, disabled }) {
-    const [open, setOpen] = useState(false);
-    const [query, setQuery] = useState("");
-    const wrapperRef = useRef(null);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return COUNTRIES;
+    return COUNTRIES.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.dial.includes(q) ||
+        c.code.toLowerCase().includes(q),
+    );
+  }, [query]);
 
-    useEffect(() => {
-      const handleClickOutside = (e) => {
-        if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-          setOpen(false);
-        }
-      };
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+  return (
+    <div className="relative" ref={wrapperRef}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((v) => !v)}
+        className="flex h-full items-center gap-1.5 rounded-l-2xl border-r border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className="text-lg leading-none">{selected.flag}</span>
+        <span className="text-sm">{selected.dial}</span>
+        <FiChevronDown
+          size={14}
+          className={`text-gray-400 transition-transform ${open ? "rotate-180" : ""} dark:text-gray-500`}
+        />
+      </button>
 
-    const filtered = useMemo(() => {
-      const q = query.trim().toLowerCase();
-      if (!q) return COUNTRIES;
-      return COUNTRIES.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          c.dial.includes(q) ||
-          c.code.toLowerCase().includes(q),
-      );
-    }, [query]);
-
-    return (
-      <div className="relative" ref={wrapperRef}>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => setOpen((v) => !v)}
-          className="flex h-full items-center gap-1.5 rounded-l-2xl border-r border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-          aria-haspopup="listbox"
-          aria-expanded={open}
-        >
-          <span className="text-lg leading-none">{selected.flag}</span>
-          <span className="text-sm">{selected.dial}</span>
-          <FiChevronDown
-            size={14}
-            className={`text-gray-400 transition-transform ${open ? "rotate-180" : ""} dark:text-gray-500`}
-          />
-        </button>
-
-        {open && (
-          <div className="absolute left-0 top-full z-30 mt-2 w-72 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
-            <div className="border-b border-gray-100 p-2 dark:border-gray-800">
-              <div className="relative">
-                <FiSearch
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
-                />
-                <input
-                  autoFocus
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search country or code..."
-                  className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900 dark:focus:ring-green-900/40"
-                />
-              </div>
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-2 w-72 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+          <div className="border-b border-gray-100 p-2 dark:border-gray-800">
+            <div className="relative">
+              <FiSearch
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+              />
+              <input
+                autoFocus
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search country or code..."
+                className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-8 pr-3 text-xs text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900 dark:focus:ring-green-900/40"
+              />
             </div>
+          </div>
 
-            <ul className="max-h-64 overflow-y-auto py-1" role="listbox">
-              {filtered.length === 0 ? (
-                <li className="px-3 py-6 text-center text-xs text-gray-400 dark:text-gray-500">
-                  No countries found.
-                </li>
-              ) : (
-                filtered.map((c) => {
-                  const isActive = c.code === selected.code;
-                  return (
-                    <li key={c.code}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onSelect(c);
-                          setOpen(false);
-                          setQuery("");
-                        }}
-                        className={`flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition ${isActive
+          <ul className="max-h-64 overflow-y-auto py-1" role="listbox">
+            {filtered.length === 0 ? (
+              <li className="px-3 py-6 text-center text-xs text-gray-400 dark:text-gray-500">
+                No countries found.
+              </li>
+            ) : (
+              filtered.map((c) => {
+                const isActive = c.code === selected.code;
+                return (
+                  <li key={c.code}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSelect(c);
+                        setOpen(false);
+                        setQuery("");
+                      }}
+                      className={`flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition ${
+                        isActive
                           ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                           : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
-                          }`}
-                        role="option"
-                        aria-selected={isActive}
-                      >
-                        <span className="text-lg leading-none">{c.flag}</span>
-                        <span className="flex-1 truncate">{c.name}</span>
-                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                          {c.dial}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })
-              )}
-            </ul>
-          </div>
-        )}
-      </div>
-    );
-  }
+                      }`}
+                      role="option"
+                      aria-selected={isActive}
+                    >
+                      <span className="text-lg leading-none">{c.flag}</span>
+                      <span className="flex-1 truncate">{c.name}</span>
+                      <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        {c.dial}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
-  /* ---------------- Contact Picker API helpers ---------------- */
-  /*
-  * Native Android/iOS: use the Capacitor Contacts plugin.
-  * Website: keep using the browser Contact Picker API where supported.
-  */
-  const isContactPickerSupported = () => {
-    if (Capacitor.isNativePlatform()) return true;
+/* ---------------- Contact Picker API helpers ---------------- */
+/*
+ * Native Android/iOS: use the Capacitor Contacts plugin.
+ * Website: keep using the browser Contact Picker API where supported.
+ */
+const isContactPickerSupported = () => {
+  if (Capacitor.isNativePlatform()) return true;
 
-    return (
-      typeof navigator !== "undefined" &&
-      "contacts" in navigator &&
-      typeof navigator.contacts?.select === "function"
-    );
+  return (
+    typeof navigator !== "undefined" &&
+    "contacts" in navigator &&
+    typeof navigator.contacts?.select === "function"
+  );
+};
+
+function Contacts() {
+  const navigate = useNavigate();
+
+  // Keep imported and manually added contacts after leaving this page or
+  // restarting the app. These are LandManage's saved contacts, not changes
+  // to the phone's native address book.
+  const [picked, setPicked] = useState(() => {
+    try {
+      const saved = localStorage.getItem("landmanage_saved_contacts");
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error("Failed to load saved contacts:", error);
+      return [];
+    }
+  });
+
+  const [matchedUsers, setMatchedUsers] = useState(() => {
+    try {
+      const saved = localStorage.getItem("landmanage_matched_contacts");
+      return saved ? JSON.parse(saved) : {};
+    } catch (error) {
+      console.error("Failed to load matched contacts:", error);
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("landmanage_saved_contacts", JSON.stringify(picked));
+    } catch (error) {
+      console.error("Failed to save contacts:", error);
+      setError("Could not save contacts on this device. Check available storage.");
+    }
+  }, [picked]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("landmanage_matched_contacts", JSON.stringify(matchedUsers));
+    } catch (error) {
+      console.error("Failed to save matched contacts:", error);
+    }
+  }, [matchedUsers]);
+
+  const [matching, setMatching] = useState(false);
+  const [error, setError] = useState("");
+
+  const [country, setCountry] = useState(
+    COUNTRIES.find((c) => c.code === "IN") || COUNTRIES[0],
+  );
+
+  const [sendingInvite, setSendingInvite] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+
+  const [importing, setImporting] = useState(false);
+  const [deviceContacts, setDeviceContacts] = useState([]);
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
+  const [deviceContactSearch, setDeviceContactSearch] = useState("");
+  const [showDeviceContactPicker, setShowDeviceContactPicker] = useState(false);
+
+  // Long-press and multi-contact selection state.
+  const [selectedContacts, setSelectedContacts] = useState([]);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const longPressTimer = useRef(null);
+  const longPressTriggered = useRef(false);
+
+  // Directly check support on initial render, no useEffect needed
+  const [pickerSupported] = useState(isContactPickerSupported());
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    window.clearTimeout(showToast._timer);
+    showToast._timer = window.setTimeout(() => setToast(null), 3500);
   };
 
-  function Contacts() {
-    const navigate = useNavigate();
-
-    const [picked, setPicked] = useState([]);
-    const [matchedUsers, setMatchedUsers] = useState({});
-    const [contactsLoaded, setContactsLoaded] = useState(false);
-
-    // Load saved contacts when Contacts page opens
-    useEffect(() => {
-      const loadSavedContacts = async () => {
-        try {
-          const { value } = await Preferences.get({
-            key: "saved_contacts",
-          });
-
-          if (value) {
-            setPicked(JSON.parse(value));
-          }
-        } catch (error) {
-          console.error("Error loading saved contacts:", error);
-        } finally {
-          setContactsLoaded(true);
-        }
-      };
-
-      loadSavedContacts();
-    }, []);
-
-    // Save contacts whenever the picked list changes
-    useEffect(() => {
-      const saveContacts = async () => {
-        if (!contactsLoaded) return;
-
-        try {
-          await Preferences.set({
-            key: "saved_contacts",
-            value: JSON.stringify(picked),
-          });
-        } catch (error) {
-          console.error("Error saving contacts:", error);
-        }
-      };
-
-      saveContacts();
-    }, [picked, contactsLoaded]);
-
-    const [matching, setMatching] = useState(false);
-    const [error, setError] = useState("");
-
-    const [country, setCountry] = useState(
-      COUNTRIES.find((c) => c.code === "IN") || COUNTRIES[0],
+  const allNumbers = useMemo(() => {
+    const set = new Set();
+    picked.forEach((c) =>
+      (c.phones || []).forEach((p) => {
+        if (p?.e164) set.add(p.e164);
+      }),
     );
+    return Array.from(set);
+  }, [picked]);
 
-    const [sendingInvite, setSendingInvite] = useState(null);
-    const [toast, setToast] = useState(null);
-
-    const [search, setSearch] = useState("");
-    const [appliedSearch, setAppliedSearch] = useState("");
-
-    const [importing, setImporting] = useState(false);
-    const [deviceContacts, setDeviceContacts] = useState([]);
-    const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
-    const [deviceContactSearch, setDeviceContactSearch] = useState("");
-    const [showDeviceContactPicker, setShowDeviceContactPicker] = useState(false);
-
-    // Directly check support on initial render, no useEffect needed
-    const [pickerSupported] = useState(isContactPickerSupported());
-
-    const showToast = (message, type = "success") => {
-      setToast({ message, type });
-      window.clearTimeout(showToast._timer);
-      showToast._timer = window.setTimeout(() => setToast(null), 3500);
-    };
-
-    const allNumbers = useMemo(() => {
-      const set = new Set();
-      picked.forEach((c) =>
-        (c.phones || []).forEach((p) => {
-          if (p?.e164) set.add(p.e164);
-        }),
-      );
-      return Array.from(set);
-    }, [picked]);
-
-    const phoneEntryFor = (e164) => {
-      for (const c of picked) {
-        for (const p of c.phones || []) {
-          if (p.e164 === e164) return p;
-        }
+  const phoneEntryFor = (e164) => {
+    for (const c of picked) {
+      for (const p of c.phones || []) {
+        if (p.e164 === e164) return p;
       }
-      return null;
-    };
+    }
+    return null;
+  };
 
-    const nameForNumber = (e164) => {
-      if (matchedUsers[e164]?.fullName) return matchedUsers[e164].fullName;
-      for (const c of picked) {
-        const has = (c.phones || []).some((p) => p.e164 === e164);
-        if (has && c.name) return c.name;
-      }
-      return null;
-    };
+  const nameForNumber = (e164) => {
+    if (matchedUsers[e164]?.fullName) return matchedUsers[e164].fullName;
+    for (const c of picked) {
+      const has = (c.phones || []).some((p) => p.e164 === e164);
+      if (has && c.name) return c.name;
+    }
+    return null;
+  };
 
-    const runMatchFor = async (numbers) => {
-      const deduped = Array.from(new Set(numbers.filter(Boolean)));
-      if (deduped.length === 0) return;
+  const runMatchFor = async (numbers) => {
+    const deduped = Array.from(new Set(numbers.filter(Boolean)));
+    if (deduped.length === 0) return;
 
-      try {
-        setMatching(true);
+    try {
+      setMatching(true);
 
-        // Send smaller batches so large address books do not hit request limits.
-        const matchedArray = [];
-        for (let i = 0; i < deduped.length; i += 100) {
-          const response = await api.post("/users/match-contacts", {
-            phones: deduped.slice(i, i + 100),
-          });
-          const data = response.data || {};
-          if (Array.isArray(data.matched)) matchedArray.push(...data.matched);
-        }
-
-        setMatchedUsers((current) => {
-          const next = { ...current };
-
-          matchedArray.forEach((m) => {
-            const userPhone = m.user?.phone || m.phone || "";
-            const digits = String(userPhone).replace(/\D/g, "");
-            const local = digits.length > 10 ? digits.slice(-10) : digits;
-
-            const keysToStore = new Set([
-              String(m.phone || ""), String(userPhone), digits, local,
-              `+91${local}`, `91${local}`,
-            ]);
-            keysToStore.forEach((k) => { if (k) next[k] = m.user; });
-          });
-          return next;
+      // Send smaller batches so large address books do not hit request limits.
+      const matchedArray = [];
+      for (let i = 0; i < deduped.length; i += 100) {
+        const response = await api.post("/users/match-contacts", {
+          phones: deduped.slice(i, i + 100),
         });
-      } catch (err) {
-        console.error("MATCH CONTACTS ERROR:", err);
-        setError(
-          err.response?.data?.message ||
+        const data = response.data || {};
+        if (Array.isArray(data.matched)) matchedArray.push(...data.matched);
+      }
+
+      setMatchedUsers((current) => {
+        const next = { ...current };
+
+        matchedArray.forEach((m) => {
+          const userPhone = m.user?.phone || m.phone || "";
+          const digits = String(userPhone).replace(/\D/g, "");
+          const local = digits.length > 10 ? digits.slice(-10) : digits;
+
+          const keysToStore = new Set([
+            String(m.phone || ""), String(userPhone), digits, local,
+            `+91${local}`, `91${local}`,
+          ]);
+          keysToStore.forEach((k) => { if (k) next[k] = m.user; });
+        });
+        return next;
+      });
+    } catch (err) {
+      console.error("MATCH CONTACTS ERROR:", err);
+      setError(
+        err.response?.data?.message ||
           "Failed to match contacts. Please try again.",
-        );
-      } finally {
-        setMatching(false);
-      }
-    };
+      );
+    } finally {
+      setMatching(false);
+    }
+  };
 
-    const submitSearch = async () => {
-      const q = search.trim();
+  const submitSearch = async () => {
+    const q = search.trim();
 
-      if (!q) {
-        setAppliedSearch("");
-        return;
-      }
-
-      const digitsOnly = q.replace(/\D/g, "");
-      if (digitsOnly.length >= 6 && isValidPhone(digitsOnly, country.dial)) {
-        const local = normalizePhone(digitsOnly, country.dial);
-        const e164 = toE164(digitsOnly, country.dial);
-
-        const exists = picked.some((c) =>
-          (c.phones || []).some((p) => p.e164 === e164),
-        );
-
-        if (!exists) {
-          const entry = {
-            e164,
-            dial: country.dial,
-            local,
-            country: country.code,
-            flag: country.flag,
-          };
-          setPicked((current) => [...current, { name: "", phones: [entry] }]);
-          await runMatchFor([e164]);
-        }
-      }
-
-      setAppliedSearch(q);
-    };
-
-    const clearSearch = () => {
-      setSearch("");
+    if (!q) {
       setAppliedSearch("");
-    };
+      return;
+    }
 
-    /* ---------------- Import contacts from the device ---------------- */
-    const importContacts = async () => {
-      if (!isContactPickerSupported()) {
-        showToast(
-          "Contact import isn't supported on this browser. Try Chrome on Android.",
-          "error",
-        );
-        return;
+    const digitsOnly = q.replace(/\D/g, "");
+    if (digitsOnly.length >= 6 && isValidPhone(digitsOnly, country.dial)) {
+      const local = normalizePhone(digitsOnly, country.dial);
+      const e164 = toE164(digitsOnly, country.dial);
+
+      const exists = picked.some((c) =>
+        (c.phones || []).some((p) => p.e164 === e164),
+      );
+
+      if (!exists) {
+        const entry = {
+          e164,
+          dial: country.dial,
+          local,
+          country: country.code,
+          flag: country.flag,
+        };
+        setPicked((current) => [...current, { name: "", phones: [entry] }]);
+        await runMatchFor([e164]);
       }
+    }
 
-      try {
-        setImporting(true);
-        setError("");
+    setAppliedSearch(q);
+  };
 
-        let rawContacts = [];
-        if (Capacitor.isNativePlatform()) {
-          const permission = await NativeContacts.requestPermissions();
-          if (permission?.contacts !== "granted" && permission?.contacts !== "limited") {
-            showToast(
-              "Contact permission was not granted. Allow Contacts access in app settings and try again.",
-              "error",
-            );
-            return;
-          }
+  const clearSearch = () => {
+    setSearch("");
+    setAppliedSearch("");
+  };
 
-          const result = await NativeContacts.getContacts({
-            projection: { name: true, phones: true },
-          });
-          const nativeList = Array.isArray(result?.contacts) ? result.contacts : [];
-          rawContacts = nativeList.map((contact, index) => ({
-            id: contact?.contactId || `device-contact-${index}`,
-            name: contact?.name?.display ||
-              [contact?.name?.given, contact?.name?.middle, contact?.name?.family].filter(Boolean).join(" ") ||
-              "Unnamed contact",
-            tel: (Array.isArray(contact?.phones) ? contact.phones : [])
-              .map((phone) => phone?.number || "").filter(Boolean),
-          }));
+  /* ---------------- Import contacts from the device ---------------- */
+  const importContacts = async () => {
+    if (!isContactPickerSupported()) {
+      showToast(
+        "Contact import isn't supported on this browser. Try Chrome on Android.",
+        "error",
+      );
+      return;
+    }
 
-          if (!rawContacts.length) {
-            showToast("No contacts found on this device.", "success");
-            return;
-          }
-          setDeviceContacts(rawContacts);
-          setSelectedDeviceIds([]);
-          setDeviceContactSearch("");
-          setShowDeviceContactPicker(true);
+    try {
+      setImporting(true);
+      setError("");
+
+      let rawContacts = [];
+      if (Capacitor.isNativePlatform()) {
+        const permission = await NativeContacts.requestPermissions();
+        if (permission?.contacts !== "granted" && permission?.contacts !== "limited") {
+          showToast(
+            "Contact permission was not granted. Allow Contacts access in app settings and try again.",
+            "error",
+          );
           return;
         }
 
-        // On browsers, the browser's own picker already allows selecting contacts.
-        rawContacts = await navigator.contacts.select(["name", "tel"], { multiple: true });
-        await processSelectedContacts(rawContacts);
-      } catch (err) {
-        if (err?.name === "AbortError" || /abort/i.test(err?.message || "")) return;
-        console.error("IMPORT CONTACTS ERROR:", err);
-        setError(err?.message || "Failed to import contacts. Please grant contact permission and try again.");
-      } finally {
-        setImporting(false);
-      }
-    };
-
-    const processSelectedContacts = async (rawContacts) => {
-      if (!Array.isArray(rawContacts) || rawContacts.length === 0) {
-        showToast("No contacts selected.", "success");
-        return;
-      }
-
-      const existingNumbers = new Set(
-        picked.flatMap((c) => (c.phones || []).map((p) => p.e164).filter(Boolean)),
-      );
-      const newEntries = [];
-      const numbersToMatch = [];
-
-      rawContacts.forEach((rc) => {
-        const name = Array.isArray(rc.name) ? rc.name[0] || "" : rc.name || "";
-        const tels = Array.isArray(rc.tel) ? rc.tel : [];
-        const phoneEntries = [];
-        tels.forEach((tel) => {
-          const raw = String(tel || "").trim();
-          if (!raw) return;
-          const dial = guessDialFromE164(raw);
-          const digits = raw.replace(/\D/g, "");
-          if (digits.length < 6) return;
-          const e164 = raw.startsWith("+") ? `+${digits}` : toE164(digits, dial);
-          if (existingNumbers.has(e164)) return;
-          existingNumbers.add(e164);
-          const countryMeta = COUNTRIES.find((c) => c.dial === dial) || COUNTRIES.find((c) => c.code === "IN") || COUNTRIES[0];
-          phoneEntries.push({ e164, dial, local: normalizePhone(digits, dial), country: countryMeta.code, flag: countryMeta.flag });
-          numbersToMatch.push(e164);
+        const result = await NativeContacts.getContacts({
+          projection: { name: true, phones: true },
         });
-        if (phoneEntries.length > 0) newEntries.push({ name, phones: phoneEntries });
-      });
+        const nativeList = Array.isArray(result?.contacts) ? result.contacts : [];
+        rawContacts = nativeList.map((contact, index) => ({
+          id: contact?.contactId || `device-contact-${index}`,
+          name: contact?.name?.display ||
+            [contact?.name?.given, contact?.name?.middle, contact?.name?.family].filter(Boolean).join(" ") ||
+            "Unnamed contact",
+          tel: (Array.isArray(contact?.phones) ? contact.phones : [])
+            .map((phone) => phone?.number || "").filter(Boolean),
+        }));
 
-      if (newEntries.length === 0) {
-        showToast("No new phone numbers found in the selected contacts.", "success");
-        return;
-      }
-      setPicked((current) => [...current, ...newEntries]);
-      showToast(`Imported ${newEntries.length} contact${newEntries.length > 1 ? "s" : ""}.`, "success");
-      await runMatchFor(numbersToMatch);
-    };
-
-    const confirmSelectedDeviceContacts = async () => {
-      const selected = new Set(selectedDeviceIds);
-      const contactsToImport = deviceContacts
-        .filter((contact) => selected.has(contact.id))
-        .map(({ name, tel }) => ({ name, tel }));
-      setShowDeviceContactPicker(false);
-      setImporting(true);
-      try {
-        await processSelectedContacts(contactsToImport);
-      } catch (err) {
-        console.error("SELECTED CONTACT IMPORT ERROR:", err);
-        setError(err?.message || "Failed to import selected contacts.");
-      } finally {
-        setImporting(false);
-      }
-    };
-
-    const filteredNumbers = useMemo(() => {
-      const q = appliedSearch.toLowerCase();
-      const qDigits = appliedSearch.replace(/\D/g, "");
-
-      let list = allNumbers;
-
-      if (q) {
-        list = list.filter((e164) => {
-          const matchedUser = matchedUsers[e164];
-          const displayName = (
-            matchedUser?.fullName ||
-            nameForNumber(e164) ||
-            ""
-          ).toLowerCase();
-
-          return (
-            displayName.includes(q) ||
-            (qDigits.length > 0 && e164.replace(/\D/g, "").includes(qDigits))
-          );
-        });
-      }
-
-      // Alphabetical sort by display name (fallback to number)
-      return [...list].sort((a, b) => {
-        const nameA = (
-          matchedUsers[a]?.fullName ||
-          nameForNumber(a) ||
-          a
-        ).toLowerCase();
-        const nameB = (
-          matchedUsers[b]?.fullName ||
-          nameForNumber(b) ||
-          b
-        ).toLowerCase();
-        return nameA.localeCompare(nameB);
-      });
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [allNumbers, appliedSearch, matchedUsers, picked]);
-
-    const startChat = (user) => {
-      if (!user?._id) return;
-      navigate("/messages", { state: { contactUser: user } });
-    };
-
-    const inviteViaSMS = async (e164) => {
-      if (!e164) {
-        setError("Invalid phone number for SMS invite.");
-        return;
-      }
-
-      try {
-        setSendingInvite(e164);
-
-        const res = await api.post("/invite/sms", { phone: e164 });
-
-        if (res.data?.success) {
-          showToast(`SMS invite sent to ${e164}`, "success");
-        } else {
-          showToast(res.data?.message || "Failed to send SMS invite.", "error");
+        if (!rawContacts.length) {
+          showToast("No contacts found on this device.", "success");
+          return;
         }
-      } catch (err) {
-        console.error("SMS INVITE ERROR:", err);
-        showToast(
-          err.response?.data?.message || "Failed to send SMS invite.",
-          "error",
-        );
-      } finally {
-        setSendingInvite(null);
+        setDeviceContacts(rawContacts);
+        setSelectedDeviceIds([]);
+        setDeviceContactSearch("");
+        setShowDeviceContactPicker(true);
+        return;
       }
-    };
 
-    const clearAll = () => {
-      setPicked([]);
-      setMatchedUsers({});
-      setError("");
-      setSearch("");
-      setAppliedSearch("");
-    };
+      // On browsers, the browser's own picker already allows selecting contacts.
+      rawContacts = await navigator.contacts.select(["name", "tel"], { multiple: true });
+      await processSelectedContacts(rawContacts);
+    } catch (err) {
+      if (err?.name === "AbortError" || /abort/i.test(err?.message || "")) return;
+      console.error("IMPORT CONTACTS ERROR:", err);
+      setError(err?.message || "Failed to import contacts. Please grant contact permission and try again.");
+    } finally {
+      setImporting(false);
+    }
+  };
 
-    return (
-      <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 dark:bg-gray-950">
-        <Sidebar />
+  const processSelectedContacts = async (rawContacts) => {
+    if (!Array.isArray(rawContacts) || rawContacts.length === 0) {
+      showToast("No contacts selected.", "success");
+      return;
+    }
 
-        {toast && (
-          <div
-            className={`fixed right-5 top-5 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-white shadow-lg transition-all ${toast.type === "error" ? "bg-red-600" : "bg-green-600"
-              }`}
-            role="status"
-            aria-live="polite"
+    const existingNumbers = new Set(
+      picked.flatMap((c) => (c.phones || []).map((p) => p.e164).filter(Boolean)),
+    );
+    const newEntries = [];
+    const numbersToMatch = [];
+
+    rawContacts.forEach((rc) => {
+      const name = Array.isArray(rc.name) ? rc.name[0] || "" : rc.name || "";
+      const tels = Array.isArray(rc.tel) ? rc.tel : [];
+      const phoneEntries = [];
+      tels.forEach((tel) => {
+        const raw = String(tel || "").trim();
+        if (!raw) return;
+        const dial = guessDialFromE164(raw);
+        const digits = raw.replace(/\D/g, "");
+        if (digits.length < 6) return;
+        const e164 = raw.startsWith("+") ? `+${digits}` : toE164(digits, dial);
+        if (existingNumbers.has(e164)) return;
+        existingNumbers.add(e164);
+        const countryMeta = COUNTRIES.find((c) => c.dial === dial) || COUNTRIES.find((c) => c.code === "IN") || COUNTRIES[0];
+        phoneEntries.push({ e164, dial, local: normalizePhone(digits, dial), country: countryMeta.code, flag: countryMeta.flag });
+        numbersToMatch.push(e164);
+      });
+      if (phoneEntries.length > 0) newEntries.push({ name, phones: phoneEntries });
+    });
+
+    if (newEntries.length === 0) {
+      showToast("No new phone numbers found in the selected contacts.", "success");
+      return;
+    }
+    setPicked((current) => [...current, ...newEntries]);
+    showToast(`Imported ${newEntries.length} contact${newEntries.length > 1 ? "s" : ""}.`, "success");
+    await runMatchFor(numbersToMatch);
+  };
+
+  const confirmSelectedDeviceContacts = async () => {
+    const selected = new Set(selectedDeviceIds);
+    const contactsToImport = deviceContacts
+      .filter((contact) => selected.has(contact.id))
+      .map(({ name, tel }) => ({ name, tel }));
+    setShowDeviceContactPicker(false);
+    setImporting(true);
+    try {
+      await processSelectedContacts(contactsToImport);
+    } catch (err) {
+      console.error("SELECTED CONTACT IMPORT ERROR:", err);
+      setError(err?.message || "Failed to import selected contacts.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const filteredNumbers = useMemo(() => {
+    const q = appliedSearch.toLowerCase();
+    const qDigits = appliedSearch.replace(/\D/g, "");
+
+    let list = allNumbers;
+
+    if (q) {
+      list = list.filter((e164) => {
+        const matchedUser = matchedUsers[e164];
+        const displayName = (
+          matchedUser?.fullName ||
+          nameForNumber(e164) ||
+          ""
+        ).toLowerCase();
+
+        return (
+          displayName.includes(q) ||
+          (qDigits.length > 0 && e164.replace(/\D/g, "").includes(qDigits))
+        );
+      });
+    }
+
+    // Alphabetical sort by display name (fallback to number)
+    return [...list].sort((a, b) => {
+      const nameA = (
+        matchedUsers[a]?.fullName ||
+        nameForNumber(a) ||
+        a
+      ).toLowerCase();
+      const nameB = (
+        matchedUsers[b]?.fullName ||
+        nameForNumber(b) ||
+        b
+      ).toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allNumbers, appliedSearch, matchedUsers, picked]);
+
+  const startChat = (user) => {
+    if (!user?._id) return;
+    navigate("/messages", { state: { contactUser: user } });
+  };
+
+  const inviteViaSMS = async (e164) => {
+    if (!e164) {
+      setError("Invalid phone number for SMS invite.");
+      return;
+    }
+
+    try {
+      setSendingInvite(e164);
+
+      const res = await api.post("/invite/sms", { phone: e164 });
+
+      if (res.data?.success) {
+        showToast(`SMS invite sent to ${e164}`, "success");
+      } else {
+        showToast(res.data?.message || "Failed to send SMS invite.", "error");
+      }
+    } catch (err) {
+      console.error("SMS INVITE ERROR:", err);
+      showToast(
+        err.response?.data?.message || "Failed to send SMS invite.",
+        "error",
+      );
+    } finally {
+      setSendingInvite(null);
+    }
+  };
+
+  const startLongPress = (e164, event) => {
+    if (event?.pointerType === "mouse" && event.button !== 0) return;
+    longPressTriggered.current = false;
+    if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+
+    longPressTimer.current = window.setTimeout(() => {
+      longPressTriggered.current = true;
+      setSelectionMode(true);
+      setSelectedContacts((current) =>
+        current.includes(e164) ? current : [...current, e164],
+      );
+    }, 500);
+  };
+
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const cancelSelection = () => {
+    setSelectedContacts([]);
+    setSelectionMode(false);
+  };
+
+  const handleContactClick = (e164, user, isMatched) => {
+    // The click following a successful long-press must not open Message/Invite.
+    if (longPressTriggered.current) {
+      longPressTriggered.current = false;
+      return;
+    }
+
+    if (selectionMode) {
+      setSelectedContacts((current) => {
+        const next = current.includes(e164)
+          ? current.filter((number) => number !== e164)
+          : [...current, e164];
+        if (next.length === 0) setSelectionMode(false);
+        return next;
+      });
+      return;
+    }
+
+    if (isMatched) startChat(user);
+    else inviteViaSMS(e164);
+  };
+
+  const deleteSelectedContacts = () => {
+    if (selectedContacts.length === 0) return;
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteSelectedContacts = () => {
+    if (selectedContacts.length === 0) {
+      setShowDeleteConfirm(false);
+      return;
+    }
+
+    const numbersToDelete = new Set(selectedContacts);
+
+    setPicked((current) =>
+      current
+        .map((contact) => ({
+          ...contact,
+          phones: (contact.phones || []).filter(
+            (phone) => !numbersToDelete.has(phone.e164),
+          ),
+        }))
+        .filter((contact) => contact.phones.length > 0),
+    );
+
+    setMatchedUsers((current) => {
+      const next = { ...current };
+      numbersToDelete.forEach((number) => delete next[number]);
+      return next;
+    });
+
+    setSelectedContacts([]);
+    setSelectionMode(false);
+    setShowDeleteConfirm(false);
+    showToast(`${numbersToDelete.size} contact(s) deleted successfully.`, "success");
+  };
+
+  const toggleSelectAllContacts = () => {
+    if (allNumbers.length === 0) return;
+    const allSelected = allNumbers.every((number) => selectedContacts.includes(number));
+    setSelectedContacts(allSelected ? [] : [...allNumbers]);
+    setSelectionMode(!allSelected);
+  };
+
+  const clearAll = () => {
+    setPicked([]);
+    setMatchedUsers({});
+    setError("");
+    setSearch("");
+    setAppliedSearch("");
+    setSelectedContacts([]);
+    setSelectionMode(false);
+  };
+
+  return (
+    <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 dark:bg-gray-950">
+      <Sidebar />
+
+      {toast && (
+        <div
+          className={`fixed right-5 top-5 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-white shadow-lg transition-all ${
+            toast.type === "error" ? "bg-red-600" : "bg-green-600"
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {toast.type === "error" ? (
+            <FiAlertCircle size={16} />
+          ) : (
+            <FiSend size={16} />
+          )}
+          <span>{toast.message}</span>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="ml-2 rounded-full p-0.5 hover:bg-white/20"
+            aria-label="Dismiss notification"
           >
-            {toast.type === "error" ? (
-              <FiAlertCircle size={16} />
-            ) : (
-              <FiSend size={16} />
-            )}
-            <span>{toast.message}</span>
-            <button
-              type="button"
-              onClick={() => setToast(null)}
-              className="ml-2 rounded-full p-0.5 hover:bg-white/20"
-              aria-label="Dismiss notification"
+            <FiX size={14} />
+          </button>
+        </div>
+      )}
+
+      {showDeviceContactPicker && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
+          <section className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl dark:bg-gray-900 sm:rounded-3xl">
+            <header className="flex items-center justify-between border-b border-gray-200 p-4 dark:border-gray-800 sm:p-5">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Select contacts</h2>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{selectedDeviceIds.length} selected · {deviceContacts.length} contacts found</p>
+              </div>
+              <button type="button" onClick={() => setShowDeviceContactPicker(false)} className="rounded-full p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Close contact picker"><FiX size={20} /></button>
+            </header>
+            <div className="space-y-3 border-b border-gray-100 p-4 dark:border-gray-800">
+              <input value={deviceContactSearch} onChange={(e) => setDeviceContactSearch(e.target.value)} placeholder="Search contacts by name or number..." className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 outline-none focus:border-green-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <button type="button" onClick={() => setSelectedDeviceIds(deviceContacts.filter((c) => `${c.name} ${c.tel.join(" ")}`.toLowerCase().includes(deviceContactSearch.trim().toLowerCase())).map((c) => c.id))} className="font-semibold text-green-700 dark:text-green-400">Select all shown</button>
+                <button type="button" onClick={() => setSelectedDeviceIds([])} className="font-semibold text-gray-500 hover:text-gray-800 dark:hover:text-white">Clear selection</button>
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {deviceContacts.filter((c) => `${c.name} ${c.tel.join(" ")}`.toLowerCase().includes(deviceContactSearch.trim().toLowerCase())).map((contact) => {
+                const checked = selectedDeviceIds.includes(contact.id);
+                return <label key={contact.id} className="flex cursor-pointer items-center gap-3 border-b border-gray-100 px-4 py-3 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/60">
+                  <input type="checkbox" checked={checked} onChange={(e) => setSelectedDeviceIds((current) => e.target.checked ? [...current, contact.id] : current.filter((id) => id !== contact.id))} className="h-4 w-4 accent-green-600" />
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-50 font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-400">{getInitials(contact.name)}</span>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-gray-900 dark:text-white">{contact.name}</span><span className="block truncate text-xs text-gray-500 dark:text-gray-400">{contact.tel.length ? contact.tel.join(" · ") : "No phone number"}</span></span>
+                </label>;
+              })}
+            </div>
+            <footer className="flex gap-3 border-t border-gray-200 p-4 dark:border-gray-800 sm:p-5">
+              <button type="button" onClick={() => setShowDeviceContactPicker(false)} className="h-11 flex-1 rounded-xl border border-gray-200 font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-200">Cancel</button>
+              <button type="button" onClick={confirmSelectedDeviceContacts} disabled={!selectedDeviceIds.length || importing} className="h-11 flex-1 rounded-xl bg-green-600 font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50">{importing ? "Importing..." : `Import Selected (${selectedDeviceIds.length})`}</button>
+            </footer>
+          </section>
+        </div>
+      )}
+
+      <div className="w-full lg:pl-64">
+        {/* Header — Matched perfectly with Home.jsx */}
+        <header className="sticky top-0 z-30 border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+          <div className="flex min-h-16 w-full items-center justify-between gap-4 px-4 sm:px-6 lg:h-20 lg:px-8 mt-16 lg:mt-0">
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
+                Contacts
+              </h1>
+              <p className="mt-1 hidden text-sm text-gray-500 sm:block dark:text-gray-400">
+                Find friends on LandManage or invite them to join.
+              </p>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={importContacts}
+                disabled={importing || matching}
+                className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl bg-green-600 px-3 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:px-4"
+                title={
+                  pickerSupported
+                    ? "Import contacts from your phone"
+                    : "Contact import is not supported on this browser"
+                }
+              >
+                {importing ? (
+                  <FiLoader size={16} className="animate-spin" />
+                ) : (
+                  <FiDownloadCloud size={16} />
+                )}
+                <span className="hidden sm:inline">
+                  {importing ? "Importing..." : "Import Contacts"}
+                </span>
+              </button>
+
+              {allNumbers.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 sm:h-10 sm:px-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <FiX size={16} />
+                  <span className="hidden sm:inline">Clear</span>
+                </button>
+              )}
+            </div>
+          </div>
+          {selectionMode && (
+            <div className="flex items-center justify-between gap-3 border-t border-gray-200 bg-green-50 px-4 py-3 dark:border-gray-800 dark:bg-green-900/20 sm:px-6">
+              <span className="text-sm font-semibold text-green-800 dark:text-green-300">
+                {selectedContacts.length} selected
+              </span>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={toggleSelectAllContacts}
+                  className="rounded-xl border border-green-200 bg-white px-3 py-2 text-xs font-semibold text-green-700 transition hover:bg-green-100 dark:border-green-800 dark:bg-gray-800 dark:text-green-300 dark:hover:bg-green-900/40"
+                >
+                  {allNumbers.length > 0 && allNumbers.every((number) => selectedContacts.includes(number)) ? "Deselect All" : "Select All"}
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelSelection}
+                  className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={deleteSelectedContacts}
+                  disabled={!selectedContacts.length}
+                  className="flex items-center gap-2 rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <FiTrash2 size={14} />
+                  Delete Selected
+                </button>
+              </div>
+            </div>
+          )}
+        </header>
+
+        {showDeleteConfirm && (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/35 px-5 py-6 backdrop-blur-md"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setShowDeleteConfirm(false);
+            }}
+            role="presentation"
+          >
+            <div
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="delete-contacts-title"
+              aria-describedby="delete-contacts-description"
+              className="w-full max-w-sm overflow-hidden rounded-[28px] border border-white/60 bg-white/90 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.25)] backdrop-blur-2xl dark:border-gray-700/70 dark:bg-gray-900/90"
             >
-              <FiX size={14} />
-            </button>
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400">
+                <FiTrash2 size={25} />
+              </div>
+              <h2 id="delete-contacts-title" className="mt-4 text-lg font-bold tracking-tight text-gray-900 dark:text-white">
+                Delete selected contacts?
+              </h2>
+              <p id="delete-contacts-description" className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                Are you sure you want to delete {selectedContacts.length} selected {selectedContacts.length === 1 ? "contact" : "contacts"}? This action cannot be undone.
+              </p>
+              <div className="mt-6 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="h-11 rounded-xl border border-gray-200 bg-white/80 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 active:scale-[0.98] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteSelectedContacts}
+                  className="h-11 rounded-xl bg-red-600 text-sm font-semibold text-white shadow-lg shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98]"
+                >
+                  Yes, Delete
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
-        {showDeviceContactPicker && (
-          <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
-            <section className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl dark:bg-gray-900 sm:rounded-3xl">
-              <header className="flex items-center justify-between border-b border-gray-200 p-4 dark:border-gray-800 sm:p-5">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">Select contacts</h2>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{selectedDeviceIds.length} selected · {deviceContacts.length} contacts found</p>
+        {/* Main Content */}
+        <main className="mt-1 w-full p-4 sm:p-6 lg:mt-0 lg:p-8 pb-32">
+          <div className="mx-auto max-w-3xl space-y-5">
+            {error && (
+              <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
+                <div className="flex items-start gap-2">
+                  <FiAlertCircle size={16} className="mt-0.5 shrink-0" />
+                  <span>{error}</span>
                 </div>
-                <button type="button" onClick={() => setShowDeviceContactPicker(false)} className="rounded-full p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Close contact picker"><FiX size={20} /></button>
-              </header>
-              <div className="space-y-3 border-b border-gray-100 p-4 dark:border-gray-800">
-                <input value={deviceContactSearch} onChange={(e) => setDeviceContactSearch(e.target.value)} placeholder="Search contacts by name or number..." className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 outline-none focus:border-green-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <button type="button" onClick={() => setSelectedDeviceIds(deviceContacts.filter((c) => `${c.name} ${c.tel.join(" ")}`.toLowerCase().includes(deviceContactSearch.trim().toLowerCase())).map((c) => c.id))} className="font-semibold text-green-700 dark:text-green-400">Select all shown</button>
-                  <button type="button" onClick={() => setSelectedDeviceIds([])} className="font-semibold text-gray-500 hover:text-gray-800 dark:hover:text-white">Clear selection</button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setError("")}
+                  className="shrink-0"
+                >
+                  <FiX size={16} />
+                </button>
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                {deviceContacts.filter((c) => `${c.name} ${c.tel.join(" ")}`.toLowerCase().includes(deviceContactSearch.trim().toLowerCase())).map((contact) => {
-                  const checked = selectedDeviceIds.includes(contact.id);
-                  return <label key={contact.id} className="flex cursor-pointer items-center gap-3 border-b border-gray-100 px-4 py-3 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/60">
-                    <input type="checkbox" checked={checked} onChange={(e) => setSelectedDeviceIds((current) => e.target.checked ? [...current, contact.id] : current.filter((id) => id !== contact.id))} className="h-4 w-4 accent-green-600" />
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-50 font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-400">{getInitials(contact.name)}</span>
-                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-gray-900 dark:text-white">{contact.name}</span><span className="block truncate text-xs text-gray-500 dark:text-gray-400">{contact.tel.length ? contact.tel.join(" · ") : "No phone number"}</span></span>
-                  </label>;
-                })}
-              </div>
-              <footer className="flex gap-3 border-t border-gray-200 p-4 dark:border-gray-800 sm:p-5">
-                <button type="button" onClick={() => setShowDeviceContactPicker(false)} className="h-11 flex-1 rounded-xl border border-gray-200 font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-200">Cancel</button>
-                <button type="button" onClick={confirmSelectedDeviceContacts} disabled={!selectedDeviceIds.length || importing} className="h-11 flex-1 rounded-xl bg-green-600 font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50">{importing ? "Importing..." : `Import Selected (${selectedDeviceIds.length})`}</button>
-              </footer>
-            </section>
-          </div>
-        )}
+            )}
 
-        <div className="w-full lg:pl-64">
-          {/* Header — Matched perfectly with Home.jsx */}
-          <header className="sticky top-0 z-30 border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-            <div className="flex min-h-16 w-full items-center justify-between gap-4 px-4 sm:px-6 lg:h-20 lg:px-8 mt-16 lg:mt-0">
-              <div className="min-w-0">
-                <h1 className="truncate text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
-                  Contacts
-                </h1>
-                <p className="mt-1 hidden text-sm text-gray-500 sm:block dark:text-gray-400">
-                  Find friends on LandManage or invite them to join.
+            <div className="flex items-stretch gap-2">
+              <div className="relative flex-1">
+                <div className="flex h-12 w-full items-stretch overflow-visible rounded-2xl border border-gray-200 bg-white shadow-sm transition focus-within:border-green-500 focus-within:ring-4 focus-within:ring-green-100 dark:border-gray-700 dark:bg-gray-900 dark:focus-within:ring-green-900/40">
+                  <CountryDropdown
+                    selected={country}
+                    onSelect={setCountry}
+                    disabled={matching}
+                  />
+
+                  <div className="relative flex-1">
+                    <FiSearch
+                      size={18}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                    />
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          submitSearch();
+                        }
+                      }}
+                      placeholder="Search by name or phone number"
+                      className="h-full w-full rounded-r-2xl bg-transparent pl-11 pr-12 text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500"
+                    />
+
+                    {search.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={clearSearch}
+                        className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+                        aria-label="Clear search"
+                      >
+                        <FiX size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={submitSearch}
+                disabled={matching}
+                className="flex h-12 w-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-green-600 text-white shadow-sm transition hover:bg-green-700 disabled:opacity-60 sm:w-auto sm:px-5"
+                aria-label="Search"
+              >
+                {matching ? (
+                  <FiLoader size={18} className="animate-spin" />
+                ) : (
+                  <FiSearch size={18} />
+                )}
+                <span className="ml-2 hidden text-sm font-semibold sm:inline">
+                  {matching ? "Searching..." : "Search"}
+                </span>
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              Tap <span className="font-semibold">Import Contacts</span> to load
+              saved phone contacts, or search a name or phone number — if it's
+              not on LandManage yet, you'll get an Invite button.
+            </p>
+
+            {allNumbers.length > 0 && (
+              <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {filteredNumbers.length === 0 ? (
+                    <li className="p-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                      {appliedSearch
+                        ? `No contacts match "${appliedSearch}".`
+                        : "No contacts found."}
+                    </li>
+                  ) : (
+                    filteredNumbers.map((e164) => {
+                      const user = matchedUsers[e164];
+                      const entry = phoneEntryFor(e164);
+                      const displayName =
+                        user?.fullName || nameForNumber(e164) || null;
+                      const isMatched = Boolean(user?._id);
+                      const isSending = sendingInvite === e164;
+                      const isSelected = selectedContacts.includes(e164);
+
+                      return (
+                        <li
+                          key={e164}
+                          onPointerDown={(event) => startLongPress(e164, event)}
+                          onPointerUp={cancelLongPress}
+                          onPointerLeave={cancelLongPress}
+                          onPointerCancel={cancelLongPress}
+                          onContextMenu={(event) => event.preventDefault()}
+                          onClick={() => handleContactClick(e164, user, isMatched)}
+                          className={`flex cursor-pointer select-none items-center gap-3 p-4 transition ${
+                            isSelected
+                              ? "bg-green-50 dark:bg-green-900/20"
+                              : "hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                          }`}
+                        >
+                          {selectionMode && (
+                            <span
+                              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
+                                isSelected
+                                  ? "border-green-600 bg-green-600 text-white"
+                                  : "border-gray-300 dark:border-gray-600"
+                              }`}
+                              aria-label={isSelected ? "Selected" : "Not selected"}
+                            >
+                              {isSelected && <FiCheck size={14} />}
+                            </span>
+                          )}
+                          {isMatched && user?.avatar ? (
+                            <img
+                              src={user.avatar}
+                              alt={user.fullName}
+                              className="h-11 w-11 shrink-0 rounded-full object-cover"
+                            />
+                          ) : isMatched ? (
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                              {getInitials(user.fullName)}
+                            </div>
+                          ) : (
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                              {displayName ? (
+                                <span className="text-sm font-bold text-gray-600 dark:text-gray-300">
+                                  {getInitials(displayName)}
+                                </span>
+                              ) : (
+                                <FiPhone size={18} />
+                              )}
+                            </div>
+                          )}
+
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                              {displayName || e164}
+                            </p>
+                            <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-gray-500 dark:text-gray-400">
+                              {entry?.flag && (
+                                <span className="text-sm leading-none">
+                                  {entry.flag}
+                                </span>
+                              )}
+                              <FiPhone size={11} />
+                              {e164}
+                            </p>
+                            {!isMatched && (
+                              <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+                                Not on LandManage yet
+                              </p>
+                            )}
+                          </div>
+
+                          {isMatched ? (
+                            <button
+                              type="button"
+                              tabIndex={-1}
+                              className="pointer-events-none flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-green-600 px-4 text-xs font-semibold text-white transition hover:bg-green-700"
+                            >
+                              <FiMessageCircle size={14} />
+                              Message
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isSending}
+                              tabIndex={-1}
+                              className="pointer-events-none flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                            >
+                              {isSending ? (
+                                <>
+                                  <FiLoader
+                                    size={14}
+                                    className="animate-spin"
+                                  />
+                                  Sending...
+                                </>
+                              ) : (
+                                <>
+                                  <FiMail size={14} />
+                                  Invite
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+              </section>
+            )}
+
+            {allNumbers.length === 0 && (
+              <section className="overflow-hidden rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-10 text-center shadow-sm sm:py-14 dark:border-gray-700 dark:bg-gray-900">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-400">
+                  <FiUsers size={28} />
+                </div>
+
+                <h2 className="mt-4 text-base font-semibold text-gray-900 dark:text-white">
+                  No contacts yet
+                </h2>
+
+                <p className="mx-auto mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400">
+                  Tap <span className="font-semibold">Import Contacts</span> to
+                  load contacts saved on your phone, or search a name or phone
+                  number above to find someone on LandManage.
                 </p>
-              </div>
 
-              <div className="flex shrink-0 items-center gap-2">
+                {!pickerSupported && (
+                  <p className="mx-auto mt-3 max-w-md text-xs text-amber-600 dark:text-amber-400">
+                    Note: Bulk contact import is only supported in Chrome on
+                    Android. You can still search numbers manually on this
+                    browser.
+                  </p>
+                )}
+
                 <button
                   type="button"
                   onClick={importContacts}
                   disabled={importing || matching}
-                  className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl bg-green-600 px-3 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:px-4"
-                  title={
-                    pickerSupported
-                      ? "Import contacts from your phone"
-                      : "Contact import is not supported on this browser"
-                  }
+                  className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-green-600 px-5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {importing ? (
                     <FiLoader size={16} className="animate-spin" />
                   ) : (
                     <FiDownloadCloud size={16} />
                   )}
-                  <span className="hidden sm:inline">
-                    {importing ? "Importing..." : "Import Contacts"}
-                  </span>
+                  {importing ? "Importing..." : "Import Contacts"}
                 </button>
-
-                {allNumbers.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={clearAll}
-                    className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 sm:h-10 sm:px-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                  >
-                    <FiX size={16} />
-                    <span className="hidden sm:inline">Clear</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </header>
-
-          {/* Main Content */}
-          <main className="mt-1 w-full p-4 sm:p-6 lg:mt-0 lg:p-8 pb-32">
-            <div className="mx-auto max-w-3xl space-y-5">
-              {error && (
-                <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
-                  <div className="flex items-start gap-2">
-                    <FiAlertCircle size={16} className="mt-0.5 shrink-0" />
-                    <span>{error}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setError("")}
-                    className="shrink-0"
-                  >
-                    <FiX size={16} />
-                  </button>
-                </div>
-              )}
-
-              <div className="flex items-stretch gap-2">
-                <div className="relative flex-1">
-                  <div className="flex h-12 w-full items-stretch overflow-visible rounded-2xl border border-gray-200 bg-white shadow-sm transition focus-within:border-green-500 focus-within:ring-4 focus-within:ring-green-100 dark:border-gray-700 dark:bg-gray-900 dark:focus-within:ring-green-900/40">
-                    <CountryDropdown
-                      selected={country}
-                      onSelect={setCountry}
-                      disabled={matching}
-                    />
-
-                    <div className="relative flex-1">
-                      <FiSearch
-                        size={18}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
-                      />
-                      <input
-                        type="text"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            submitSearch();
-                          }
-                        }}
-                        placeholder="Search by name or phone number"
-                        className="h-full w-full rounded-r-2xl bg-transparent pl-11 pr-12 text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500"
-                      />
-
-                      {search.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={clearSearch}
-                          className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-                          aria-label="Clear search"
-                        >
-                          <FiX size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={submitSearch}
-                  disabled={matching}
-                  className="flex h-12 w-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-green-600 text-white shadow-sm transition hover:bg-green-700 disabled:opacity-60 sm:w-auto sm:px-5"
-                  aria-label="Search"
-                >
-                  {matching ? (
-                    <FiLoader size={18} className="animate-spin" />
-                  ) : (
-                    <FiSearch size={18} />
-                  )}
-                  <span className="ml-2 hidden text-sm font-semibold sm:inline">
-                    {matching ? "Searching..." : "Search"}
-                  </span>
-                </button>
-              </div>
-
-              <p className="text-xs text-gray-400 dark:text-gray-500">
-                Tap <span className="font-semibold">Import Contacts</span> to load
-                saved phone contacts, or search a name or phone number — if it's
-                not on LandManage yet, you'll get an Invite button.
-              </p>
-
-              {allNumbers.length > 0 && (
-                <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                  <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {filteredNumbers.length === 0 ? (
-                      <li className="p-10 text-center text-sm text-gray-500 dark:text-gray-400">
-                        {appliedSearch
-                          ? `No contacts match "${appliedSearch}".`
-                          : "No contacts found."}
-                      </li>
-                    ) : (
-                      filteredNumbers.map((e164) => {
-                        const user = matchedUsers[e164];
-                        const entry = phoneEntryFor(e164);
-                        const displayName =
-                          user?.fullName || nameForNumber(e164) || null;
-                        const isMatched = Boolean(user?._id);
-                        const isSending = sendingInvite === e164;
-
-                        return (
-                          <li key={e164} className="flex items-center gap-3 p-4">
-                            {isMatched && user?.avatar ? (
-                              <img
-                                src={user.avatar}
-                                alt={user.fullName}
-                                className="h-11 w-11 shrink-0 rounded-full object-cover"
-                              />
-                            ) : isMatched ? (
-                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-700 dark:bg-green-900/40 dark:text-green-400">
-                                {getInitials(user.fullName)}
-                              </div>
-                            ) : (
-                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                                {displayName ? (
-                                  <span className="text-sm font-bold text-gray-600 dark:text-gray-300">
-                                    {getInitials(displayName)}
-                                  </span>
-                                ) : (
-                                  <FiPhone size={18} />
-                                )}
-                              </div>
-                            )}
-
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
-                                {displayName || e164}
-                              </p>
-                              <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-gray-500 dark:text-gray-400">
-                                {entry?.flag && (
-                                  <span className="text-sm leading-none">
-                                    {entry.flag}
-                                  </span>
-                                )}
-                                <FiPhone size={11} />
-                                {e164}
-                              </p>
-                              {!isMatched && (
-                                <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
-                                  Not on LandManage yet
-                                </p>
-                              )}
-                            </div>
-
-                            {isMatched ? (
-                              <button
-                                type="button"
-                                onClick={() => startChat(user)}
-                                className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-green-600 px-4 text-xs font-semibold text-white transition hover:bg-green-700"
-                              >
-                                <FiMessageCircle size={14} />
-                                Message
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => inviteViaSMS(e164)}
-                                disabled={isSending}
-                                className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                              >
-                                {isSending ? (
-                                  <>
-                                    <FiLoader
-                                      size={14}
-                                      className="animate-spin"
-                                    />
-                                    Sending...
-                                  </>
-                                ) : (
-                                  <>
-                                    <FiMail size={14} />
-                                    Invite
-                                  </>
-                                )}
-                              </button>
-                            )}
-                          </li>
-                        );
-                      })
-                    )}
-                  </ul>
-                </section>
-              )}
-
-              {allNumbers.length === 0 && (
-                <section className="overflow-hidden rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-10 text-center shadow-sm sm:py-14 dark:border-gray-700 dark:bg-gray-900">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-400">
-                    <FiUsers size={28} />
-                  </div>
-
-                  <h2 className="mt-4 text-base font-semibold text-gray-900 dark:text-white">
-                    No contacts yet
-                  </h2>
-
-                  <p className="mx-auto mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400">
-                    Tap <span className="font-semibold">Import Contacts</span> to
-                    load contacts saved on your phone, or search a name or phone
-                    number above to find someone on LandManage.
-                  </p>
-
-                  {!pickerSupported && (
-                    <p className="mx-auto mt-3 max-w-md text-xs text-amber-600 dark:text-amber-400">
-                      Note: Bulk contact import is only supported in Chrome on
-                      Android. You can still search numbers manually on this
-                      browser.
-                    </p>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={importContacts}
-                    disabled={importing || matching}
-                    className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-green-600 px-5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {importing ? (
-                      <FiLoader size={16} className="animate-spin" />
-                    ) : (
-                      <FiDownloadCloud size={16} />
-                    )}
-                    {importing ? "Importing..." : "Import Contacts"}
-                  </button>
-                </section>
-              )}
-            </div>
-          </main>
-        </div>
+              </section>
+            )}
+          </div>
+        </main>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  export default Contacts;
+export default Contacts;

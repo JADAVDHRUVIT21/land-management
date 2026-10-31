@@ -1,7 +1,9 @@
-import { useCallback, useState } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+
+import { useCallback, useEffect, useState } from "react";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence } from "motion/react";
 import { FiLock, FiDelete } from "react-icons/fi";
+import { App as CapacitorApp } from "@capacitor/app";
 
 import CurtainTransition from "./components/CurtainTransition";
 
@@ -20,16 +22,79 @@ import HelpSupport from "./pages/HelpSupport";
 import ForgotPassword from "./pages/ForgotPassword";
 
 /* ================================================================== */
-/*  Authentication Check                                              */
+/* Authentication Check                                              */
 /* ================================================================== */
 
-// Change "token" below if your login component uses another localStorage key.
 const isAuthenticated = () => {
   return Boolean(localStorage.getItem("token"));
 };
 
 /* ================================================================== */
-/*  Protected Route                                                   */
+/* Android Back Button Handler                                        */
+/* ================================================================== */
+
+const AndroidBackButtonHandler = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    let backButtonListener;
+    let isActive = true;
+
+    const setupBackButton = async () => {
+      try {
+        backButtonListener = await CapacitorApp.addListener(
+          "backButton",
+          () => {
+            const historyIndex = window.history.state?.idx ?? 0;
+
+            // If previous navigation history exists, go back.
+            if (historyIndex > 0) {
+              navigate(-1);
+              return;
+            }
+
+            // If the user opened a page directly, send them home.
+            if (isAuthenticated() && location.pathname !== "/") {
+              navigate("/", { replace: true });
+              return;
+            }
+
+            // If not authenticated, return to login.
+            if (!isAuthenticated() && location.pathname !== "/login") {
+              navigate("/login", { replace: true });
+              return;
+            }
+
+            // Exit only when already at the starting page.
+            CapacitorApp.exitApp();
+          }
+        );
+
+        if (!isActive && backButtonListener) {
+          await backButtonListener.remove();
+        }
+      } catch (error) {
+        console.error("Android back button setup failed:", error);
+      }
+    };
+
+    setupBackButton();
+
+    return () => {
+      isActive = false;
+
+      if (backButtonListener) {
+        backButtonListener.remove();
+      }
+    };
+  }, [navigate, location.pathname]);
+
+  return null;
+};
+
+/* ================================================================== */
+/* Protected Route                                                    */
 /* ================================================================== */
 
 const ProtectedRoute = ({ children }) => {
@@ -41,7 +106,7 @@ const ProtectedRoute = ({ children }) => {
 };
 
 /* ================================================================== */
-/*  PIN Lock Screen Component                                         */
+/* PIN Lock Screen Component                                          */
 /* ================================================================== */
 
 const LockScreen = ({ onUnlock }) => {
@@ -111,15 +176,14 @@ const LockScreen = ({ onUnlock }) => {
         </p>
       </div>
 
-      {/* PIN Dots */}
       <div className="mb-8 flex gap-4">{renderDots()}</div>
 
-      {/* Error Message */}
       <div className="mb-8 h-6">
-        {error && <p className="text-sm font-medium text-red-500">{error}</p>}
+        {error && (
+          <p className="text-sm font-medium text-red-500">{error}</p>
+        )}
       </div>
 
-      {/* Number Pad */}
       <div className="grid w-full max-w-xs grid-cols-3 gap-4 px-6">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
           <button
@@ -155,7 +219,7 @@ const LockScreen = ({ onUnlock }) => {
 };
 
 /* ================================================================== */
-/*  Main App Component                                                */
+/* Main App Component                                                 */
 /* ================================================================== */
 
 function App() {
@@ -178,12 +242,11 @@ function App() {
 
   return (
     <>
-      {/* Application Routes */}
+      {!isLocked && !showSplash && <AndroidBackButtonHandler />}
+
       {!isLocked && (
         <Routes>
-          {/* ======================================================== */}
-          {/* Public Routes - No Login Required                       */}
-          {/* ======================================================== */}
+          {/* Public Routes */}
 
           <Route path="/login" element={<Login />} />
 
@@ -191,9 +254,7 @@ function App() {
 
           <Route path="/forgot-password" element={<ForgotPassword />} />
 
-          {/* ======================================================== */}
-          {/* Protected Routes - Login Required                       */}
-          {/* ======================================================== */}
+          {/* Protected Routes */}
 
           <Route
             path="/"
@@ -294,21 +355,25 @@ function App() {
             }
           />
 
-          {/* ======================================================== */}
-          {/* Unknown Routes                                           */}
-          {/* ======================================================== */}
+          {/* Unknown Routes */}
 
           <Route
             path="*"
             element={
-              <Navigate to={isAuthenticated() ? "/" : "/login"} replace />
+              <Navigate
+                to={isAuthenticated() ? "/" : "/login"}
+                replace
+              />
             }
           />
         </Routes>
       )}
 
       {/* PIN Lock Screen */}
-      {isLocked && !showSplash && <LockScreen onUnlock={handleUnlock} />}
+
+      {isLocked && !showSplash && (
+        <LockScreen onUnlock={handleUnlock} />
+      )}
 
       <AnimatePresence>
         {showSplash && (

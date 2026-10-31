@@ -10,6 +10,7 @@ import {
   FiUsers,
   FiActivity,
   FiArrowRight,
+  FiCalendar,
 } from "react-icons/fi";
 
 import Sidebar from "../components/Sidebar";
@@ -26,6 +27,8 @@ const Home = () => {
   });
 
   const [loadingStats, setLoadingStats] = useState(true);
+  const [recentLands, setRecentLands] = useState([]);
+  const [loadingRecentLands, setLoadingRecentLands] = useState(true);
 
   const firstName = user?.fullName?.split(" ")[0] || "User";
 
@@ -43,7 +46,18 @@ const Home = () => {
 
         const landsResponse = await api.get("/lands/my");
 
-        const lands = landsResponse.data?.lands || [];
+        const lands = Array.isArray(landsResponse.data)
+          ? landsResponse.data
+          : landsResponse.data?.lands || [];
+
+        // Newest land records first; show only the latest two on the dashboard.
+        const newestLands = [...lands].sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+          const dateB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+          return dateB - dateA;
+        });
+
+        setRecentLands(newestLands.slice(0, 2));
 
         const listedLands = lands.filter(
           (land) => land.isForSale === true,
@@ -56,6 +70,7 @@ const Home = () => {
         });
       } catch (error) {
         console.error("Dashboard Stats Error:", error);
+        setRecentLands([]);
         setStats({
           totalLands: 0,
           listedLands: 0,
@@ -63,6 +78,7 @@ const Home = () => {
         });
       } finally {
         setLoadingStats(false);
+        setLoadingRecentLands(false);
       }
     };
 
@@ -211,32 +227,99 @@ const Home = () => {
                   </h2>
 
                   <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
-                    Latest updates from your account
+Your two most recently added land records
                   </p>
                 </div>
 
                 <Link
-                  to="/activity"
+                  to="/my-lands"
                   className="shrink-0 text-sm font-medium text-green-600 transition hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
                 >
                   View All
                 </Link>
               </div>
 
-              {/* Empty Activity State */}
-              <div className="px-5 py-12 text-center sm:px-6 sm:py-16">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                  <FiActivity size={24} />
+              {/* Recently Added Lands */}
+              {loadingRecentLands ? (
+                <div className="space-y-3 px-5 py-6 sm:px-6">
+                  {[1, 2].map((item) => (
+                    <div
+                      key={item}
+                      className="h-20 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800"
+                    />
+                  ))}
                 </div>
+              ) : recentLands.length > 0 ? (
+                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {recentLands.map((land) => {
+                    const landTitle =
+                      land.landName ||
+                      land.name ||
+                      (land.surveyNumber
+                        ? `Survey No. ${land.surveyNumber}`
+                        : "Land property");
 
-                <h3 className="mt-4 font-medium text-gray-900 dark:text-white">
-                  No recent activity
-                </h3>
+                    const location = [
+                      land.village,
+                      land.district,
+                      land.state,
+                    ]
+                      .filter(Boolean)
+                      .join(", ");
 
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Your land activities will appear here.
-                </p>
-              </div>
+                    const addedDate = land.createdAt
+                      ? new Date(land.createdAt).toLocaleDateString()
+                      : "Recently added";
+
+                    return (
+                      <div
+                        key={land._id || land.id || land.surveyNumber}
+                        className="flex items-center justify-between gap-3 px-5 py-4 sm:px-6"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400">
+                            <FiHome size={20} />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                              {landTitle}
+                            </h3>
+                            <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
+                              {location || land.landType || "Land property"}
+                            </p>
+                            <p className="mt-1 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+                              <FiCalendar size={12} />
+                              Added {addedDate}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                          Added
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="px-5 py-10 text-center sm:px-6">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                    <FiActivity size={24} />
+                  </div>
+                  <h3 className="mt-4 font-medium text-gray-900 dark:text-white">
+                    No recent lands
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Lands you add will appear here.
+                  </p>
+                  <Link
+                    to="/lands/create"
+                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-700"
+                  >
+                    <FiPlus size={16} />
+                    Add New Land
+                  </Link>
+                </div>
+              )}
             </div>
           </section>
         </main>
